@@ -1,19 +1,26 @@
 export function normalizePhone(phone: string): string {
   if (!phone) return ''
   
+  // If it's a LID, don't normalize it, just trim
+  if (isLidFormat(phone)) {
+    return phone.trim()
+  }
+
   let digits = phone.replace(/\D/g, '')
   
+  // Remove leading zero
   if (digits.startsWith('0')) {
     digits = digits.substring(1)
   }
   
-  if (!digits.startsWith('55')) {
+  // Only add 55 if it looks like a DDD + number (10 or 11 digits)
+  // and doesn't already have it
+  if (!digits.startsWith('55') && (digits.length === 10 || digits.length === 11)) {
     digits = '55' + digits
   }
-  
-  if (digits.length === 14 && digits.startsWith('559')) {
-    digits = digits.slice(0, 4) + digits.slice(5)
-  }
+
+  // We are NOT forcing the 9th digit here anymore based on user feedback
+  // to avoid misrouting (e.g., DDD 51 identified as country 51/Peru).
   
   return digits
 }

@@ -26,17 +26,22 @@ export function LeadBrainComposer({ leadId, leadPhone, aiSuggestion, onMessageSe
 
       if (!phone) {
         // No phone number: save locally as operator message only
-        await fetch("/api/messages", {
+        const response = await fetch("/api/messages", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ leadId, content: value.trim(), source: "operator" }),
         })
+        if (!response.ok) throw new Error("Failed to save local message")
       } else {
-        await fetch("/api/whatsapp/send", {
+        const response = await fetch("/api/whatsapp/send", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ phone, message: value.trim(), leadId }),
         })
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}))
+          throw new Error(errorData.error || "Failed to send WhatsApp message")
+        }
       }
 
       setStatus("done")
@@ -63,7 +68,7 @@ export function LeadBrainComposer({ leadId, leadPhone, aiSuggestion, onMessageSe
 
   return (
     <>
-      <div className="flex-shrink-0 border-t border-[#d4af35]/10 bg-[#0a0907]/95 px-5 py-4">
+      <div className="flex-shrink-0 border-t border-[var(--orbit-glass-border)] bg-[var(--orbit-bg)]/95 px-5 py-4">
         <div className="max-w-3xl mx-auto space-y-2">
 
           {/* AI Suggestion ghost */}
@@ -82,15 +87,15 @@ export function LeadBrainComposer({ leadId, leadPhone, aiSuggestion, onMessageSe
           </AnimatePresence>
 
           {/* Composer bar */}
-          <div className={`flex items-center gap-2.5 bg-[#14120c] border rounded-xl px-3 py-2.5 transition-all duration-200 ${
-            value.trim() ? "border-[#d4af35]/30 shadow-[0_0_16px_rgba(212,175,53,0.07)]" : "border-white/8"
+          <div className={`flex items-center gap-2.5 bg-[var(--orbit-glass)] border rounded-xl px-3 py-2.5 transition-all duration-200 ${
+            value.trim() ? "border-[var(--orbit-glow)]/30 shadow-[0_0_16px_rgba(var(--orbit-glow-rgb),0.07)]" : "border-[var(--orbit-glass-border)]"
           }`}>
 
             {/* Manual Interaction button */}
             <button
               onClick={() => setShowModal(true)}
               title="Registrar interação manual"
-              className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-lg text-slate-500 hover:text-[#d4af35] hover:bg-[#d4af35]/10 border border-white/8 hover:border-[#d4af35]/30 transition-all"
+              className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-lg text-[var(--orbit-text-muted)] hover:text-[var(--orbit-glow)] hover:bg-[var(--orbit-glow)]/10 border border-[var(--orbit-glass-border)] hover:border-[var(--orbit-glow)]/30 transition-all"
             >
               <Plus className="w-3.5 h-3.5" />
             </button>
@@ -101,7 +106,7 @@ export function LeadBrainComposer({ leadId, leadPhone, aiSuggestion, onMessageSe
               onChange={(e) => setValue(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="O que você quer comunicar agora?"
-              className="flex-1 bg-transparent text-sm text-slate-200 placeholder-slate-600 outline-none resize-none leading-relaxed max-h-32 overflow-y-auto"
+              className="flex-1 bg-transparent text-sm text-[var(--orbit-text)] placeholder-[var(--orbit-text-muted)] outline-none resize-none leading-relaxed max-h-32 overflow-y-auto"
             />
 
             {/* Send button */}
@@ -114,8 +119,8 @@ export function LeadBrainComposer({ leadId, leadPhone, aiSuggestion, onMessageSe
                   : status === "error"
                   ? "bg-red-500/20 text-red-400 border border-red-500/30"
                   : value.trim()
-                  ? "bg-[#d4af35] text-[#0a0907] hover:brightness-110 shadow-[0_0_12px_rgba(212,175,53,0.3)]"
-                  : "text-slate-600 border border-white/8"
+                  ? "bg-[var(--orbit-glow)] text-[var(--orbit-bg)] hover:brightness-110 shadow-[0_0_12px_rgba(var(--orbit-glow-rgb),0.3)]"
+                  : "text-[var(--orbit-text-muted)] border border-[var(--orbit-glass-border)]"
               }`}
             >
               {status === "sending" ? (
@@ -128,7 +133,7 @@ export function LeadBrainComposer({ leadId, leadPhone, aiSuggestion, onMessageSe
             </button>
           </div>
 
-          <p className="text-[9px] text-center text-slate-700 tracking-widest uppercase">
+          <p className="text-[9px] text-center text-[var(--orbit-text-muted)] tracking-widest uppercase">
             {leadPhone ? "Enviando via WhatsApp · Z-API" : "Sem número · gravando internamente"}
           </p>
         </div>

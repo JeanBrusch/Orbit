@@ -537,8 +537,8 @@ export function LeadFocusPanel({
     setSendError(null);
     const messageContent = inputValue.trim();
 
-    // Determine what identifier to use: phone or LID
-    const sendTo = lead?.phone || (lead?.lid ? `${lead.lid}@lid` : null);
+    // Determine what identifier to use: LID (preferred) or phone
+    const sendTo = (lead?.lid ? `${lead.lid}@lid` : null) || lead?.phone;
 
     if (!sendTo) {
       setSendError("Sem telefone ou LID para enviar");
@@ -640,8 +640,8 @@ export function LeadFocusPanel({
       const propertyLink = linkedProperty.url || (linkedProperty as any).source_link || `Imóvel: ${linkedProperty.name}`;
       const messageText = `${linkedProperty.name}\n${propertyLink}`;
 
-      // Use phone or LID
-      const sendTo = lead.phone || (lead.lid ? `${lead.lid}@lid` : null);
+      // Use LID (preferred) or phone
+      const sendTo = (lead.lid ? `${lead.lid}@lid` : null) || lead.phone;
 
       if (!sendTo) {
         setSendError("Sem telefone ou LID para enviar");

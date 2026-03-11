@@ -55,7 +55,7 @@ export function WhatsAppInbox() {
         name: l.name,
         phone: l.phone,
         photo_url: l.photo_url,
-        last_message: l.messages?.sort((a:any, b:any) => 
+        last_message: l.messages?.sort((a: any, b: any) =>
           new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
         )[0]?.content || "Nova conversa",
         created_at: l.created_at
@@ -105,7 +105,7 @@ export function WhatsAppInbox() {
       // Se aprovado, disparamos a análise inicial via API (opcional se o webhook já tratar isso no futuro, 
       // mas aqui garantimos que a aprovação "acorda" a IA para as mensagens retroativas)
       if (newState === 'approved') {
-        fetch(`/api/leads/${leadId}/analyze`, { method: 'POST' }).catch(() => {});
+        fetch(`/api/leads/${leadId}/analyze`, { method: 'POST' }).catch(() => { });
       }
 
       setPendingLeads(prev => prev.filter(p => p.id !== leadId));
@@ -118,9 +118,8 @@ export function WhatsAppInbox() {
   };
 
   return (
-    <Sheet open={isOpen} onOpenChange={setIsOpen}>
       <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative hover:bg-white/10 text-white/70 hover:text-white">
+        <Button variant="ghost" size="icon" className="relative hover:bg-[var(--orbit-glow)]/10 text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)]">
           <Inbox className="h-5 w-5" />
           {pendingLeads.length > 0 && (
             <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[10px] font-bold text-white shadow-lg animate-pulse">
@@ -129,13 +128,13 @@ export function WhatsAppInbox() {
           )}
         </Button>
       </SheetTrigger>
-      <SheetContent side="right" className="w-[400px] border-white/10 bg-[#0A0A0B]/95 backdrop-blur-xl text-white">
-        <SheetHeader className="pb-6 border-b border-white/5">
+      <SheetContent side="right" className="w-[400px] border-[var(--orbit-glass-border)] bg-[var(--orbit-bg)]/95 backdrop-blur-xl text-[var(--orbit-text)]">
+        <SheetHeader className="pb-6 border-b border-[var(--orbit-glass-border)]">
           <SheetTitle className="text-xl font-light tracking-tight flex items-center gap-2">
-            <Inbox className="h-5 w-5 text-indigo-400" />
+            <Inbox className="h-5 w-5 text-[var(--orbit-glow)]" />
             Triagem WhatsApp
           </SheetTitle>
-          <SheetDescription className="text-white/40 text-xs">
+          <SheetDescription className="text-[var(--orbit-text-muted)] text-xs">
             A IA está silenciada para estes contatos. Aprove-os para integrá-los ao Orbit.
           </SheetDescription>
         </SheetHeader>
@@ -143,7 +142,7 @@ export function WhatsAppInbox() {
         <ScrollArea className="h-[calc(100vh-180px)] mt-4 pr-4">
           <div className="space-y-4">
             {loading && (
-              <div className="flex flex-col items-center justify-center py-20 gap-3 text-white/20">
+              <div className="flex flex-col items-center justify-center py-20 gap-3 text-[var(--orbit-text-muted)]">
                 <Loader2 className="h-6 w-6 animate-spin" />
                 <span className="text-xs uppercase tracking-widest">Sincronizando...</span>
               </div>
@@ -151,12 +150,12 @@ export function WhatsAppInbox() {
 
             {!loading && pendingLeads.length === 0 && (
               <div className="flex flex-col items-center justify-center py-20 gap-4 text-center opacity-30">
-                <div className="p-4 rounded-full bg-white/5">
-                  <MessageSquare className="h-8 w-8" />
+                <div className="p-4 rounded-full bg-[var(--orbit-glow)]/5">
+                  <MessageSquare className="h-8 w-8 text-[var(--orbit-text-muted)]" />
                 </div>
                 <div className="space-y-1">
-                  <p className="text-sm font-medium">Nenhuma mensagem nova</p>
-                  <p className="text-xs">Tudo limpo no Inbox.</p>
+                  <p className="text-sm font-medium text-[var(--orbit-text)]">Nenhuma mensagem nova</p>
+                  <p className="text-xs text-[var(--orbit-text-muted)]">Tudo limpo no Inbox.</p>
                 </div>
               </div>
             )}
@@ -164,7 +163,7 @@ export function WhatsAppInbox() {
             {pendingLeads.map((lead) => (
               <div 
                 key={lead.id} 
-                className="group relative p-4 rounded-xl border border-white/5 bg-white/[0.02] hover:bg-white/[0.05] transition-all duration-300"
+                className="group relative p-4 rounded-xl border border-[var(--orbit-glass-border)] bg-[var(--orbit-glass)] hover:bg-[var(--orbit-glow)]/5 transition-all duration-300"
               >
                 <div className="flex gap-4">
                   <div className="h-10 w-10 rounded-full bg-indigo-500/20 flex items-center justify-center border border-indigo-500/30 overflow-hidden shrink-0">
@@ -179,12 +178,12 @@ export function WhatsAppInbox() {
                   
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-1">
-                      <h4 className="text-sm font-medium truncate pr-2">{lead.name}</h4>
-                      <span className="text-[10px] text-white/30 whitespace-nowrap">
+                      <h4 className="text-sm font-medium truncate pr-2 text-[var(--orbit-text)]">{lead.name}</h4>
+                      <span className="text-[10px] text-[var(--orbit-text-muted)] whitespace-nowrap">
                         {new Date(lead.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </div>
-                    <p className="text-xs text-white/50 line-clamp-2 leading-relaxed mb-4 italic">
+                    <p className="text-xs text-[var(--orbit-text-muted)] line-clamp-2 leading-relaxed mb-4 italic">
                       "{lead.last_message}"
                     </p>
                     
@@ -202,7 +201,7 @@ export function WhatsAppInbox() {
                         size="sm" 
                         variant="ghost" 
                         onClick={() => handleAction(lead.id, 'ignored')}
-                        className="h-8 flex-1 bg-white/5 hover:bg-white/10 text-white/40 hover:text-white/60 border border-white/5 text-[11px] gap-1.5"
+                        className="h-8 flex-1 bg-[var(--orbit-glass-border)] hover:bg-[var(--orbit-glow)]/10 text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)] border border-[var(--orbit-glass-border)] text-[11px] gap-1.5"
                       >
                         <ShieldAlert className="h-3 w-3" />
                         Ignorar
@@ -224,6 +223,6 @@ export function WhatsAppInbox() {
           </div>
         </ScrollArea>
       </SheetContent>
-    </Sheet>
+    </Sheet >
   );
 }

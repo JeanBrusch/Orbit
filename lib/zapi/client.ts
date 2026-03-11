@@ -71,17 +71,18 @@ export async function getStatus(): Promise<ZAPIStatus> {
 }
 
 export async function sendMessage(phone: string, message: string): Promise<ZAPISendResult> {
-  const cleanPhone = phone.replace(/\D/g, '')
+  const isLid = phone.includes('@lid')
+  const cleanPhone = isLid ? phone.trim() : phone.replace(/\D/g, '')
+  
   const { securityToken } = getConfig()
   
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
   if (securityToken) {
     headers['Client-Token'] = securityToken
-    console.log('Z-API Client-Token length:', securityToken.length, 'starts with:', securityToken.substring(0, 10))
   }
   
   const url = `${getBaseUrl()}/send-text`
-  console.log('Z-API sending to:', url)
+  console.log('Z-API sending to:', url, 'identifier:', cleanPhone)
   
   const response = await fetch(url, {
     method: 'POST',
