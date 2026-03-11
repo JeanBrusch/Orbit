@@ -889,7 +889,7 @@ export function LeadNodes({
 
                     {/* Avatar — single ring, colored by cognitive state or whatsapp green */}
                     <div
-                      className={`flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border-2 bg-[var(--orbit-glass)] text-xs font-light text-[var(--orbit-text)] backdrop-blur-sm transition-all duration-500 ${
+                      className={`flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border-2 bg-[var(--orbit-glass)] text-[10px] font-light text-[var(--orbit-text)] backdrop-blur-sm transition-all duration-500 ${
                         isHighlighted && isResponding
                           ? "animate-lead-highlight scale-110 border-[var(--orbit-glow)]"
                           : node.isNew
@@ -924,7 +924,7 @@ export function LeadNodes({
 
               {/* Name label */}
               <div
-                className={`mt-1 flex flex-col items-center text-center text-xs font-light leading-tight backdrop-blur-sm transition-all duration-[240ms] ${isHighlighted && isResponding
+                className={`mt-1 flex flex-col items-center text-center text-[10px] font-light leading-tight backdrop-blur-sm transition-all duration-[240ms] ${isHighlighted && isResponding
                     ? "text-[var(--orbit-glow)]"
                     : node.cycleStage === "encerrado" ||
                       node.cycleStage === "sem_ciclo"
