@@ -11,7 +11,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { useTheme } from "next-themes"
 import { 
   Compass, Search as SearchIcon, Filter, LayoutGrid, Clock, Bell, 
-  MoreHorizontal, Heart, Share2, BrainCircuit, TrendingUp, X, MapPin, Sparkles, ArrowRight, Loader2, Plus, Link as LinkIcon
+  MoreHorizontal, Heart, Share2, BrainCircuit, TrendingUp, X, MapPin, Sparkles, ArrowRight, Loader2, Plus, Link as LinkIcon, Trash2
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -90,6 +90,7 @@ export default function AtlasPage() {
   const [placingPropertyId, setPlacingPropertyId] = useState<string | null>(null)
   const [pendingCoords, setPendingCoords] = useState<{ lat: number; lng: number } | null>(null)
   const [isSaving, setIsSaving] = useState(false)
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 
   // Matches State & Cache
   const [matches, setMatches] = useState<MatchResult[]>([])
@@ -136,6 +137,34 @@ export default function AtlasPage() {
         setIsMatching(false)
       })
   }, [selectedProperty?.id, matchCache])
+  
+  const handleDeleteProperty = useCallback(async (id: string) => {
+    if (confirmDeleteId !== id) {
+      setConfirmDeleteId(id);
+      return;
+    }
+
+    console.log('[Atlas] Attempting to delete property:', id);
+    
+    try {
+      toast.loading("Excluindo imóvel...", { id: "delete-prop" });
+      const res = await fetch(`/api/properties/${id}`, { method: "DELETE" });
+      
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Delete failed");
+      }
+      
+      toast.success("Imóvel excluído com sucesso", { id: "delete-prop" });
+      setSelectedProperty(null);
+      setConfirmDeleteId(null);
+      await refetch();
+    } catch (err: any) {
+      console.error('[Atlas] Delete error:', err);
+      toast.error(`Erro ao excluir: ${err.message}`, { id: "delete-prop" });
+      setConfirmDeleteId(null);
+    }
+  }, [confirmDeleteId, refetch]);
 
   // Map Click (for placing property coordinates)
   const handleMapClick = useCallback((coords: { lat: number; lng: number }) => {
@@ -662,9 +691,40 @@ export default function AtlasPage() {
                 <X className="w-4 h-4" />
               </button>
 
-              <button className="absolute top-4 right-4 size-8 bg-black/40 backdrop-blur-md rounded-full flex items-center justify-center text-white border border-[#d4af35]/30 hover:bg-[#d4af35]/20 transition-all z-10">
-                <Heart className="w-4 h-4" />
-              </button>
+              <div className="absolute top-4 right-4 flex items-center gap-2 z-10">
+                {confirmDeleteId === selectedProperty.id ? (
+                  <motion.div 
+                    initial={{ scale: 0.9, opacity: 0 }} 
+                    animate={{ scale: 1, opacity: 1 }}
+                    className="flex items-center gap-1 bg-red-600 rounded-full px-2 py-1 shadow-lg border border-red-400/30"
+                  >
+                    <span className="text-[9px] font-bold text-white px-1">Excluir?</span>
+                    <button 
+                      onClick={() => handleDeleteProperty(selectedProperty.id)}
+                      className="size-6 bg-white/20 rounded-full flex items-center justify-center text-white hover:bg-white/40 transition-all"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                    <button 
+                      onClick={() => setConfirmDeleteId(null)}
+                      className="size-6 bg-black/20 rounded-full flex items-center justify-center text-white hover:bg-black/40 transition-all"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </motion.div>
+                ) : (
+                  <button 
+                    onClick={() => handleDeleteProperty(selectedProperty.id)}
+                    className="size-8 bg-red-500/20 backdrop-blur-md rounded-full flex items-center justify-center text-red-400 border border-red-500/30 hover:bg-red-500/40 transition-all"
+                    title="Excluir Imóvel"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
+                <button className="size-8 bg-black/40 backdrop-blur-md rounded-full flex items-center justify-center text-white border border-[#d4af35]/30 hover:bg-[#d4af35]/20 transition-all">
+                  <Heart className="w-4 h-4" />
+                </button>
+              </div>
 
               <div className="absolute bottom-4 left-5 right-5">
                 <h2 className="text-lg font-bold leading-tight">{selectedProperty.title || selectedProperty.internal_name}</h2>

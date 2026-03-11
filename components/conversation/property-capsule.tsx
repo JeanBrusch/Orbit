@@ -50,7 +50,7 @@ export function PropertyCapsuleItem({ property }: { property: PropertyCapsuleDat
         >
           {/* Image or icon */}
           <div className="relative h-32 bg-[oklch(0.12_0.01_250)] overflow-hidden">
-            {property.coverImage ? (
+            {property.coverImage && property.coverImage !== "null" ? (
               <img
                 src={property.coverImage}
                 alt={property.name}

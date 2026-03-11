@@ -1,10 +1,11 @@
 "use client"
 
-import { useState, useCallback, useEffect, useRef } from "react"
-import { X, MapPin, Check, Building2, Link2, Loader2, AlertCircle, ExternalLink, Search, Stars, ArrowRight } from "lucide-react"
+import { useState, useCallback, useEffect, useRef, useMemo } from "react"
+import { X, MapPin, Check, Building2, Link2, Loader2, AlertCircle, ExternalLink, Search, Stars, ArrowRight, Trash2, Share2, Users } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { type Property, type IngestionStatus, type LocationAccuracy, useOrbitContext } from "./orbit-context"
 import { useSupabaseProperties } from "@/hooks/use-supabase-data"
+import { getSupabase } from "@/lib/supabase"
 import dynamic from "next/dynamic"
 import type { MapProperty } from "./atlas/MapAtlas"
 
@@ -35,9 +36,15 @@ export function AtlasFocusSurface() {
   const [filterMaxValue, setFilterMaxValue] = useState<string>('')
   const [filterLocation, setFilterLocation] = useState<string>('')
 
-  // Reactivation Engine (Golden Matches)
   const [matches, setMatches] = useState<any[]>([])
   const [isMatching, setIsMatching] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  
+  // Lead Search for manual sharing
+  const [leadSearchQuery, setLeadSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<any[]>([])
+  const [isSearchingLeads, setIsSearchingLeads] = useState(false)
+  const [showLeadSearch, setShowLeadSearch] = useState(false)
   
   const { 
     isAtlasMapActive, 
@@ -54,7 +61,7 @@ export function AtlasFocusSurface() {
   }, [isAtlasMapActive, refetchProperties])
   
   // Convert properties format
-  const allPropertiesRaw: Property[] = supabaseProperties.map(prop => ({
+  const allPropertiesRaw: Property[] = useMemo(() => supabaseProperties.map(prop => ({
     id: prop.id,
     name: prop.title || prop.internal_name || 'Imóvel sem nome',
     locationText: prop.location_text,
@@ -67,17 +74,17 @@ export function AtlasFocusSurface() {
     coverImage: prop.cover_image,
     lat: prop.lat,
     lng: prop.lng,
-  }))
+  })), [supabaseProperties])
 
   const minValueNum = filterMinValue ? parseInt(filterMinValue.replace(/\D/g, ''), 10) || 0 : 0
   const maxValueNum = filterMaxValue ? parseInt(filterMaxValue.replace(/\D/g, ''), 10) || Infinity : Infinity
   const locationSearchLower = filterLocation.toLowerCase().trim()
 
-  const allProperties = allPropertiesRaw.filter(prop => {
+  const allProperties = useMemo(() => allPropertiesRaw.filter(prop => {
     const valueOk = prop.value === null || (prop.value >= minValueNum && prop.value <= maxValueNum)
     const locationOk = !locationSearchLower || (prop.locationText?.toLowerCase().includes(locationSearchLower) ?? false)
     return valueOk && locationOk
-  })
+  }), [allPropertiesRaw, minValueNum, maxValueNum, locationSearchLower])
 
   // Golden Match API Fetch
   useEffect(() => {
@@ -137,6 +144,84 @@ export function AtlasFocusSurface() {
 
   if (!isAtlasMapActive) return null
 
+  const handleDeleteProperty = async () => {
+    if (!selectedProperty || !window.confirm(`Deseja realmente excluir "${selectedProperty.name}"?`)) return
+    
+    setIsDeleting(true)
+    try {
+      const res = await fetch(`/api/properties/${selectedProperty.id}`, { method: 'DELETE' })
+      if (res.ok) {
+        setSelectedProperty(null)
+        refetchProperties()
+        alert(`Imóvel "${selectedProperty.name}" excluído com sucesso.`)
+      } else {
+        const err = await res.json()
+        alert(`Erro ao excluir: ${err.error || 'Erro desconhecido'}`)
+      }
+    } catch (err) {
+      console.error("Delete error", err)
+      alert("Erro ao excluir imóvel.")
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  // Lead Search Logic
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(async () => {
+      if (leadSearchQuery.length < 2) {
+        setSearchResults([])
+        return
+      }
+      setIsSearchingLeads(true)
+      try {
+        const supabase = getSupabase()
+        const { data, error } = await supabase
+          .from('leads')
+          .select('id, name, photo_url, orbit_stage')
+          .ilike('name', `%${leadSearchQuery}%`)
+          .limit(5)
+        
+        if (!error) setSearchResults(data || [])
+      } catch (err) {
+        console.error("Search error", err)
+      } finally {
+        setIsSearchingLeads(false)
+      }
+    }, 300)
+
+    return () => clearTimeout(delayDebounceFn)
+  }, [leadSearchQuery])
+
+  const handleSendToLead = async (lead: any) => {
+    if (!selectedProperty) return
+    
+    try {
+      const res = await fetch('/api/property-interactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          leadId: lead.id,
+          propertyId: selectedProperty.id,
+          interaction_type: 'sent',
+          source: 'atlas'
+        })
+      })
+      
+      if (res.ok) {
+        alert(`Imóvel enviado com sucesso para ${lead.name}`)
+        setShowLeadSearch(false)
+        setLeadSearchQuery('')
+      } else {
+        const errorData = await res.json().catch(() => ({}))
+        alert(`Erro ao registrar envio: ${errorData.error || 'Erro desconhecido'}`)
+      }
+    } catch (err) {
+      console.error("Send error", err)
+    }
+  }
+
+
   const leadName = atlasInvokeContext?.leadName
 
   return (
@@ -194,7 +279,7 @@ export function AtlasFocusSurface() {
           {/* O MAPA REAL - GL */}
           <div className="flex-1 bg-zinc-900 overflow-hidden relative">
             <MapAtlas
-              properties={supabaseProperties.map((prop): MapProperty => ({
+              properties={useMemo(() => supabaseProperties.map((prop): MapProperty => ({
                 id: prop.id,
                 name: prop.title || prop.internal_name || 'Imóvel sem nome',
                 lat: prop.lat,
@@ -203,12 +288,12 @@ export function AtlasFocusSurface() {
                 locationText: prop.location_text,
                 coverImage: prop.cover_image,
                 url: prop.source_link,
-              }))}
+              })), [supabaseProperties])}
               selectedPropertyId={selectedProperty?.id}
-              onPropertyClick={(mapProp) => {
+              onPropertyClick={useCallback((mapProp: MapProperty) => {
                 const fullProp = allProperties.find(p => p.id === mapProp.id)
                 if (fullProp) setSelectedProperty(fullProp)
-              }}
+              }, [allProperties])}
               className="absolute inset-0"
             />
           </div>
@@ -228,7 +313,7 @@ export function AtlasFocusSurface() {
                 
                 {/* Visual Header do Imóvel Selecionado */}
                 <div className="relative h-48 shrink-0 border-b border-white/5 bg-black">
-                  {selectedProperty.coverImage ? (
+                  {selectedProperty.coverImage && selectedProperty.coverImage !== "null" ? (
                     <img 
                       src={selectedProperty.coverImage} 
                       className="absolute inset-0 w-full h-full object-cover opacity-60"
@@ -250,9 +335,22 @@ export function AtlasFocusSurface() {
                       <p className="text-xs text-zinc-400 font-light flex items-center gap-1">
                         <MapPin className="w-3 h-3" /> {selectedProperty.locationText}
                       </p>
-                      <span className="text-sm font-semibold text-indigo-300">
-                        {formatValue(selectedProperty.value)}
-                      </span>
+                      <div className="flex items-center gap-3">
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteProperty();
+                          }}
+                          disabled={isDeleting}
+                          className="p-1.5 rounded-lg bg-white/5 hover:bg-red-500/20 text-zinc-400 hover:text-red-400 transition-colors"
+                          title="Excluir Imóvel"
+                        >
+                          {isDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                        </button>
+                        <span className="text-sm font-semibold text-indigo-300">
+                          {formatValue(selectedProperty.value)}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -280,11 +378,11 @@ export function AtlasFocusSurface() {
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: i * 0.1 }}
-                          className="group relative p-3 rounded-xl bg-white/5 border border-white/10 hover:border-indigo-500/50 hover:bg-white/10 transition-colors cursor-pointer overflow-hidden"
+                          className="group relative p-3 rounded-xl bg-white/5 border border-white/10 hover:border-indigo-500/50 hover:bg-white/10 transition-colors overflow-hidden"
                         >
                           <div className="flex items-center gap-3 relative z-10">
                             <div className="w-10 h-10 rounded-full border border-white/20 bg-zinc-800 overflow-hidden shrink-0">
-                              {match.photo_url ? (
+                              {match.photo_url && match.photo_url !== "null" ? (
                                 <img src={match.photo_url} className="w-full h-full object-cover" alt={match.name} />
                               ) : (
                                 <div className="w-full h-full flex items-center justify-center text-zinc-500 uppercase text-xs font-bold">
@@ -305,12 +403,6 @@ export function AtlasFocusSurface() {
                                 {(match.similarity * 100).toFixed(0)}%
                               </span>
                             </div>
-                          </div>
-                          {/* Botão sutil para ação rápída (Send) */}
-                          <div className="absolute right-3 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
-                             <button className="w-8 h-8 rounded-full bg-indigo-500 text-white flex items-center justify-center hover:bg-indigo-400 shadow-lg" title="Enviar Imóvel">
-                                <ArrowRight className="w-3.5 h-3.5" />
-                             </button>
                           </div>
                           {/* Fundo de afinidade sutil */}
                           <div className="absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />

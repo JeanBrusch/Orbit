@@ -39,6 +39,17 @@ export async function DELETE(
     
     const propertyName = property.title || property.internal_name || 'Imóvel'
 
+    // 1. Delete property interactions
+    const { error: deleteInteractionsError } = await supabase
+      .from('property_interactions')
+      .delete()
+      .eq('property_id', id)
+
+    if (deleteInteractionsError) {
+      console.error('Error deleting property interactions:', deleteInteractionsError)
+    }
+
+    // 2. Delete capsule items
     const { error: deleteItemsError } = await supabase
       .from('capsule_items')
       .delete()
@@ -48,6 +59,7 @@ export async function DELETE(
       console.error('Error deleting capsule items:', deleteItemsError)
     }
 
+    // 3. Delete embeddings
     const { error: deleteEmbeddingsError } = await supabase
       .from('capsule_embeddings')
       .delete()

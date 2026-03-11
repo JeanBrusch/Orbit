@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, useState, useCallback, useRef, type ReactNode } from "react"
+import { createContext, useContext, useState, useCallback, useRef, useMemo, type ReactNode } from "react"
 import { getSupabase } from "@/lib/supabase"
 
 // Location visibility for public views
@@ -407,14 +407,21 @@ export function OrbitProvider({ children }: { children: ReactNode }) {
 
   // Get or create lead state on demand
   const getOrCreateLeadState = useCallback((leadId: string): LeadState => {
+    // Note: This still needs to read leadStates to return the value.
+    // To make this stable, we'd need a Ref or shift the logic.
+    // However, calling it inside render is common, so it's tricky.
+    // For now, let's keep it but recognize it's a bottleneck.
     const existing = leadStates[leadId]
     if (existing) return existing
     
     const newState = createDefaultLeadState(leadId)
-    setLeadStates((prev) => ({
-      ...prev,
-      [leadId]: newState,
-    }))
+    // We update async to avoid state-update-during-render warning
+    setTimeout(() => {
+      setLeadStates((prev) => {
+        if (prev[leadId]) return prev
+        return { ...prev, [leadId]: newState }
+      })
+    }, 0)
     return newState
   }, [leadStates])
 
@@ -1107,27 +1114,102 @@ export function OrbitProvider({ children }: { children: ReactNode }) {
   }, [leadStates])
 
   const setFollowUpReminder = useCallback((leadId: string, date: Date) => {
-    updateLeadState(leadId, {
-      memory: {
-        ...leadStates[leadId]?.memory,
-        followUp: {
-          date: date.toISOString(),
-          isActive: true
+    setLeadStates((prev) => {
+      const state = prev[leadId]
+      if (!state) return prev
+      return {
+        ...prev,
+        [leadId]: {
+          ...state,
+          memory: {
+            ...state.memory,
+            followUp: {
+              date: date.toISOString(),
+              isActive: true
+            }
+          }
         }
       }
     })
-  }, [leadStates, updateLeadState])
+  }, [])
 
   const clearFollowUpReminder = useCallback((leadId: string) => {
-    updateLeadState(leadId, {
-      memory: {
-        ...leadStates[leadId]?.memory,
-        followUp: null
+    setLeadStates((prev) => {
+      const state = prev[leadId]
+      if (!state) return prev
+      return {
+        ...prev,
+        [leadId]: {
+          ...state,
+          memory: {
+            ...state.memory,
+            followUp: null
+          }
+        }
       }
     })
-  }, [leadStates, updateLeadState])
+  }, [])
 
-  const value: OrbitContextValue = {
+  const value = useMemo(() => ({
+    // Lead Focus Panel
+    selectedLeadId,
+    isLeadPanelOpen,
+    openLeadPanel,
+    closeLeadPanel,
+
+    // Lead States
+    leadStates,
+    updateLeadState,
+    initializeLeadStates,
+    getOrCreateLeadState,
+
+    // Visual States
+    setLeadVisualState,
+    getLeadVisualState,
+
+    // Property linking
+    linkPropertyToLead,
+    getLinkedProperty,
+
+    // Operational Memory
+    updateLeadNotes,
+    logContactOutcome,
+    setFollowUpReminder,
+    clearFollowUpReminder,
+    getLeadsWithActiveFollowUp,
+
+    // System Mode
+    isAtlasMapActive,
+    isCapsuleActive,
+    isFocusModeActive,
+    atlasInvokeContext,
+    invokeAtlasMap,
+    closeAtlasMap,
+    emergeCapsule,
+    toggleFocusMode,
+
+    // Admin
+    addLead,
+    newLeads,
+    atlasProperties,
+
+    // Ingestion
+    ingestedProperties,
+    ingestPropertyFromUrl,
+    updateIngestedProperty,
+    getIngestedProperty,
+    propertyEvents,
+
+    // Location
+    updatePropertyLocation,
+    locationUndoState,
+    undoLocationChange,
+
+    // Orbit View
+    orbitView,
+    activateOrbitView,
+    deactivateOrbitView,
+  }), [
     selectedLeadId,
     isLeadPanelOpen,
     openLeadPanel,
@@ -1145,7 +1227,6 @@ export function OrbitProvider({ children }: { children: ReactNode }) {
     setFollowUpReminder,
     clearFollowUpReminder,
     getLeadsWithActiveFollowUp,
-
     isAtlasMapActive,
     isCapsuleActive,
     isFocusModeActive,
@@ -1157,21 +1238,22 @@ export function OrbitProvider({ children }: { children: ReactNode }) {
     addLead,
     newLeads,
     atlasProperties,
-    // Property Ingestion Pipeline
     ingestedProperties,
     ingestPropertyFromUrl,
     updateIngestedProperty,
     getIngestedProperty,
     propertyEvents,
-    // Property Location Management
     updatePropertyLocation,
     locationUndoState,
     undoLocationChange,
-    // ORBIT VIEW
     orbitView,
     activateOrbitView,
     deactivateOrbitView,
-  }
+  ])
 
-  return <OrbitContext.Provider value={value}>{children}</OrbitContext.Provider>
+  return (
+    <OrbitContext.Provider value={value}>
+      {children}
+    </OrbitContext.Provider>
+  )
 }

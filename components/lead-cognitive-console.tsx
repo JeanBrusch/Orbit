@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useEffect, useCallback } from "react";
+import { useRef, useState, useEffect, useCallback, memo, useMemo } from "react";
 import {
   X, ArrowUp, Play, Loader2, Check, Brain,
   Mic, Zap, Star, Building2, ExternalLink, Copy, CheckCheck,
@@ -132,7 +132,7 @@ function humanCogState(raw: string | null | undefined): string {
 
 
 // ─── Cognitive Ring ────────────────────────────────────────────────────────────
-function CognitiveRing({ value, label, color = "#d4af35" }: { value: number; label: string; color?: string }) {
+const CognitiveRing = memo(function CognitiveRing({ value, label, color = "#d4af35" }: { value: number; label: string; color?: string }) {
   const r = 18;
   const circ = 2 * Math.PI * r;
   const offset = circ - ((Math.min(100, Math.max(0, value)) / 100) * circ);
@@ -149,7 +149,7 @@ function CognitiveRing({ value, label, color = "#d4af35" }: { value: number; lab
       <span className="text-[9px] uppercase tracking-widest text-slate-400">{label}</span>
     </div>
   );
-}
+});
 
 // ─── Audio Waveform ────────────────────────────────────────────────────────────
 function AudioWaveform() {
@@ -164,7 +164,7 @@ function AudioWaveform() {
 }
 
 // ─── Message Bubble ────────────────────────────────────────────────────────────
-function MessageBubble({ msg, leadPhoto, leadName }: { msg: Message; leadPhoto: string | null; leadName: string | null }) {
+const MessageBubble = memo(function MessageBubble({ msg, leadPhoto, leadName }: { msg: Message; leadPhoto: string | null; leadName: string | null }) {
   const analysis = msg.ai_analysis as Record<string, string> | null;
   const signal = analysis?.signal;
   const intention = analysis?.intention;
@@ -183,7 +183,7 @@ function MessageBubble({ msg, leadPhoto, leadName }: { msg: Message; leadPhoto: 
       return (
         <div className="flex flex-col items-end gap-1 self-end max-w-[80%]">
           <div className="flex bg-[#d4af35]/10 border border-[#d4af35]/30 rounded-2xl rounded-tr-none overflow-hidden max-w-[280px]">
-            {p.cover_image && (
+            {p.cover_image && p.cover_image !== "null" && (
               <div className="w-20 shrink-0 bg-black/40">
                 <img src={p.cover_image} className="w-full h-full object-cover" alt={p.title} />
               </div>
@@ -247,7 +247,7 @@ function MessageBubble({ msg, leadPhoto, leadName }: { msg: Message; leadPhoto: 
                 <AudioWaveform />
                 <Mic className="h-3 w-3 text-[#d4af35]/50 shrink-0" />
               </div>
-            ) : mediaType === "image" ? (
+            ) : (mediaType === "image" && mediaUrl) ? (
               <img src={mediaUrl} alt="" className="rounded-lg max-w-[240px] max-h-40 object-cover" />
             ) : (
               <p className="text-slate-200">{text || "[mídia]"}</p>
@@ -276,10 +276,10 @@ function MessageBubble({ msg, leadPhoto, leadName }: { msg: Message; leadPhoto: 
       <span className="text-[10px] text-slate-500 mr-1">{formatTime(msg.timestamp)}</span>
     </div>
   );
-}
+});
 
 // ─── Property Card ──────────────────────────────────────────────────────────────
-function PropertyCard({ interaction }: { interaction: PropertyInteraction }) {
+const PropertyCard = memo(function PropertyCard({ interaction }: { interaction: PropertyInteraction }) {
   const prop = interaction.property;
   if (!prop) return null;
 
@@ -322,7 +322,7 @@ function PropertyCard({ interaction }: { interaction: PropertyInteraction }) {
       </div>
     </div>
   );
-}
+});
 
 // ─── GLASS PANEL STYLE (reused) ────────────────────────────────────────────────
 const glass = "bg-[rgba(12,12,12,0.85)] backdrop-blur-[16px] border border-white/[0.07]";
@@ -357,8 +357,8 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
 
   // --- File attachment ---
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const handleFileAttach = () => fileInputRef.current?.click();
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileAttach = useCallback(() => fileInputRef.current?.click(), []);
+  const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !leadId) return;
     const supabase = getSupabase();
@@ -385,12 +385,11 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
     } catch { /* silent */ }
     // Clear file input
     if (fileInputRef.current) fileInputRef.current.value = "";
-  };
+  }, [leadId]);
 
   // --- Property search via Atlas ---
-  const handleAttachProperty = async (prop: any) => {
+  const handleAttachProperty = useCallback(async (prop: any) => {
     if (!leadId) return;
-    const supabase = getSupabase();
     
     // Support both Atlas map Property shape (name, coverImage) and DB shape (title, cover_image)
     const normalizedProp = {
@@ -416,16 +415,26 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
       ai_analysis: null,
     };
     setMessages(prev => [...prev, optimistic]);
+
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (supabase.from("interactions") as any).insert({
-        lead_id: leadId,
-        content,
-        direction: "outbound",
-        channel: "manual",
+      // 1. Send via central property-interactions API (triggers WhatsApp)
+      await fetch("/api/property-interactions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          leadId,
+          propertyId: normalizedProp.id,
+          interaction_type: "sent",
+          source: "cognitive_console"
+        })
       });
-    } catch { /* silent */ }
-  };
+      
+      // 2. Also register in older interactions table for backward compatibility if needed, 
+      // but the API call above already handled the core logic.
+    } catch (err) {
+      console.error("Error attaching property:", err);
+    }
+  }, [leadId]);
 
   // --- Audio recording ---
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -600,7 +609,7 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
   }, [messages]);
 
   // Send message
-  const handleSend = async () => {
+  const handleSend = useCallback(async () => {
     if (!composerText.trim() || sendStatus !== "idle" || !leadId) return;
     setSendStatus("sending");
     const supabase = getSupabase();
@@ -628,7 +637,7 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
       setSendStatus("error");
       setTimeout(() => setSendStatus("idle"), 2000);
     }
-  };
+  }, [composerText, sendStatus, leadId]);
 
   if (!isOpen) return null;
 

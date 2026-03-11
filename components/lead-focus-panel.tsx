@@ -619,46 +619,28 @@ export function LeadFocusPanel({
     if (!linkedProperty || !lead || !leadId) return;
 
     try {
-      // 1. Save property_interaction to Supabase
+      // 1. Save property_interaction to Supabase (API triggers WhatsApp)
       const interactionResponse = await fetch("/api/property-interactions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           leadId: leadId,
           propertyId: linkedProperty.id,
-          state: "sent",
+          interaction_type: "sent",
+          source: "lead_panel"
         }),
       });
 
       if (!interactionResponse.ok) {
         console.error("Failed to save property interaction");
+        const errData = await interactionResponse.json().catch(() => ({}));
+        setSendError(errData.error || "Erro ao enviar imóvel");
+        return;
       }
       
       const interactionData = await interactionResponse.json();
 
-      // 2. Send property via WhatsApp
-      const propertyLink = linkedProperty.url || (linkedProperty as any).source_link || `Imóvel: ${linkedProperty.name}`;
-      const messageText = `${linkedProperty.name}\n${propertyLink}`;
-
-      // Use LID (preferred) or phone
-      const sendTo = (lead.lid ? `${lead.lid}@lid` : null) || lead.phone;
-
-      if (!sendTo) {
-        setSendError("Sem telefone ou LID para enviar");
-        return;
-      }
-
-      await fetch("/api/whatsapp/send", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          phone: sendTo,
-          message: messageText,
-          leadId: leadId,
-        }),
-      });
-
-      // 3. Add property to local state
+      // 2. Add property to local state
       const newSentProperty: SentProperty = {
         id: interactionData.id,
         property: linkedProperty,
@@ -672,6 +654,7 @@ export function LeadFocusPanel({
       refetchDetails();
     } catch (error) {
       console.error("Error sending property:", error);
+      setSendError("Erro na integração de envio");
     }
   }, [linkedProperty, lead, leadId, refetchDetails]);
 
@@ -840,7 +823,7 @@ export function LeadFocusPanel({
                     boxShadow: "0 0 20px var(--orbit-glow-dim)",
                   }}
                 >
-                  {lead.photoUrl ? (
+                  {lead.photoUrl && lead.photoUrl !== "null" ? (
                     <img
                       src={lead.photoUrl}
                       alt={lead.name}
@@ -1189,7 +1172,7 @@ export function LeadFocusPanel({
                             border: "1px solid oklch(1 0 0 / 0.1)",
                           }}
                         >
-                          {sp.property.coverImage ? (
+                          {sp.property.coverImage && sp.property.coverImage !== "null" ? (
                             <img
                               src={sp.property.coverImage}
                               alt={sp.property.name}
@@ -1564,7 +1547,7 @@ export function LeadFocusPanel({
                     {/* Property Content */}
                     <div className="p-3 flex gap-3 group">
                       <div className="h-16 w-20 rounded-lg overflow-hidden shrink-0 relative">
-                        {sp.property.coverImage ? (
+                        {sp.property.coverImage && sp.property.coverImage !== "null" ? (
                           <img src={sp.property.coverImage} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={sp.property.name} />
                         ) : (
                           <div className="w-full h-full bg-white/5 flex items-center justify-center"><Building2 className="h-6 w-6 text-white/20" /></div>

@@ -118,6 +118,7 @@ export function WhatsAppInbox() {
   };
 
   return (
+    <Sheet>
       <SheetTrigger asChild>
         <Button variant="ghost" size="icon" className="relative hover:bg-[var(--orbit-glow)]/10 text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)]">
           <Inbox className="h-5 w-5" />

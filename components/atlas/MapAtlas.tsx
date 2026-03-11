@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef, useMemo } from "react"
+import { useState, useEffect, useRef, useMemo, memo, useCallback } from "react"
 import Map, { Marker, Popup, NavigationControl } from "react-map-gl/mapbox"
 import type { ViewState } from "react-map-gl/mapbox"
 import { motion, AnimatePresence } from "framer-motion"
@@ -54,6 +54,45 @@ function formatValue(value: number | null): string {
   }
   return `R$ ${value}`
 }
+
+const PropertyMarker = memo(({ 
+  prop, 
+  isSelected, 
+  isHovered, 
+  onClick, 
+  onMouseEnter, 
+  onMouseLeave 
+}: { 
+  prop: MapProperty; 
+  isSelected: boolean; 
+  isHovered: boolean; 
+  onClick: (prop: MapProperty) => void;
+  onMouseEnter: (prop: MapProperty) => void;
+  onMouseLeave: () => void;
+}) => {
+  return (
+    <Marker 
+      longitude={prop.lng!} 
+      latitude={prop.lat!}
+      anchor="center"
+      style={{ zIndex: isSelected ? 50 : isHovered ? 40 : 10 }}
+    >
+      <div 
+        className="group w-0 h-0 relative cursor-pointer"
+        onClick={(e) => {
+          e.stopPropagation()
+          onClick(prop)
+        }}
+        onMouseEnter={() => onMouseEnter(prop)}
+        onMouseLeave={() => onMouseLeave()}
+      >
+        <div className={`absolute left-0 top-0 -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full animate-ping ${isSelected ? 'bg-[#d4af35]/50 opacity-100 duration-1000' : 'bg-[#d4af35]/30 opacity-0 group-hover:opacity-100'}`}></div>
+        <div className={`absolute left-0 top-0 -translate-x-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full border-2 border-[#0a0907] shadow-[0_0_8px_rgba(212,175,53,0.5)] transition-all duration-300 ${isSelected ? 'bg-white scale-125' : 'bg-[#d4af35] group-hover:bg-[#fcd34d] group-hover:scale-110'}`}></div>
+      </div>
+    </Marker>
+  )
+})
+PropertyMarker.displayName = "PropertyMarker"
 
 export function MapAtlas({
   properties,
@@ -143,68 +182,51 @@ export function MapAtlas({
         <NavigationControl position="top-right" showCompass={true} />
 
         {/* Constelação de Imóveis (Markers) */}
-        {validProps.map((prop) => {
-          const isSelected = selectedPropertyId === prop.id
-          const isHovered = hoveredProperty?.id === prop.id
-          const zIndex = isSelected ? 50 : isHovered ? 40 : 10
+        {validProps.map((prop) => (
+          <PropertyMarker
+            key={prop.id}
+            prop={prop}
+            isSelected={selectedPropertyId === prop.id}
+            isHovered={hoveredProperty?.id === prop.id}
+            onClick={useCallback((p: MapProperty) => onPropertyClick?.(p), [onPropertyClick])}
+            onMouseEnter={useCallback((p: MapProperty) => setHoveredProperty(p), [])}
+            onMouseLeave={useCallback(() => setHoveredProperty(null), [])}
+          />
+        ))}
 
-          return (
-            <Marker 
-              key={prop.id} 
-              longitude={prop.lng!} 
-              latitude={prop.lat!}
-              anchor="center"
-              style={{ zIndex }}
-              onClick={(e: any) => {
-                e.originalEvent.stopPropagation()
-                onPropertyClick?.(prop)
-              }}
+        {/* Unified Hover Popup (Performance optimization: one component instead of N) */}
+        {hoveredProperty && hoveredProperty.lat && hoveredProperty.lng && (
+          <Popup
+            longitude={hoveredProperty.lng}
+            latitude={hoveredProperty.lat}
+            closeButton={false}
+            anchor="bottom"
+            offset={20}
+            className="atlas-premium-popup z-[60]"
+          >
+            <motion.div 
+              initial={{ opacity: 0, y: 5, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              className="w-44 rounded-xl bg-[#0a0907]/95 backdrop-blur-xl border border-[#d4af35]/30 shadow-2xl pointer-events-none overflow-hidden flex flex-col"
             >
-              <div 
-                className="group w-0 h-0 relative cursor-pointer"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onPropertyClick?.(prop)
-                  }}
-                  onMouseEnter={() => setHoveredProperty(prop)}
-                  onMouseLeave={() => setHoveredProperty(null)}
-                >
-                  {/* The visual elements are absolute and perfectly symmetric to 0,0 */}
-                  <div className={`absolute left-0 top-0 -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full animate-ping ${isSelected ? 'bg-[#d4af35]/50 opacity-100 duration-1000' : 'bg-[#d4af35]/30 opacity-0 group-hover:opacity-100'}`}></div>
-                  <div className={`absolute left-0 top-0 -translate-x-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full border-2 border-[#0a0907] shadow-[0_0_8px_rgba(212,175,53,0.5)] transition-all duration-300 ${isSelected ? 'bg-white scale-125' : 'bg-[#d4af35] group-hover:bg-[#fcd34d] group-hover:scale-110'}`}></div>
-                  
-                  {/* Preview Card (Hover) */}
-                  <AnimatePresence>
-                    {isHovered && !isSelected && (
-                      <motion.div 
-                        initial={{ opacity: 0, y: 5, scale: 0.95 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: 5, scale: 0.95 }}
-                        className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-44 rounded-xl bg-[#0a0907]/95 backdrop-blur-xl border border-[#d4af35]/30 shadow-2xl z-50 pointer-events-none overflow-hidden flex flex-col"
-                      >
-                        {/* Cover Image Area */}
-                        <div className="h-20 w-full bg-zinc-800 bg-cover bg-center relative shrink-0" style={{ backgroundImage: prop.coverImage ? `url(${prop.coverImage})` : 'none' }}>
-                          {!prop.coverImage && <div className="absolute inset-0 flex items-center justify-center text-[#d4af35]/20"><Building2 className="w-5 h-5"/></div>}
-                          {/* Gradient Overlay for text readability */}
-                          <div className="absolute inset-0 bg-gradient-to-t from-[#0a0907] via-transparent to-transparent" />
-                        </div>
+              {/* Cover Image Area */}
+              <div className="h-20 w-full bg-zinc-800 bg-cover bg-center relative shrink-0" style={{ backgroundImage: hoveredProperty.coverImage ? `url(${hoveredProperty.coverImage})` : 'none' }}>
+                {!hoveredProperty.coverImage && <div className="absolute inset-0 flex items-center justify-center text-[#d4af35]/20"><Building2 className="w-5 h-5"/></div>}
+                <div className="absolute inset-0 bg-gradient-to-t from-[#0a0907] via-transparent to-transparent" />
+              </div>
 
-                        {/* Details */}
-                        <div className="p-2.5 flex flex-col gap-1.5 relative z-10 -mt-2">
-                          <p className="text-[10px] font-bold text-white line-clamp-2 leading-tight drop-shadow-md">
-                            {prop.name || "Imóvel N/A"}
-                          </p>
-                          <p className="text-[10px] font-bold text-[#d4af35] uppercase tracking-wider">
-                            {formatValue(prop.value)}
-                          </p>
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-            </Marker>
-          )
-        })}
+              {/* Details */}
+              <div className="p-2.5 flex flex-col gap-1.5 relative z-10 -mt-2">
+                <p className="text-[10px] font-bold text-white line-clamp-2 leading-tight drop-shadow-md">
+                  {hoveredProperty.name || "Imóvel N/A"}
+                </p>
+                <p className="text-[10px] font-bold text-[#d4af35] uppercase tracking-wider">
+                  {formatValue(hoveredProperty.value)}
+                </p>
+              </div>
+            </motion.div>
+          </Popup>
+        )}
 
 
         {/* Preview Marker para Ingestão (Drag n Drop) */}

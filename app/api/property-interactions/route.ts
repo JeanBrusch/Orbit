@@ -53,19 +53,19 @@ export async function POST(request: NextRequest) {
       .insert({
         lead_id: leadId,
         property_id: propertyId,
-        interaction_type,
+        interaction_type: interaction_type || body.interactionType,
         source: source || 'operator'
       })
       .select()
       .single()
 
     if (error) {
-      console.error('[PROP_INT] Error creating:', error)
+      console.error('[PROP_INT] Error creating interaction:', error)
       return NextResponse.json({ error: 'Erro ao registrar interação' }, { status: 500 })
     }
 
     // Aciona o Orbit Core de forma assíncrona para analisar a interação
-    if (interaction_type !== 'sent') {
+    if (interaction_type !== 'sent' && body.interactionType !== 'sent') {
       const type = 'property_reaction'
       const content = `Interacao com imovel: ${interaction_type} (property_id: ${propertyId})`
       processEventWithCore(leadId, content, type).catch(() => {})

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, memo, useCallback, useEffect } from "react";
 import { Megaphone, Zap, MessageCircle, ChevronDown } from "lucide-react";
 import type { CoreState } from "@/app/page";
 import {
@@ -15,7 +15,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useEffect } from "react";
 
 interface LeadNodesProps {
   highlightedLeads: string[];
@@ -639,6 +638,158 @@ function hasMemorySignal(leadState: any): {
   return { hasNotes, hasRecentContacts };
 }
 
+const LeadNodeItem = memo(({ 
+  node, 
+  isHighlighted, 
+  highlightDelay, 
+  isResponding, 
+  hasHighlights,
+  leadState,
+  orbitViewStatus,
+  onMouseEnter,
+  onMouseLeave,
+  onClick,
+  isHovered,
+  visualState,
+  onVisualStateChange
+}: {
+  node: LeadNode;
+  isHighlighted: boolean;
+  highlightDelay: number;
+  isResponding: boolean;
+  hasHighlights: boolean;
+  leadState: any;
+  orbitViewStatus: { active: boolean; isRelated: boolean; isUnrelated: boolean };
+  onMouseEnter: (id: string) => void;
+  onMouseLeave: () => void;
+  onClick: (id: string) => void;
+  isHovered: boolean;
+  visualState: LeadVisualState | undefined;
+  onVisualStateChange: (id: string, state: LeadVisualState|undefined) => void;
+}) => {
+  const hasFollowUpDue = !!(
+    node.followupActive &&
+    (node.followupRemaining || 0) > 0 &&
+    !node.followupDoneToday
+  );
+
+  const intensityClass = emotionalIntensity[node.emotionalAura];
+  
+  const activityOpacity = orbitViewStatus.isUnrelated
+    ? "opacity-40"
+    : node.currentState === "dormant"
+      ? "opacity-30 grayscale"
+      : node.currentState === "latent"
+        ? "opacity-50 grayscale-[0.4]"
+        : "opacity-100";
+
+  const stateStyle = stateRingColors[node.currentState ?? ""] ?? DEFAULT_STATE_RING;
+  const effectiveAura: EmotionalAura = node.needsAttention ? "whatsapp" : node.emotionalAura;
+
+  return (
+    <div
+      className={`pointer-events-auto absolute transition-all duration-700 ${intensityClass} ${isResponding && hasHighlights && !isHighlighted
+          ? "scale-95 opacity-40"
+          : activityOpacity
+        } ${!isResponding && !node.isNew ? "animate-node-float" : ""} ${node.cycleStage === "decidindo" || hasFollowUpDue
+          ? "animate-hot-lead-pulse"
+          : ""
+        } ${node.isNew ? "animate-lead-emerge" : ""} ${orbitViewStatus.isRelated ? "z-30" : ""}`}
+      style={{
+        top: node.position.top,
+        left: node.position.left,
+        animationDelay: `${node.delay}s`,
+        transitionDelay: isResponding ? `${highlightDelay}s` : "0s",
+      }}
+      onMouseEnter={() => onMouseEnter(node.id)}
+      onMouseLeave={() => onMouseLeave()}
+    >
+      <div
+        onClick={() => onClick(node.id)}
+        className="cubic-bezier-smooth group flex cursor-pointer flex-col items-center transition-all duration-[240ms] hover:scale-105"
+      >
+        <div className="relative">
+          {node.needsAttention && <ActionBadge type="lightning" title="Mensagem não respondida" />}
+          {!node.needsAttention && node.followupActive && (node.followupRemaining || 0) > 0 && (
+            <ActionBadge type="number" number={node.followupRemaining} title={`Follow-up: ${node.followupRemaining} ações restantes`} />
+          )}
+          {!node.needsAttention && !node.followupActive && node.hasMatureNotes && (
+            <ActionBadge type="chat" title="Existe contexto aqui" onClick={(e) => { e.stopPropagation(); onClick(node.id); }} />
+          )}
+
+          {hasFollowUpDue && !node.needsAttention && <FollowUpRing />}
+
+          <div
+            className={`flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border-2 bg-[var(--orbit-glass)] text-[10px] font-light text-[var(--orbit-text)] backdrop-blur-sm transition-all duration-500 ${
+              isHighlighted && isResponding
+                ? "animate-lead-highlight scale-110 border-[var(--orbit-glow)]"
+                : node.isNew
+                  ? "border-[var(--orbit-glow)] animate-new-lead-glow"
+                  : node.needsAttention
+                    ? "border-emerald-500/90 shadow-[0_0_10px_rgba(16,185,129,0.4)] animate-pulse"
+                    : `${stateStyle.ring} ${stateStyle.glow}`
+            }`}
+            style={{ animationDelay: isHighlighted ? `${highlightDelay}s` : "0s" }}
+          >
+            {node.photoUrl && node.photoUrl !== "null" ? (
+              <img
+                src={node.photoUrl}
+                alt={node.name}
+                className="h-full w-full object-cover"
+                onError={(e) => {
+                  e.currentTarget.style.display = "none";
+                  const fallback = document.createElement("span");
+                  fallback.textContent = node.avatar;
+                  e.currentTarget.parentElement?.appendChild(fallback);
+                }}
+              />
+            ) : node.avatar}
+          </div>
+
+          {node.badge && (
+            <div className="absolute -right-1 -top-1">
+              <BadgeContent badge={node.badge} />
+            </div>
+          )}
+        </div>
+
+        <div
+          className={`mt-1 flex flex-col items-center text-center text-[10px] font-light leading-tight backdrop-blur-sm transition-all duration-[240ms] ${isHighlighted && isResponding
+              ? "text-[var(--orbit-glow)]"
+              : node.cycleStage === "encerrado" || node.cycleStage === "sem_ciclo"
+                ? "text-[var(--orbit-text-muted)]"
+                : "text-[var(--orbit-text)] group-hover:text-[var(--orbit-glow)]"
+            }`}
+        >
+          {node.name.split(" ").map((part, i) => (
+            <span key={i}>{part}</span>
+          ))}
+        </div>
+
+        <ActivityIndicators leadId={node.id} leadStates={{ [node.id]: leadState }} hasFollowUpDue={hasFollowUpDue} />
+        <VisualStateIndicator leadId={node.id} visualState={visualState} onStateChange={onVisualStateChange} />
+      </div>
+
+      {isHovered && (
+        <div className={`absolute left-1/2 -translate-x-1/2 w-52 rounded-md border border-white/10 bg-zinc-950/95 backdrop-blur-2xl shadow-2xl p-4 z-[9999] pointer-events-none animate-in fade-in zoom-in-95 duration-200 ${parseFloat(node.position.top) < 20 ? "top-full mt-4" : "-top-4 -translate-y-full"}`}>
+          <div className="flex flex-col gap-3">
+            <div>
+              <p className="font-semibold text-slate-100 text-sm whitespace-nowrap overflow-hidden text-ellipsis">{node.name}</p>
+              {node.currentState && <p className="text-[10px] text-zinc-400 capitalize mt-0.5">{node.currentState}</p>}
+            </div>
+            <div className="space-y-1.5 text-xs">
+              <div className="flex justify-between items-center"><span className="text-zinc-500">Interesse</span><span className="text-zinc-300 font-medium">{node.interestScore ? `${node.interestScore}%` : "—"}</span></div>
+              <div className="flex justify-between items-center"><span className="text-zinc-500">Risco</span><span className={`font-medium ${node.riskScore && node.riskScore > 60 ? "text-red-400" : "text-zinc-300"}`}>{node.riskScore ? `${node.riskScore}%` : "—"}</span></div>
+              <div className="flex justify-between items-center"><span className="text-zinc-500">Ação</span><span className="text-amber-400 font-medium">{node.needsAttention ? "Responder" : "—"}</span></div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+});
+LeadNodeItem.displayName = "LeadNodeItem";
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Main component
 // ─────────────────────────────────────────────────────────────────────────────
@@ -672,27 +823,27 @@ export function LeadNodes({
   const followUpLeads = getLeadsWithActiveFollowUp();
 
   // ── Admin leads ──────────────────────────────────────────────────────────
-  const adminLeads = Object.values(leadStates).filter(
-    (state) => state.adminData,
-  );
-  const adminLeadNodes: LeadNode[] = adminLeads.map((state) => ({
-    id: state.id,
-    name: state.adminData!.name,
-    avatar: state.adminData!.avatar,
-    photoUrl: state.adminData!.photoUrl,
-    priority: "warm" as Priority,
-    position: state.adminData!.position,
-    delay: 0,
-    emotionalAura: "aware" as EmotionalAura,
-    hasRecentActivity: newLeads.includes(state.id),
-    isNew: newLeads.includes(state.id),
-    isProvisional: state.isProvisional,
-    cycleStage: "sem_ciclo" as CycleStage,
-  }));
+  const adminLeadNodes: LeadNode[] = useMemo(() => {
+    const adminLeads = Object.values(leadStates).filter((state) => state.adminData);
+    return adminLeads.map((state) => ({
+      id: state.id,
+      name: state.adminData!.name,
+      avatar: state.adminData!.avatar,
+      photoUrl: state.adminData!.photoUrl,
+      priority: "warm" as Priority,
+      position: state.adminData!.position,
+      delay: 0,
+      emotionalAura: "aware" as EmotionalAura,
+      hasRecentActivity: newLeads.includes(state.id),
+      isNew: newLeads.includes(state.id),
+      isProvisional: state.isProvisional,
+      cycleStage: "sem_ciclo" as CycleStage,
+    }));
+  }, [leadStates, newLeads]);
 
   // ── Supabase leads ───────────────────────────────────────────────────────
-  const supabaseLeadNodes: LeadNode[] = supabaseLeads.map(
-    (lead: OrbitLead) => ({
+  const supabaseLeadNodes: LeadNode[] = useMemo(() => {
+    return supabaseLeads.map((lead: OrbitLead) => ({
       id: lead.id,
       name: lead.name,
       avatar: lead.avatar,
@@ -701,12 +852,7 @@ export function LeadNodes({
       position: lead.position,
       badge: lead.badge
         ? ({
-          type:
-            lead.badge === "hot"
-              ? "urgent"
-              : lead.badge === "campaign"
-                ? "campaign"
-                : "messages",
+          type: lead.badge === "hot" ? "urgent" : lead.badge === "campaign" ? "campaign" : "messages",
         } as LeadNode["badge"])
         : undefined,
       delay: lead.delay,
@@ -714,7 +860,7 @@ export function LeadNodes({
       hasRecentActivity: lead.hasCapsuleActive,
       hasNotification: lead.emotionalState === "engaged",
       needsAttention: lead.needsAttention,
-      cycleStage: (lead.cycleStage as CycleStage) || "sem_ciclo" as CycleStage, // From database — NEVER calculate
+      cycleStage: (lead.cycleStage as CycleStage) || "sem_ciclo" as CycleStage,
       hasMatureNotes: lead.hasMatureNotes,
       followupActive: lead.followupActive,
       followupRemaining: lead.followupRemaining,
@@ -722,15 +868,12 @@ export function LeadNodes({
       interestScore: lead.interestScore,
       riskScore: lead.riskScore,
       currentState: lead.currentState,
-    }),
-  );
+    }));
+  }, [supabaseLeads]);
 
   // ── Day-load factor ──────────────────────────────────────────────────────
   const activeLeadCount = useMemo(
-    () =>
-      supabaseLeads.filter(
-        (l: OrbitLead) => l.needsAttention || l.cycleStage === "decidindo",
-      ).length,
+    () => supabaseLeads.filter((l: OrbitLead) => l.needsAttention || l.cycleStage === "decidindo").length,
     [supabaseLeads],
   );
 
@@ -744,9 +887,7 @@ export function LeadNodes({
   // ── Orbit-view scores ────────────────────────────────────────────────────
   const orbitViewLeadScores = useMemo(() => {
     if (!orbitView.active) return new Map<string, number>();
-    const sortedLeads = [...orbitView.leads].sort(
-      (a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0),
-    );
+    const sortedLeads = [...orbitView.leads].sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0));
     const scores = new Map<string, number>();
     for (const lead of sortedLeads.slice(0, 18)) {
       scores.set(lead.leadId, lead.relevanceScore || 0.7);
@@ -758,240 +899,58 @@ export function LeadNodes({
   const allLeadNodes = useMemo(() => {
     const combined = [...supabaseLeadNodes, ...adminLeadNodes];
 
-    // 1. Apply gravity BEFORE collision resolution so hot leads settle near
-    //    the core, and the collision resolver pushes cold ones outward.
     const withGravity = combined.map((node) => {
       const leadState = leadStates[node.id];
       const memSignal = hasMemorySignal(leadState);
-      const hasFollowUpDue = !!(
-        node.followupActive &&
-        (node.followupRemaining || 0) > 0 &&
-        !node.followupDoneToday
-      );
-
-      // Extra boost for leads with follow-up or recent contacts
-      const extraBoost =
-        (hasFollowUpDue ? 0.1 : 0) + (memSignal.hasRecentContacts ? 0.05 : 0);
-
+      const hasFollowUpDue = !!(node.followupActive && (node.followupRemaining || 0) > 0 && !node.followupDoneToday);
+      const extraBoost = (hasFollowUpDue ? 0.1 : 0) + (memSignal.hasRecentContacts ? 0.05 : 0);
       let pos = applyGravity(node.position, node.cycleStage, extraBoost);
-
-      // Orbit-view additional pull
       const orbitScore = orbitViewLeadScores.get(node.id) || 0;
       if (orbitView.active && orbitScore > 0) {
         pos = applyOrbitViewGravity(pos, orbitScore, dayLoadFactor);
       }
-
       return { ...node, position: pos };
     });
 
-    // 2. Resolve collisions on the gravity-adjusted positions
     return resolveCollisions(withGravity);
-  }, [
-    supabaseLeadNodes,
-    adminLeadNodes,
-    leadStates,
-    orbitViewLeadScores,
-    orbitView.active,
-    dayLoadFactor,
-  ]);
+  }, [supabaseLeadNodes, adminLeadNodes, leadStates, orbitViewLeadScores, orbitView.active, dayLoadFactor]);
 
   const handleLeadClick = (leadId: string) => {
     onLeadClick?.(leadId);
   };
 
+  const handleMouseEnter = useCallback((id: string) => setHoveredLeadId(id), []);
+  const handleMouseLeave = useCallback(() => setHoveredLeadId(null), []);
+  const handleNodeClick = useCallback((id: string) => onLeadClick?.(id), [onLeadClick]);
+
   return (
     <div className="pointer-events-none absolute inset-0 z-20">
       {allLeadNodes.map((node) => {
         const isHighlighted = highlightedLeads.includes(node.id);
-        const highlightDelay = isHighlighted
-          ? highlightedLeads.indexOf(node.id) * 0.15
-          : 0;
-
-        const leadState = leadStates[node.id];
-        const memorySignal = hasMemorySignal(leadState);
-
-        const hasFollowUpDue = !!(
-          node.followupActive &&
-          (node.followupRemaining || 0) > 0 &&
-          !node.followupDoneToday
-        );
-
+        const highlightDelay = isHighlighted ? highlightedLeads.indexOf(node.id) * 0.15 : 0;
         const orbitViewScore = orbitViewLeadScores.get(node.id) || 0;
-        const isOrbitViewRelated = orbitView.active && orbitViewScore > 0;
-        const isOrbitViewUnrelated = orbitView.active && orbitViewScore === 0;
-
-        // NOTE: position is already computed (gravity + collision) inside allLeadNodes
-        const adjustedPosition = node.position;
-
-        const intensityClass = emotionalIntensity[node.emotionalAura];
-
-        // Opacity based on AI cognitive state (not cycleStage)
-        const activityOpacity = isOrbitViewUnrelated
-          ? "opacity-40"
-          : node.currentState === "dormant"
-            ? "opacity-30 grayscale"
-            : node.currentState === "latent"
-              ? "opacity-50 grayscale-[0.4]"
-              : "opacity-100";
-
-        // AI state ring (inner, very thin)
-        const stateStyle = stateRingColors[node.currentState ?? ""] ?? DEFAULT_STATE_RING;
-        // Emotional aura ring (outer) — whatsapp green overrides when unread
-        const effectiveAura: EmotionalAura = node.needsAttention ? "whatsapp" : node.emotionalAura;
-        const aura = auraColors[effectiveAura];
 
         return (
-          <div
+          <LeadNodeItem
             key={node.id}
-            className={`pointer-events-auto absolute transition-all duration-700 ${intensityClass} ${isResponding && hasHighlights && !isHighlighted
-                ? "scale-95 opacity-40"
-                : activityOpacity
-              } ${!isResponding && !node.isNew ? "animate-node-float" : ""} ${node.cycleStage === "decidindo" || hasFollowUpDue
-                ? "animate-hot-lead-pulse"
-                : ""
-              } ${node.isNew ? "animate-lead-emerge" : ""} ${isOrbitViewRelated ? "z-30" : ""}`}
-            style={{
-              top: adjustedPosition.top,
-              left: adjustedPosition.left,
-              animationDelay: `${node.delay}s`,
-              transitionDelay: isResponding ? `${highlightDelay}s` : "0s",
+            node={node}
+            isHighlighted={isHighlighted}
+            highlightDelay={highlightDelay}
+            isResponding={isResponding}
+            hasHighlights={hasHighlights}
+            leadState={leadStates[node.id]}
+            orbitViewStatus={{
+              active: orbitView.active,
+              isRelated: orbitView.active && orbitViewScore > 0,
+              isUnrelated: orbitView.active && orbitViewScore === 0
             }}
-            onMouseEnter={() => setHoveredLeadId(node.id)}
-            onMouseLeave={() => setHoveredLeadId(null)}
-          >
-                <div
-                  onClick={() => handleLeadClick(node.id)}
-                  className="cubic-bezier-smooth group flex cursor-pointer flex-col items-center transition-all duration-[240ms] hover:scale-105"
-                >
-                  <div className="relative">
-                    {/* Action badges */}
-                    {node.needsAttention && (
-                      <ActionBadge type="lightning" title="Mensagem não respondida" />
-                    )}
-                    {!node.needsAttention &&
-                      node.followupActive &&
-                      (node.followupRemaining || 0) > 0 && (
-                        <ActionBadge
-                          type="number"
-                          number={node.followupRemaining}
-                          title={`Follow-up: ${node.followupRemaining} ações restantes`}
-                        />
-                      )}
-                    {!node.needsAttention && !node.followupActive && node.hasMatureNotes && (
-                      <ActionBadge
-                        type="chat"
-                        title="Existe contexto aqui"
-                        onClick={(e) => { e.stopPropagation(); handleLeadClick(node.id); }}
-                      />
-                    )}
-
-                    {hasFollowUpDue && !node.needsAttention && <FollowUpRing />}
-
-                    {/* Avatar — single ring, colored by cognitive state or whatsapp green */}
-                    <div
-                      className={`flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border-2 bg-[var(--orbit-glass)] text-[10px] font-light text-[var(--orbit-text)] backdrop-blur-sm transition-all duration-500 ${
-                        isHighlighted && isResponding
-                          ? "animate-lead-highlight scale-110 border-[var(--orbit-glow)]"
-                          : node.isNew
-                            ? "border-[var(--orbit-glow)] animate-new-lead-glow"
-                            : node.needsAttention
-                              ? "border-emerald-500/90 shadow-[0_0_10px_rgba(16,185,129,0.4)] animate-pulse"
-                              : `${stateStyle.ring} ${stateStyle.glow}`
-                      }`}
-                      style={{ animationDelay: isHighlighted ? `${highlightDelay}s` : "0s" }}
-                    >
-                      {node.photoUrl ? (
-                        <img
-                          src={node.photoUrl}
-                          alt={node.name}
-                          className="h-full w-full object-cover"
-                          onError={(e) => {
-                            e.currentTarget.style.display = "none";
-                            const fallback = document.createElement("span");
-                            fallback.textContent = node.avatar;
-                            e.currentTarget.parentElement?.appendChild(fallback);
-                          }}
-                        />
-                      ) : node.avatar}
-                    </div>
-
-                    {node.badge && (
-                      <div className="absolute -right-1 -top-1">
-                        <BadgeContent badge={node.badge} />
-                      </div>
-                    )}
-                  </div>
-
-              {/* Name label */}
-              <div
-                className={`mt-1 flex flex-col items-center text-center text-[10px] font-light leading-tight backdrop-blur-sm transition-all duration-[240ms] ${isHighlighted && isResponding
-                    ? "text-[var(--orbit-glow)]"
-                    : node.cycleStage === "encerrado" ||
-                      node.cycleStage === "sem_ciclo"
-                      ? "text-[var(--orbit-text-muted)]"
-                      : "text-[var(--orbit-text)] group-hover:text-[var(--orbit-glow)]"
-                  }`}
-              >
-                {node.name.split(" ").map((part, i) => (
-                  <span key={i}>{part}</span>
-                ))}
-              </div>
-
-              {/* Activity indicators */}
-              <ActivityIndicators
-                leadId={node.id}
-                leadStates={leadStates}
-                hasFollowUpDue={hasFollowUpDue}
-              />
-
-              {/* Visual state indicator */}
-              <VisualStateIndicator
-                leadId={node.id}
-                visualState={getLeadVisualState(node.id)}
-                onStateChange={setLeadVisualState}
-              />
-            </div>
-            
-            {/* Custom lightweight hover tooltip */}
-            {hoveredLeadId === node.id && (
-              <div
-                className={`absolute left-1/2 -translate-x-1/2 w-52 rounded-md border border-white/10 bg-zinc-950/95 backdrop-blur-2xl shadow-2xl p-4 z-[9999] pointer-events-none animate-in fade-in zoom-in-95 duration-200 ${
-                  parseFloat(adjustedPosition.top) < 20 
-                    ? "top-full mt-4" 
-                    : "-top-4 -translate-y-full"
-                }`}
-              >
-                <div className="flex flex-col gap-3">
-                  <div>
-                    <p className="font-semibold text-slate-100 text-sm whitespace-nowrap overflow-hidden text-ellipsis">{node.name}</p>
-                    {node.currentState && (
-                      <p className="text-[10px] text-zinc-400 capitalize mt-0.5">{node.currentState}</p>
-                    )}
-                  </div>
-                  <div className="space-y-1.5 text-xs">
-                    <div className="flex justify-between items-center">
-                      <span className="text-zinc-500">Interesse</span>
-                      <span className="text-zinc-300 font-medium">
-                        {node.interestScore ? `${node.interestScore}%` : "—"}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-zinc-500">Risco</span>
-                      <span className={`font-medium ${node.riskScore && node.riskScore > 60 ? "text-red-400" : "text-zinc-300"}`}>
-                        {node.riskScore ? `${node.riskScore}%` : "—"}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-zinc-500">Ação</span>
-                      <span className="text-amber-400 font-medium">
-                        {node.needsAttention ? "Responder" : "—"}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+            onClick={handleNodeClick}
+            isHovered={hoveredLeadId === node.id}
+            visualState={getLeadVisualState(node.id)}
+            onVisualStateChange={setLeadVisualState}
+          />
         );
       })}
     </div>
