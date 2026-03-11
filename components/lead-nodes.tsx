@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState, useCallback, useEffect, useRef } from "react";
-import { Megaphone, Zap, RefreshCw, ChevronDown } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Megaphone, Zap, MessageCircle, ChevronDown } from "lucide-react";
 import type { CoreState } from "@/app/page";
 import {
   useOrbitContext,
@@ -15,22 +15,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  HoverCard,
-  HoverCardContent,
-  HoverCardTrigger,
-} from "@/components/ui/hover-card";
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Types
-// ─────────────────────────────────────────────────────────────────────────────
 
 interface LeadNodesProps {
   highlightedLeads: string[];
   coreState: CoreState;
   onLeadClick?: (leadId: string) => void;
-  /** Callback to expose computed positions to parent (for connection lines) */
-  onPositionsChange?: (positions: Map<string, { x: number; y: number }>) => void;
 }
 
 type EmotionalAura =
@@ -38,10 +27,45 @@ type EmotionalAura =
   | "curious"
   | "conflicted"
   | "aware"
-  | "silentGravity"
-  | "whatsapp";
-
+  | "silentGravity";
 type Priority = "hot" | "warm" | "neutral" | "cold";
+
+type CycleStage =
+  | "sem_ciclo"
+  | "inicio"
+  | "explorando"
+  | "decidindo"
+  | "resolvido"
+  | "encerrado";
+
+const stageRingColors: Record<CycleStage, { ring: string; glow: string }> = {
+  sem_ciclo: { ring: "border-zinc-400/50", glow: "" },
+  inicio: {
+    ring: "border-blue-400",
+    glow: "shadow-[0_0_12px_rgba(96,165,250,0.4)]",
+  },
+  explorando: {
+    ring: "border-amber-400",
+    glow: "shadow-[0_0_14px_rgba(251,191,36,0.5)]",
+  },
+  decidindo: {
+    ring: "border-orange-400",
+    glow: "shadow-[0_0_16px_rgba(251,146,60,0.6)]",
+  },
+  resolvido: {
+    ring: "border-emerald-400",
+    glow: "shadow-[0_0_14px_rgba(52,211,153,0.5)]",
+  },
+  encerrado: { ring: "border-zinc-600", glow: "" },
+};
+
+const emotionalIntensity: Record<EmotionalAura, string> = {
+  intent: "brightness-110",
+  curious: "brightness-105",
+  conflicted: "brightness-100",
+  aware: "brightness-95",
+  silentGravity: "brightness-90 opacity-80",
+};
 
 interface LeadNode {
   id: string;
@@ -49,6 +73,7 @@ interface LeadNode {
   avatar: string;
   photoUrl?: string;
   priority: Priority;
+  position: { top: string; left: string };
   badge?: { type: "messages" | "campaign" | "urgent"; count?: number };
   delay: number;
   emotionalAura: EmotionalAura;
@@ -57,240 +82,283 @@ interface LeadNode {
   needsAttention?: boolean;
   isNew?: boolean;
   isProvisional?: boolean;
-  interestScore?: number;
-  momentumScore?: number;
-  currentState?: string;
+  cycleStage: CycleStage;
   hasMatureNotes?: boolean;
-  interactionDays?: number;
+  followupActive?: boolean;
+  followupRemaining?: number;
+  followupDoneToday?: boolean;
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Constants
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Orbit ring radii in pixels. Leads are placed on these rings based on their
- * cognitive state. These are PIXEL values and do NOT scale with zoom.
- */
-const ORBIT_RADII = [260, 360, 460, 560] as const;
-const MAX_RADIUS = 750; // px — expanded to allow reaching padding limits
-const MIN_DISTANCE = 8; // px — espaçamento mínimo garantido entre avatares
-const REPULSION_DISTANCE = 85; // px — raio de influência magnética
-const REPULSION_ITERATIONS = 8;
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Style maps
-// ─────────────────────────────────────────────────────────────────────────────
 
 const auraColors: Record<EmotionalAura, { ring: string; glow: string }> = {
   intent: {
-    ring: "border-emerald-400/60",
-    glow: "shadow-[0_0_8px_rgba(52,211,153,0.3)]",
+    ring: "border-emerald-400",
+    glow: "shadow-[0_0_16px_rgba(52,211,153,0.5)]",
   },
   curious: {
-    ring: "border-[#FFC87A]/60",
-    glow: "shadow-[0_0_8px_rgba(255,200,122,0.3)]",
+    ring: "border-[#FFC87A]",
+    glow: "shadow-[0_0_16px_rgba(255,200,122,0.5)]",
   },
   conflicted: {
-    ring: "border-orange-400/60",
-    glow: "shadow-[0_0_8px_rgba(251,146,60,0.3)]",
+    ring: "border-orange-400",
+    glow: "shadow-[0_0_16px_rgba(251,146,60,0.5)]",
   },
   aware: {
-    ring: "border-[#2EC5FF]/60",
-    glow: "shadow-[0_0_8px_rgba(46,197,255,0.3)]",
+    ring: "border-[#2EC5FF]",
+    glow: "shadow-[0_0_16px_rgba(46,197,255,0.5)]",
   },
   silentGravity: {
-    ring: "border-cyan-300/60",
-    glow: "shadow-[0_0_8px_rgba(103,232,249,0.3)]",
-  },
-  whatsapp: {
-    ring: "border-emerald-500/80",
-    glow: "shadow-[0_0_12px_rgba(16,185,129,0.4)]",
+    ring: "border-cyan-300",
+    glow: "shadow-[0_0_16px_rgba(103,232,249,0.5)]",
   },
 };
 
-const stateRingColors: Record<string, { ring: string; glow: string }> = {
-  latent: { ring: "border-zinc-500/20", glow: "" },
-  curious: { ring: "border-sky-400/40", glow: "shadow-[0_0_4px_rgba(56,189,248,0.1)]" },
-  exploring: { ring: "border-blue-400/60", glow: "shadow-[0_0_6px_rgba(59,130,246,0.2)]" },
-  evaluating: { ring: "border-orange-400/60", glow: "shadow-[0_0_8px_rgba(251,146,60,0.2)]" },
-  deciding: { ring: "border-red-500/70", glow: "shadow-[0_0_12px_rgba(239,68,68,0.3)]" },
-  resolved: { ring: "border-emerald-500/60", glow: "shadow-[0_0_8px_rgba(16,185,129,0.2)]" },
-  dormant: { ring: "border-zinc-800", glow: "" },
+const priorityOpacity: Record<Priority, string> = {
+  hot: "opacity-100",
+  warm: "opacity-90",
+  neutral: "opacity-75",
+  cold: "opacity-60",
 };
 
-const visualStateStyles: Record<LeadVisualState, { dot: string; label: string }> = {
-  ativo: { dot: "bg-emerald-500", label: "text-emerald-400" },
-  aguardando: { dot: "bg-amber-500", label: "text-amber-400" },
-  em_decisao: { dot: "bg-blue-500", label: "text-blue-400" },
-  pausado: { dot: "bg-zinc-500", label: "text-zinc-400" },
-  encerrado: { dot: "bg-rose-500/70", label: "text-rose-400/70" },
-};
+const staticLeadNodes: LeadNode[] = [];
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Polar coordinate layout
+// COLLISION DETECTION — multi-pass, adaptive minimum distance
 // ─────────────────────────────────────────────────────────────────────────────
+function resolveCollisions(nodes: LeadNode[]): LeadNode[] {
+  const MIN_DISTANCE = 10;
+  const MAX_ITERATIONS = 8;
+  const PADDING = { min: 8, max: 92 };
 
-/**
- * Map cognitive state → orbit ring index (0 = innermost).
- */
-function stateToRingIndex(state: string | undefined): number {
-  switch (state) {
-    case "deciding":   return 0;
-    case "evaluating": return 0;
-    case "exploring":  return 1;
-    case "curious":    return 2;
-    case "latent":     return 2;
-    case "dormant":    return 3;
-    case "resolved":   return 3;
-    default:           return 2;
-  }
-}
+  // ── Zona proibida: OrbitCore fica em 50%, 50% ──
+  const CORE_CENTER = { top: 50, left: 50 };
+  const CORE_RADIUS = 18; // % — nenhum nó entra nessa área
 
-/**
- * Node visual size class based on cognitive state.
- */
-function nodeSizeClass(state: string | undefined): string {
-  switch (state) {
-    case "deciding":
-    case "evaluating":
-      return "h-[48px] w-[48px] text-[9.5px]"; // Lead quente (48px)
-    case "exploring":
-      return "h-[42px] w-[42px] text-[8.5px]"; // Negociação (42px)
-    case "curious":
-      return "h-[36px] w-[36px] text-[8px]"; // Acompanhamento (36px)
-    default:
-      return "h-[28px] w-[28px] text-[7.5px]"; // Frio/Latente (28px)
-  }
-}
+  const resolved = nodes.map((n) => ({
+    ...n,
+    position: { ...n.position },
+  }));
 
-interface PolarNode extends LeadNode {
-  /** Final pixel position relative to canvas centre (0,0) */
-  px: number;
-  py: number;
-  /** Orbit ring radius used */
-  ringRadius: number;
-}
+  for (let iter = 0; iter < MAX_ITERATIONS; iter++) {
+    let moved = false;
 
-/**
- * Assigns each lead to an orbit ring and distributes angle evenly.
- * Returns nodes with pixel offsets from centre.
- */
-function buildPolarLayout(nodes: LeadNode[]): PolarNode[] {
-  // Group by ring
-  const rings: LeadNode[][] = [[], [], [], []];
-  for (const node of nodes) {
-    const idx = stateToRingIndex(node.currentState);
-    rings[Math.min(idx, 3)].push(node);
-  }
+    // 1. Repulsão nó-a-nó (lógica original)
+    for (let i = 0; i < resolved.length; i++) {
+      const a = resolved[i];
+      let topA = parseFloat(a.position.top);
+      let leftA = parseFloat(a.position.left);
 
-  const result: PolarNode[] = [];
+      for (let j = i + 1; j < resolved.length; j++) {
+        const b = resolved[j];
+        let topB = parseFloat(b.position.top);
+        let leftB = parseFloat(b.position.left);
 
-  rings.forEach((group, ringIdx) => {
-    const radius = ORBIT_RADII[ringIdx];
-    const count = group.length;
-    if (count === 0) return;
+        const dTop = topB - topA;
+        const dLeft = leftB - leftA;
+        const dist = Math.sqrt(dTop * dTop + dLeft * dLeft);
 
-    // We want to avoid exact top (-PI/2) and bottom (PI/2) because OrbitCore is tall.
-    // We achieve this by slightly squashing the Y axis (ellipse) or forcing angles away from poles.
-    const startAngle = ringIdx % 2 === 0 ? -Math.PI / 4 : Math.PI / 4;
-    group.forEach((node, i) => {
-      let angle = startAngle + (2 * Math.PI * i) / count;
-      
-      // Se o ângulo cair muito próximo do Pólo Sul (PI/2) ou Pólo Norte (-PI/2), 
-      // empurramos levemente para os lados
-      const normalizeAngle = (a: number) => {
-        let n = a % (2 * Math.PI);
-        if (n < 0) n += 2 * Math.PI;
-        return n;
-      };
-      const nAngle = normalizeAngle(angle);
-      
-      // Empurrar do pólo inferior (aprox 1.57 rad) e pólo superior (aprox 4.71 rad)
-      const isNearBottom = Math.abs(nAngle - Math.PI/2) < 0.4;
-      const isNearTop = Math.abs(nAngle - (3*Math.PI)/2) < 0.65;
-      
-      if (isNearBottom) angle += (nAngle > Math.PI/2 ? 0.3 : -0.3);
-      if (isNearTop) angle += (nAngle > (3*Math.PI)/2 ? 0.45 : -0.45);
+        if (dist < MIN_DISTANCE && dist > 0.001) {
+          const overlap = (MIN_DISTANCE - dist) / 2 + 1;
+          const angle = Math.atan2(dTop, dLeft);
+          const cosA = Math.cos(angle);
+          const sinA = Math.sin(angle);
 
-      // Usar perfil Elíptico Wide (telas costumam ser 16:9)
-      const ovalRadiusX = radius * 1.35;
-      let ovalRadiusY = radius * 0.95;
+          topA = Math.min(
+            PADDING.max,
+            Math.max(PADDING.min, topA - sinA * overlap),
+          );
+          leftA = Math.min(
+            PADDING.max,
+            Math.max(PADDING.min, leftA - cosA * overlap),
+          );
+          topB = Math.min(
+            PADDING.max,
+            Math.max(PADDING.min, topB + sinA * overlap),
+          );
+          leftB = Math.min(
+            PADDING.max,
+            Math.max(PADDING.min, leftB + cosA * overlap),
+          );
 
-      // Achata a metade superior da elipse levemente para o Core
-      if (Math.sin(angle) < 0) {
-        ovalRadiusY *= 0.85;
-      }
-
-      let py = Math.sin(angle) * ovalRadiusY;
-
-      result.push({
-        ...node,
-        px: Math.cos(angle) * ovalRadiusX,
-        py,
-        ringRadius: radius,
-      });
-    });
-  });
-
-  return result;
-}
-
-/**
- * Simple node-to-node repulsion so labels don't overlap.
- * Pushes nodes apart while keeping them near their target ring radius.
- */
-function applyRepulsion(nodes: PolarNode[]): PolarNode[] {
-  const out = nodes.map((n) => ({ ...n }));
-
-  for (let iter = 0; iter < REPULSION_ITERATIONS; iter++) {
-    for (let i = 0; i < out.length; i++) {
-      for (let j = i + 1; j < out.length; j++) {
-        const dx = out[j].px - out[i].px;
-        const dy = out[j].py - out[i].py;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < REPULSION_DISTANCE && dist > 0.001) {
-          const overlap = (REPULSION_DISTANCE - dist) / 2 + 1;
-          const nx = dx / dist;
-          const ny = dy / dist;
-          out[i].px -= nx * overlap;
-          out[i].py -= ny * overlap;
-          out[j].px += nx * overlap;
-          out[j].py += ny * overlap;
+          resolved[i] = {
+            ...a,
+            position: { top: `${topA}%`, left: `${leftA}%` },
+          };
+          resolved[j] = {
+            ...b,
+            position: { top: `${topB}%`, left: `${leftB}%` },
+          };
+          moved = true;
         }
       }
     }
-  }
 
-  // Clamp to MAX_RADIUS
-  for (const n of out) {
-    const dist = Math.sqrt(n.px * n.px + n.py * n.py);
-    if (dist > MAX_RADIUS) {
-      const scale = MAX_RADIUS / dist;
-      n.px *= scale;
-      n.py *= scale;
+    // 2. Repulsão do centro — expulsa nós dentro da exclusion zone
+    for (let i = 0; i < resolved.length; i++) {
+      let top = parseFloat(resolved[i].position.top);
+      let left = parseFloat(resolved[i].position.left);
+
+      const dTop = top - CORE_CENTER.top;
+      const dLeft = left - CORE_CENTER.left;
+      const dist = Math.sqrt(dTop * dTop + dLeft * dLeft);
+
+      if (dist < CORE_RADIUS) {
+        if (dist < 0.001) {
+          // Nó exatamente no centro — empurra para direção aleatória determinística
+          const angle = (i / nodes.length) * 2 * Math.PI;
+          top = CORE_CENTER.top + Math.sin(angle) * (CORE_RADIUS + 2);
+          left = CORE_CENTER.left + Math.cos(angle) * (CORE_RADIUS + 2);
+        } else {
+          // Empurra radialmente para fora até a borda da zona proibida
+          const scale = (CORE_RADIUS + 2) / dist;
+          top = CORE_CENTER.top + dTop * scale;
+          left = CORE_CENTER.left + dLeft * scale;
+        }
+
+        top = Math.min(PADDING.max, Math.max(PADDING.min, top));
+        left = Math.min(PADDING.max, Math.max(PADDING.min, left));
+
+        resolved[i] = {
+          ...resolved[i],
+          position: { top: `${top}%`, left: `${left}%` },
+        };
+        moved = true;
+      }
     }
+
+    if (!moved) break;
   }
 
-  return out;
+  return resolved;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Mapping helpers
+// GRAVITY — pulls leads toward the Orbit Core centre (50 %, 50 %)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function mapEmotionalStateToAura(state: string): EmotionalAura {
-  switch (state) {
-    case "engaged":  return "intent";
-    case "warm":     return "curious";
-    case "cooling":  return "silentGravity";
-    default:         return "aware";
+/**
+ * Returns a pull-strength based on how "hot" the lead is.
+ *
+ * Stage weights (stronger → closer to core):
+ *   decidindo  → 0.45   (actively deciding, must be prominent)
+ *   explorando → 0.30
+ *   inicio     → 0.20
+ *   resolvido  → 0.10   (deal done, can drift outward)
+ *   encerrado  → 0      (no pull at all)
+ *   sem_ciclo  → 0.05
+ */
+function getStagePullStrength(cycleStage: CycleStage): number {
+  switch (cycleStage) {
+    case "decidindo":
+      return 0.45;
+    case "explorando":
+      return 0.3;
+    case "inicio":
+      return 0.2;
+    case "resolvido":
+      return 0.1;
+    case "encerrado":
+      return 0.0;
+    case "sem_ciclo":
+      return 0.05;
+    default:
+      return 0.05;
   }
 }
 
+/**
+ * Core gravity — always applied based on cycle stage.
+ * This replaces the old boolean `hasPriorityGravity` logic so that EVERY
+ * lead with an active stage gets pulled toward the centre proportionally.
+ */
+function applyGravity(
+  position: { top: string; left: string },
+  cycleStage: CycleStage,
+  extraBoost: number = 0, // e.g. follow-up or recent contacts bonus
+): { top: string; left: string } {
+  const pullStrength = Math.min(
+    0.65,
+    getStagePullStrength(cycleStage) + extraBoost,
+  );
+  if (pullStrength <= 0) return position;
+
+  const top = parseFloat(position.top);
+  const left = parseFloat(position.left);
+  const newTop = top + (50 - top) * pullStrength;
+  const newLeft = left + (50 - left) * pullStrength;
+  return { top: `${newTop}%`, left: `${newLeft}%` };
+}
+
+/**
+ * Orbit-view gravity — additional pull for leads related to the active
+ * intention (scales with relevance score and day-load factor).
+ */
+function applyOrbitViewGravity(
+  position: { top: string; left: string },
+  relevanceScore: number,
+  dayLoadFactor: number = 1.0,
+): { top: string; left: string } {
+  if (relevanceScore <= 0) return position;
+
+  const top = parseFloat(position.top);
+  const left = parseFloat(position.left);
+
+  let orbitMultiplier: number;
+  if (relevanceScore >= 0.8) orbitMultiplier = 0.6;
+  else if (relevanceScore >= 0.6) orbitMultiplier = 0.45;
+  else if (relevanceScore >= 0.4) orbitMultiplier = 0.3;
+  else orbitMultiplier = 0.15;
+
+  const pullStrength = orbitMultiplier * dayLoadFactor;
+  const newTop = top + (50 - top) * pullStrength;
+  const newLeft = left + (50 - left) * pullStrength;
+  return { top: `${newTop}%`, left: `${newLeft}%` };
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
-// Sub-components
+// Badge helpers (unchanged)
 // ─────────────────────────────────────────────────────────────────────────────
+
+function BadgeContent({ badge }: { badge: LeadNode["badge"] }) {
+  if (!badge) return null;
+  if (badge.type === "messages") {
+    return (
+      <div className="flex h-4 min-w-4 items-center justify-center rounded-full bg-[#2EC5FF]/80 px-1 text-[9px] font-medium text-white">
+        {badge.count ? badge.count : <MessageCircle className="h-2 w-2" />}
+      </div>
+    );
+  }
+  if (badge.type === "campaign") {
+    return (
+      <div className="flex h-4 w-4 items-center justify-center rounded-full bg-[#FFC87A]/80 text-white">
+        <Megaphone className="h-2.5 w-2.5" />
+      </div>
+    );
+  }
+  if (badge.type === "urgent") {
+    return (
+      <div className="flex h-4 w-4 animate-urgent-pulse items-center justify-center rounded-full bg-[#FF7A7A]/70 text-white">
+        <Zap className="h-2.5 w-2.5" />
+      </div>
+    );
+  }
+  return null;
+}
+
+function NotificationRing() {
+  return (
+    <>
+      <div className="absolute -inset-1 animate-notification-ring rounded-full border border-[#FF7A7A]/60" />
+      <div
+        className="absolute -inset-2 animate-notification-ring rounded-full border border-[#FF7A7A]/40"
+        style={{ animationDelay: "0.3s" }}
+      />
+      <div
+        className="absolute -inset-3 animate-notification-ring rounded-full border border-[#FF7A7A]/20"
+        style={{ animationDelay: "0.6s" }}
+      />
+    </>
+  );
+}
 
 function FollowUpRing() {
   return (
@@ -308,6 +376,101 @@ function FollowUpRing() {
   );
 }
 
+type ActionBadgeType = "lightning" | "plane" | "chat" | "number";
+
+interface ActionBadgeProps {
+  type: ActionBadgeType;
+  number?: number;
+  title?: string;
+  onClick?: (e: React.MouseEvent) => void;
+}
+
+const badgeColors: Record<ActionBadgeType, string> = {
+  lightning: "text-amber-400 drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]",
+  plane: "text-sky-400 drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]",
+  chat: "text-violet-400 drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]",
+  number: "text-emerald-400 drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]",
+};
+
+function ActionBadge({ type, number, title, onClick }: ActionBadgeProps) {
+  const colorClass = badgeColors[type];
+  return (
+    <div
+      className={`absolute -top-2 -right-2 z-10 flex items-center justify-center ${colorClass} ${onClick ? "cursor-pointer hover:scale-110 transition-transform" : ""}`}
+      style={{
+        fontSize: type === "number" ? "14px" : "18px",
+        fontWeight: 700,
+        lineHeight: 1,
+      }}
+      title={title}
+      onClick={onClick}
+    >
+      {type === "lightning" && <span>⚡</span>}
+      {type === "plane" && <span>✈️</span>}
+      {type === "chat" && <span>💬</span>}
+      {type === "number" && number !== undefined && (
+        <span style={{ fontFamily: "system-ui, -apple-system, sans-serif" }}>
+          {Math.min(number, 7)}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function ActivityIndicators({
+  leadId,
+  leadStates,
+  hasFollowUpDue,
+}: {
+  leadId: string;
+  leadStates: Record<string, any>;
+  hasFollowUpDue: boolean;
+}) {
+  const leadState = leadStates[leadId];
+  if (!leadState) return null;
+
+  const hasCapsule = leadState.cycles && leadState.cycles.length > 0;
+  const hasPropertiesSent = leadState.cycles?.some(
+    (cycle: any) => cycle.capsuleData && cycle.capsuleData.length > 0,
+  );
+
+  if (!hasCapsule && !hasPropertiesSent && !hasFollowUpDue) return null;
+
+  return (
+    <div className="mt-0.5 flex items-center justify-center gap-0.5">
+      {hasCapsule && (
+        <span
+          className="h-1 w-1 rounded-full bg-blue-400/70"
+          title="Tem cápsula"
+        />
+      )}
+      {hasPropertiesSent && (
+        <span
+          className="h-1 w-1 rounded-full bg-emerald-400/70"
+          title="Propriedades enviadas"
+        />
+      )}
+      {hasFollowUpDue && (
+        <span
+          className="h-1 w-1 rounded-full bg-amber-400/70"
+          title="Aguardando resposta"
+        />
+      )}
+    </div>
+  );
+}
+
+const visualStateStyles: Record<
+  LeadVisualState,
+  { dot: string; label: string }
+> = {
+  ativo: { dot: "bg-emerald-500", label: "text-emerald-400" },
+  aguardando: { dot: "bg-amber-500", label: "text-amber-400" },
+  em_decisao: { dot: "bg-blue-500", label: "text-blue-400" },
+  pausado: { dot: "bg-zinc-500", label: "text-zinc-400" },
+  encerrado: { dot: "bg-rose-500/70", label: "text-rose-400/70" },
+};
+
 function VisualStateIndicator({
   leadId,
   visualState,
@@ -318,8 +481,14 @@ function VisualStateIndicator({
   onStateChange: (leadId: string, state: LeadVisualState | undefined) => void;
 }) {
   const [isOpen, setIsOpen] = useState(false);
+
   const allStates: (LeadVisualState | undefined)[] = [
-    undefined, "ativo", "aguardando", "em_decisao", "pausado", "encerrado",
+    undefined,
+    "ativo",
+    "aguardando",
+    "em_decisao",
+    "pausado",
+    "encerrado",
   ];
 
   return (
@@ -332,8 +501,12 @@ function VisualStateIndicator({
         >
           {visualState ? (
             <>
-              <span className={`h-1.5 w-1.5 rounded-full ${visualStateStyles[visualState].dot}`} />
-              <span className={`font-medium ${visualStateStyles[visualState].label}`}>
+              <span
+                className={`h-1.5 w-1.5 rounded-full ${visualStateStyles[visualState].dot}`}
+              />
+              <span
+                className={`font-medium ${visualStateStyles[visualState].label}`}
+              >
                 {LEAD_VISUAL_STATE_LABELS[visualState]}
               </span>
             </>
@@ -362,8 +535,12 @@ function VisualStateIndicator({
           >
             {state ? (
               <>
-                <span className={`h-2 w-2 rounded-full ${visualStateStyles[state].dot}`} />
-                <span className={visualStateStyles[state].label}>{LEAD_VISUAL_STATE_LABELS[state]}</span>
+                <span
+                  className={`h-2 w-2 rounded-full ${visualStateStyles[state].dot}`}
+                />
+                <span className={visualStateStyles[state].label}>
+                  {LEAD_VISUAL_STATE_LABELS[state]}
+                </span>
               </>
             ) : (
               <span className="text-zinc-500">Sem estado</span>
@@ -376,6 +553,75 @@ function VisualStateIndicator({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Mapping helpers (unchanged)
+// ─────────────────────────────────────────────────────────────────────────────
+
+function mapEmotionalStateToPriority(state: string): Priority {
+  switch (state) {
+    case "engaged":
+      return "hot";
+    case "warm":
+      return "warm";
+    case "cooling":
+      return "cold";
+    default:
+      return "neutral";
+  }
+}
+
+function mapEmotionalStateToAura(state: string): EmotionalAura {
+  switch (state) {
+    case "engaged":
+      return "intent";
+    case "warm":
+      return "curious";
+    case "cooling":
+      return "silentGravity";
+    default:
+      return "aware";
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Opacity helpers (unchanged)
+// ─────────────────────────────────────────────────────────────────────────────
+
+function getActivityOpacity(
+  cycleStage: CycleStage,
+  leadState: any,
+  hasFollowUpDue: boolean,
+  followupDoneToday?: boolean,
+): string {
+  if (cycleStage === "encerrado") return "opacity-40";
+  if (followupDoneToday) return "opacity-50";
+  if (hasFollowUpDue) return "opacity-100";
+
+  const memory = leadState?.memory;
+  const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const recentContacts =
+    memory?.contactLog?.filter((c: any) => new Date(c.timestamp) > weekAgo) ||
+    [];
+  if (recentContacts.length > 0) return "opacity-100";
+
+  return "opacity-70";
+}
+
+function hasMemorySignal(leadState: any): {
+  hasNotes: boolean;
+  hasRecentContacts: boolean;
+} {
+  const memory = leadState?.memory;
+  if (!memory) return { hasNotes: false, hasRecentContacts: false };
+  const hasNotes = (memory.notes?.length || 0) > 0;
+  const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const recentContacts =
+    memory.contactLog?.filter((c: any) => new Date(c.timestamp) > weekAgo) ||
+    [];
+  const hasRecentContacts = recentContacts.length >= 3;
+  return { hasNotes, hasRecentContacts };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Main component
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -383,496 +629,336 @@ export function LeadNodes({
   highlightedLeads,
   coreState,
   onLeadClick,
-  onPositionsChange,
 }: LeadNodesProps) {
   const isResponding = coreState === "responding";
   const hasHighlights = highlightedLeads.length > 0;
 
-  const { leads: supabaseLeads } = useSupabaseLeads();
+  const { leads: supabaseLeads, loading } = useSupabaseLeads();
 
   const {
+    hasActiveCycle,
     leadStates,
     newLeads,
+    getLeadsWithActiveFollowUp,
     getLeadVisualState,
     setLeadVisualState,
     orbitView,
-    selectedLeadId,
   } = useOrbitContext();
 
-  // Seed for angle jitter — incremented on "Reorganizar" click
-  const [seed, setSeed] = useState(0);
-  const reorganize = useCallback(() => setSeed((s) => s + 1), []);
+  const followUpLeads = getLeadsWithActiveFollowUp();
 
-  // Admin leads from context
-  const adminLeads = Object.values(leadStates).filter((s) => s.adminData);
+  // ── Admin leads ──────────────────────────────────────────────────────────
+  const adminLeads = Object.values(leadStates).filter(
+    (state) => state.adminData,
+  );
   const adminLeadNodes: LeadNode[] = adminLeads.map((state) => ({
     id: state.id,
     name: state.adminData!.name,
     avatar: state.adminData!.avatar,
     photoUrl: state.adminData!.photoUrl,
-    priority: "warm",
+    priority: "warm" as Priority,
+    position: state.adminData!.position,
     delay: 0,
-    emotionalAura: "aware",
+    emotionalAura: "aware" as EmotionalAura,
+    hasRecentActivity: newLeads.includes(state.id),
     isNew: newLeads.includes(state.id),
     isProvisional: state.isProvisional,
-    currentState: "latent",
+    cycleStage: "sem_ciclo" as CycleStage,
   }));
 
-  // Supabase leads
-  const supabaseLeadNodes: LeadNode[] = supabaseLeads.map((lead: OrbitLead) => ({
-    id: lead.id,
-    name: lead.name,
-    avatar: lead.avatar,
-    photoUrl: lead.photoUrl,
-    priority: lead.emotionalState === "engaged" ? "hot" : lead.emotionalState === "warm" ? "warm" : "neutral",
-    badge: lead.badge
-      ? ({
-          type: lead.badge === "hot" ? "urgent" : lead.badge === "campaign" ? "campaign" : "messages",
+  // ── Supabase leads ───────────────────────────────────────────────────────
+  const supabaseLeadNodes: LeadNode[] = supabaseLeads.map(
+    (lead: OrbitLead) => ({
+      id: lead.id,
+      name: lead.name,
+      avatar: lead.avatar,
+      photoUrl: lead.photoUrl,
+      priority: mapEmotionalStateToPriority(lead.emotionalState),
+      position: lead.position,
+      badge: lead.badge
+        ? ({
+          type:
+            lead.badge === "hot"
+              ? "urgent"
+              : lead.badge === "campaign"
+                ? "campaign"
+                : "messages",
         } as LeadNode["badge"])
-      : undefined,
-    delay: lead.delay,
-    emotionalAura: mapEmotionalStateToAura(lead.emotionalState),
-    hasRecentActivity: !!lead.lastAiAnalysisAt,
-    hasNotification: lead.emotionalState === "engaged",
-    needsAttention: lead.needsAttention,
-    interestScore: lead.interestScore,
-    momentumScore: lead.momentumScore,
-    currentState: lead.currentState,
-    hasMatureNotes: lead.hasMatureNotes,
-    interactionDays: lead.daysSinceInteraction || 0,
-  }));
+        : undefined,
+      delay: lead.delay,
+      emotionalAura: mapEmotionalStateToAura(lead.emotionalState),
+      hasRecentActivity: lead.hasCapsuleActive,
+      hasNotification: lead.emotionalState === "engaged",
+      needsAttention: lead.needsAttention,
+      cycleStage: lead.cycleStage, // From database — NEVER calculate
+      hasMatureNotes: lead.hasMatureNotes,
+      followupActive: lead.followupActive,
+      followupRemaining: lead.followupRemaining,
+      followupDoneToday: lead.followupDoneToday,
+    }),
+  );
 
-  // Orbit-view scores
+  // ── Day-load factor ──────────────────────────────────────────────────────
+  const activeLeadCount = useMemo(
+    () =>
+      supabaseLeads.filter(
+        (l: OrbitLead) => l.needsAttention || l.cycleStage === "decidindo",
+      ).length,
+    [supabaseLeads],
+  );
+
+  const dayLoadFactor = useMemo(() => {
+    if (activeLeadCount >= 10) return 0.5;
+    if (activeLeadCount >= 6) return 0.7;
+    if (activeLeadCount >= 3) return 0.85;
+    return 1.0;
+  }, [activeLeadCount]);
+
+  // ── Orbit-view scores ────────────────────────────────────────────────────
   const orbitViewLeadScores = useMemo(() => {
     if (!orbitView.active) return new Map<string, number>();
+    const sortedLeads = [...orbitView.leads].sort(
+      (a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0),
+    );
     const scores = new Map<string, number>();
-    for (const lead of orbitView.leads.slice(0, 18)) {
+    for (const lead of sortedLeads.slice(0, 18)) {
       scores.set(lead.leadId, lead.relevanceScore || 0.7);
     }
     return scores;
   }, [orbitView.active, orbitView.leads]);
 
-  // COMBINED SOURCE NODES
-  const sourceNodes = useMemo(() => {
-    // Sort leads deterministically by ID so their radial position remains consistent
-    const combined = [...supabaseLeadNodes, ...adminLeadNodes].sort((a, b) => a.id.localeCompare(b.id));
-    return combined.map((n) => {
-      if (selectedLeadId && n.id === selectedLeadId) {
-        return { ...n, currentState: "deciding" }; // force inner ring visually
+  // ── Combine + gravity + collision ────────────────────────────────────────
+  const allLeadNodes = useMemo(() => {
+    const combined = [...supabaseLeadNodes, ...adminLeadNodes];
+
+    // 1. Apply gravity BEFORE collision resolution so hot leads settle near
+    //    the core, and the collision resolver pushes cold ones outward.
+    const withGravity = combined.map((node) => {
+      const leadState = leadStates[node.id];
+      const memSignal = hasMemorySignal(leadState);
+      const hasFollowUpDue = !!(
+        node.followupActive &&
+        (node.followupRemaining || 0) > 0 &&
+        !node.followupDoneToday
+      );
+
+      // Extra boost for leads with follow-up or recent contacts
+      const extraBoost =
+        (hasFollowUpDue ? 0.1 : 0) + (memSignal.hasRecentContacts ? 0.05 : 0);
+
+      let pos = applyGravity(node.position, node.cycleStage, extraBoost);
+
+      // Orbit-view additional pull
+      const orbitScore = orbitViewLeadScores.get(node.id) || 0;
+      if (orbitView.active && orbitScore > 0) {
+        pos = applyOrbitViewGravity(pos, orbitScore, dayLoadFactor);
       }
-      return n;
-    });
-  }, [supabaseLeadNodes, adminLeadNodes, selectedLeadId]);
 
-  // PHYSICS STATE REF
-  const physicsNodesRef = useRef<Map<string, {
-    x: number; y: number; vx: number; vy: number;
-    angle: number; idealRadius: number;
-    node: LeadNode;
-  }>>(new Map());
-
-  // REACT RENDER STATE
-  const [renderNodes, setRenderNodes] = useState<PolarNode[]>([]);
-
-  // INIT OR UPDATE PHYSICS STATE
-  useEffect(() => {
-    const currentMap = physicsNodesRef.current;
-    const newMap = new Map<string, any>();
-
-    // Determine target distribution ring counts
-    const rings: LeadNode[][] = [[], [], [], []];
-    for (const node of sourceNodes) {
-      const idx = stateToRingIndex(node.currentState);
-      rings[Math.min(idx, 3)].push(node);
-    }
-
-    rings.forEach((group, ringIdx) => {
-      const radius = ORBIT_RADII[ringIdx];
-      const count = group.length;
-      if (count === 0) return;
-
-      const startAngle = ringIdx % 2 === 0 ? -Math.PI / 4 : Math.PI / 4;
-      
-      group.forEach((node, i) => {
-        let idealAngle = startAngle + (2 * Math.PI * i) / count;
-        
-        // Exclusões de Pólos na ÂNCORA (não na posição final, a mola puxa pra cá)
-        const nAngle = (idealAngle % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
-        const isNearBottom = Math.abs(nAngle - Math.PI/2) < 0.4;
-        const isNearTop = Math.abs(nAngle - (3*Math.PI)/2) < 0.65;
-        if (isNearBottom) idealAngle += (nAngle > Math.PI/2 ? 0.3 : -0.3);
-        if (isNearTop) idealAngle += (nAngle > (3*Math.PI)/2 ? 0.45 : -0.45);
-
-        const existing = currentMap.get(node.id);
-        
-        if (existing) {
-          // Keep current physical position, just update targets
-          newMap.set(node.id, {
-            ...existing,
-            node,
-            idealRadius: radius
-            // We intentionally do NOT lock the angle, we let it drift from wherever it is
-          });
-        } else {
-          // Spawn new node
-          // Spawn new node - Deterministic angle based on index
-          const ovalRadiusX = radius * 1.4;
-          let ovalRadiusY = radius * 0.7; // Ligeiramente menos achatado para dar mais ar vertical
-          if (Math.sin(idealAngle) < 0) ovalRadiusY *= 0.8;
-
-          newMap.set(node.id, {
-            x: Math.cos(idealAngle) * ovalRadiusX,
-            y: Math.sin(idealAngle) * ovalRadiusY,
-            vx: 0,
-            vy: 0,
-            angle: idealAngle, // Remove random phase for deterministic layout
-            idealRadius: radius,
-            node
-          });
-        }
-      });
+      return { ...node, position: pos };
     });
 
-    physicsNodesRef.current = newMap;
-  }, [sourceNodes, seed]);
+    // 2. Resolve collisions on the gravity-adjusted positions
+    return resolveCollisions(withGravity);
+  }, [
+    supabaseLeadNodes,
+    adminLeadNodes,
+    leadStates,
+    orbitViewLeadScores,
+    orbitView.active,
+    dayLoadFactor,
+  ]);
 
-  // MAIN PHYSICS LOOP (requestAnimationFrame)
-  useEffect(() => {
-    let animationFrameId: number;
-    let lastTime = performance.now();
-
-    const tick = (time: number) => {
-      const deltaTime = Math.min((time - lastTime) / 1000, 0.1); // clamp to 100ms max (10fps min)
-      lastTime = time;
-
-      const nodesMap = physicsNodesRef.current;
-      const nodes = Array.from(nodesMap.values());
-
-      // 1. Apply Forces
-      for (let i = 0; i < nodes.length; i++) {
-        const p = nodes[i];
-
-        // --- ELASTIC SPRING TETHER TO ANCHOR ---
-        // Achatando a elipse significativamente e esticando as laterais (1.4x)
-        const ovalRadiusX = p.idealRadius * 1.4;
-        let ovalRadiusY = p.idealRadius * 0.7;
-        if (Math.sin(p.angle) < 0) ovalRadiusY *= 0.8;
-
-        const anchorX = Math.cos(p.angle) * ovalRadiusX;
-        const anchorY = Math.sin(p.angle) * ovalRadiusY;
-
-        const dxAnchor = anchorX - p.x;
-        const dyAnchor = anchorY - p.y;
-        
-        // Mola mais estanque para grudar rápido e parar os tremores.
-        const springK = 2.0; 
-        p.vx += dxAnchor * springK * deltaTime;
-        p.vy += dyAnchor * springK * deltaTime;
-
-        // --- CORE EXCLUSION ZONE (Escudo de proteção do OrbitCore) ---
-        const distFromCenter = Math.sqrt(p.x * p.x + p.y * p.y);
-        const CORE_SAFETY_RADIUS = 220; // Limpa inclusive os anéis internos do Core
-        if (distFromCenter < CORE_SAFETY_RADIUS) {
-          const pushForce = (CORE_SAFETY_RADIUS - distFromCenter) * 10.0; // Suavizado para evitar oscilação
-          p.vx += (p.x / (distFromCenter || 1)) * pushForce * deltaTime;
-          p.vy += (p.y / (distFromCenter || 1)) * pushForce * deltaTime;
-        }
-
-        // --- REPULSION BETWEEN NODES (Magnetic Field) ---
-        // Aumentando ainda mais o raio para acomodar avatares maiores sem sobreposição visual.
-        const REP_DIST = 200; 
-        const BASE_REP_FORCE = 400; // Reduzido para parar a "briga" constante
-
-        for (let j = i + 1; j < nodes.length; j++) {
-          const p2 = nodes[j];
-          const dx = p.x - p2.x;
-          const dy = p.y - p2.y;
-          const distSq = dx*dx + dy*dy;
-          const dist = Math.sqrt(distSq);
-          
-          // Anti-colisão dura (MIN_DISTANCE = 8)
-          if (dist < MIN_DISTANCE && dist > 0) {
-            const angle = Math.atan2(dy, dx);
-            const move = (MIN_DISTANCE - dist) / 2;
-            const mx = Math.cos(angle) * move;
-            const my = Math.sin(angle) * move;
-            p.x += mx; p.y += my;
-            p2.x -= mx; p2.y -= my;
-          }
-
-          if (distSq > 0 && distSq < REP_DIST * REP_DIST) {
-            // Curva exponencial: muito forte de perto (evita sobreposição real), muito fraca de longe.
-            const strengthRatio = Math.pow(1 - dist / REP_DIST, 2); 
-            const force = (BASE_REP_FORCE * strengthRatio * (Math.abs(p.idealRadius - p2.idealRadius) < 10 ? 3.0 : 1.0)) * deltaTime;
-            
-            const fx = (dx / dist) * force;
-            const fy = (dy / dist) * force;
-            
-            p.vx += fx;
-            p.vy += fy;
-            p2.vx -= fx;
-            p2.vy -= fy;
-          }
-        }
-      }
-
-      // 2. Integration & Damping
-      const DAMPING = 0.40; // Damping agressivo = sistema para de oscilar quase instantaneamente
-      const snapThreshold = 0.02;
-
-      let needsRender = false;
-      const newRenderNodes: PolarNode[] = [];
-
-      for (const p of nodes) {
-        p.vx *= DAMPING;
-        p.vy *= DAMPING;
-        
-        if (Math.abs(p.vx) > snapThreshold || Math.abs(p.vy) > snapThreshold) {
-          needsRender = true;
-          p.x += p.vx;
-          p.y += p.vy;
-
-          // Soft "Natural" Edge Repulsion (Padding 4% Lateral / 8% Vertical)
-          // Em vez de travar o nó, aplicamos uma força que o empurra de volta se ele passar do limite.
-          const leftPct = (p.x + 600) / 12;
-          const topPct = (p.y + 346.5) / 6.93;
-          
-          const edgeSoftForce = 12.0; 
-          // Borda lateral mais fina (4%)
-          if (leftPct < 4) p.vx += (4 - leftPct) * edgeSoftForce * deltaTime;
-          if (leftPct > 96) p.vx -= (leftPct - 96) * edgeSoftForce * deltaTime;
-          // Borda vertical mantém respiro (8%)
-          if (topPct < 8) p.vy += (8 - topPct) * edgeSoftForce * deltaTime;
-          if (topPct > 92) p.vy -= (topPct - 92) * edgeSoftForce * deltaTime;
-
-          // Hard safety clamp (Absolute Viewport Bounds)
-          p.x = Math.max(-585, Math.min(585, p.x)); // 2% cada lado
-          p.y = Math.max(-305, Math.min(305, p.y)); // 6% cada lado
-
-          // Hard Circular FLOOR (Protect the Core area)
-          const finalDist = Math.sqrt(p.x * p.x + p.y * p.y);
-          const MIN_ALLOWED_DIST = 215;
-          if (finalDist < MIN_ALLOWED_DIST) {
-            p.x = (p.x / (finalDist || 1)) * MIN_ALLOWED_DIST;
-            p.y = (p.y / (finalDist || 1)) * MIN_ALLOWED_DIST;
-          }
-        }
-
-        newRenderNodes.push({
-          ...p.node,
-          px: p.x,
-          py: p.y,
-          ringRadius: p.idealRadius
-        });
-      }
-
-      // Always update React but let's try not to thrash too much if nothing moved
-      // However since there's constant orbital drift, it will likely render every frame (which is what we want for smooth UI)
-      setRenderNodes(newRenderNodes);
-
-      animationFrameId = requestAnimationFrame(tick);
-    };
-
-    animationFrameId = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(animationFrameId);
-  }, []);
+  const handleLeadClick = (leadId: string) => {
+    onLeadClick?.(leadId);
+  };
 
   return (
-    <>
-      {/* ── Reorganizar button ───────────────────────────────────────────── */}
-      <button
-        type="button"
-        onClick={reorganize}
-        title="Reorganizar Orbit"
-        className="pointer-events-auto absolute bottom-6 left-1/2 z-[100] -translate-x-1/2 flex items-center gap-1.5 rounded-full border border-white/10 bg-zinc-900/80 px-3 py-1.5 text-[10px] font-medium text-zinc-400 backdrop-blur-xl transition-all hover:border-cyan-500/40 hover:text-cyan-400 hover:bg-zinc-800/80"
-      >
-        <RefreshCw className="h-3 w-3" />
-        Reorganizar Orbit
-      </button>
+    <div className="pointer-events-none absolute inset-0 z-20">
+      {allLeadNodes.map((node) => {
+        const isHighlighted = highlightedLeads.includes(node.id);
+        const highlightDelay = isHighlighted
+          ? highlightedLeads.indexOf(node.id) * 0.15
+          : 0;
 
-      {/* ── Lead nodes ───────────────────────────────────────────────────── */}
-      <div className="pointer-events-none absolute inset-0 z-20">
-        {renderNodes.map((node: PolarNode) => {
-          const isHighlighted = highlightedLeads.includes(node.id);
-          const highlightDelay = isHighlighted ? highlightedLeads.indexOf(node.id) * 0.15 : 0;
+        const leadState = leadStates[node.id];
+        const stageColors = stageRingColors[node.cycleStage] || stageRingColors["sem_ciclo"];
+        const memorySignal = hasMemorySignal(leadState);
 
-          const stateStyle = stateRingColors[node.currentState || "latent"];
-          const aura = node.needsAttention ? auraColors.whatsapp : auraColors[node.emotionalAura as EmotionalAura] || auraColors.aware;
+        const hasFollowUpDue = !!(
+          node.followupActive &&
+          (node.followupRemaining || 0) > 0 &&
+          !node.followupDoneToday
+        );
 
-          const orbitScore = orbitViewLeadScores.get(node.id) || 0;
-          const isOrbitViewRelated = orbitView.active && orbitScore > 0;
-          const isOrbitViewUnrelated = orbitView.active && orbitScore === 0;
+        const orbitViewScore = orbitViewLeadScores.get(node.id) || 0;
+        const isOrbitViewRelated = orbitView.active && orbitViewScore > 0;
+        const isOrbitViewUnrelated = orbitView.active && orbitViewScore === 0;
 
-          const isPulsing = node.currentState === "deciding" || node.needsAttention;
-          const pulseSpeed = (node.interactionDays || 0) < 1 ? "1s" : (node.interactionDays || 0) < 3 ? "2s" : "4s";
+        // NOTE: position is already computed (gravity + collision) inside allLeadNodes
+        const adjustedPosition = node.position;
 
-          const zDepthClass =
-            node.currentState === "deciding" || node.currentState === "evaluating"
-              ? "z-[60]"
-              : node.currentState === "exploring"
-                ? "z-[40]"
-                : "z-[20]";
+        const intensityClass = emotionalIntensity[node.emotionalAura];
 
-          const sizeClass = nodeSizeClass(node.currentState);
-
-          const opacityClass = isOrbitViewUnrelated
-            ? "opacity-[0.04] grayscale pointer-events-none"
-            : node.currentState === "dormant"
-              ? "opacity-30 grayscale"
-              : node.currentState === "latent"
-                ? "opacity-50 grayscale-[0.4]"
-                : "opacity-100";
-
-          return (
-            <div
-              key={node.id}
-              className={`pointer-events-auto absolute transition-[opacity,transform,filter] duration-700 ease-out ${
-                isResponding && hasHighlights && !isHighlighted
-                  ? "opacity-[0.05] scale-90"
-                  : opacityClass
-              } animate-node-float ${
-                isPulsing ? "animate-hot-lead-pulse" : ""
-              } ${isOrbitViewRelated ? "z-[70]" : zDepthClass}`}
-              style={{
-                /* Place relative to centre of the canvas (which is at 50/50 of the wrapper) */
-                left: `calc(50% + ${node.px}px)`,
-                top: `calc(50% + ${node.py}px)`,
-                transform: "translate(-50%, -50%)",
-                animationDelay: `${node.delay}s`,
-                transitionDelay: isResponding ? `${highlightDelay}s` : "0s",
-                animationDuration: isPulsing ? pulseSpeed : undefined,
-              }}
-            >
-              <HoverCard openDelay={200} closeDelay={100}>
-                <HoverCardTrigger asChild>
-                  <div
-                    onClick={() => onLeadClick?.(node.id)}
-                    className="group flex cursor-pointer flex-col items-center transition-all duration-[240ms] hover:scale-105"
-                  >
-                    <div className="relative">
-                      {/* Cognitive state ring - Thinner and more discrete */}
-                      <div
-                        className={`absolute -inset-[1.5px] rounded-full border-[0.5px] transition-all duration-700 ${stateStyle.ring} ${stateStyle.glow}`}
-                      />
-                      {/* Emotional aura ring - Subtle outer glow */}
-                      <div
-                        className={`absolute -inset-[2.5px] rounded-full border-[0.5px] opacity-40 transition-all duration-500 ${aura.ring} ${aura.glow}`}
-                      />
-
-                      {/* Avatar */}
-                      <div
-                        className={`flex ${sizeClass} items-center justify-center overflow-hidden rounded-full border-2 bg-[var(--orbit-glass)] text-xs font-light text-[var(--orbit-text)] backdrop-blur-sm transition-all duration-300 ${
-                          isHighlighted && isResponding
-                            ? "animate-lead-highlight scale-110 border-[var(--orbit-glow)]"
-                            : node.isNew
-                              ? "border-[var(--orbit-glow)] animate-new-lead-glow"
-                              : `${stateStyle.ring} ${stateStyle.glow}`
-                        }`}
-                        style={{
-                          animationDelay: `${highlightDelay}s`,
-                          transition: "all 0.5s cubic-bezier(0.2, 0.8, 0.2, 1)",
-                        }}
-                      >
-                        {node.photoUrl ? (
-                          <img
-                            src={node.photoUrl}
-                            alt={node.name}
-                            className="h-full w-full object-cover"
-                            onError={(e) => {
-                              e.currentTarget.style.display = "none";
-                              const parent = e.currentTarget.parentElement;
-                              if (parent) {
-                                const fallback = document.createElement("span");
-                                fallback.textContent = node.avatar;
-                                parent.appendChild(fallback);
-                              }
-                            }}
-                          />
-                        ) : (
-                          node.avatar
-                        )}
-                      </div>
-
-                      {/* Attention badge */}
-                      {node.needsAttention && (
-                        <div className="absolute -right-0.5 -top-0.5 flex h-3 w-3 items-center justify-center rounded-full bg-emerald-500 border border-zinc-900">
-                          <div className="h-1.5 w-1.5 rounded-full bg-white" />
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Name label */}
-                    <div
-                      className={`mt-1 flex flex-col items-center text-center text-[9.5px] font-normal leading-none tracking-tight backdrop-blur-sm transition-all duration-[240ms] ${
-                        isHighlighted && isResponding
-                          ? "text-[var(--orbit-glow)]"
-                          : node.currentState === "dormant" || node.currentState === "latent"
-                            ? "text-[var(--orbit-text-muted)] opacity-50"
-                            : "text-[var(--orbit-text)] group-hover:text-[var(--orbit-glow)]"
-                      }`}
-                    >
-                      {node.name.split(" ").map((part, i) => (
-                        <span key={i}>{part}</span>
-                      ))}
-                    </div>
-
-                    {/* Visual state indicator */}
-                    <VisualStateIndicator
-                      leadId={node.id}
-                      visualState={getLeadVisualState(node.id)}
-                      onStateChange={setLeadVisualState}
-                    />
-                  </div>
-                </HoverCardTrigger>
-
-                <HoverCardContent
-                  side="right"
-                  align="center"
-                  sideOffset={16}
-                  className="w-56 border-white/10 bg-zinc-950/95 backdrop-blur-2xl shadow-2xl p-4"
-                >
-                  <div className="flex flex-col gap-3">
-                    <div>
-                      <span className="font-semibold text-slate-100 uppercase tracking-wide">
-                        {node.name.split(new RegExp(`(${orbitView.query})`, "gi")).map((part: string, i: number) =>
-                          part.toLowerCase() === orbitView.query.toLowerCase() ? (
-                            <span key={i} className="text-[#2EC5FF] bg-[#2EC5FF]/10 px-0.5 rounded">
-                              {part}
-                            </span>
-                          ) : (
-                            part
-                          ),
-                        )}
-                      </span>
-                      {node.currentState && (
-                        <p className="text-xs text-zinc-400 capitalize">{node.currentState}</p>
-                      )}
-                    </div>
-                    <div className="space-y-1.5 text-xs">
-                      <div className="flex justify-between items-center">
-                        <span className="text-zinc-500">Interesse</span>
-                        <span className="text-zinc-300 font-medium">
-                          {node.interestScore ? `${node.interestScore}%` : "N/A"}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-zinc-500">Ticket</span>
-                        <span className="text-emerald-400 font-medium">R$ --</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-zinc-500">Ação</span>
-                        <span className="text-amber-400 font-medium truncate max-w-[100px] text-right">
-                          {node.needsAttention ? "Responder" : "Nenhuma"}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </HoverCardContent>
-              </HoverCard>
-            </div>
+        const activityOpacity = isOrbitViewUnrelated
+          ? "opacity-40"
+          : getActivityOpacity(
+            node.cycleStage,
+            leadState,
+            hasFollowUpDue,
+            node.followupDoneToday,
           );
-        })}
-      </div>
-    </>
+
+        return (
+          <div
+            key={node.id}
+            className={`pointer-events-auto absolute transition-all duration-700 ${intensityClass} ${isResponding && hasHighlights && !isHighlighted
+                ? "scale-95 opacity-40"
+                : activityOpacity
+              } ${!isResponding && !node.isNew ? "animate-node-float" : ""} ${node.cycleStage === "decidindo" || hasFollowUpDue
+                ? "animate-hot-lead-pulse"
+                : ""
+              } ${node.isNew ? "animate-lead-emerge" : ""} ${isOrbitViewRelated ? "z-30" : ""}`}
+            style={{
+              top: adjustedPosition.top,
+              left: adjustedPosition.left,
+              animationDelay: `${node.delay}s`,
+              transitionDelay: isResponding ? `${highlightDelay}s` : "0s",
+            }}
+          >
+            <div
+              onClick={() => handleLeadClick(node.id)}
+              className="cubic-bezier-smooth group flex cursor-pointer flex-col items-center transition-all duration-[240ms] hover:scale-105"
+            >
+              <div className="relative">
+                {/* Action icons — hierarchical badges (mutually exclusive): ⚡ > 🔢 > ✈️ > 💬 */}
+                {node.needsAttention && node.cycleStage !== "encerrado" && (
+                  <ActionBadge
+                    type="lightning"
+                    title="Ele falou, você não tratou"
+                  />
+                )}
+                {!node.needsAttention &&
+                  node.followupActive &&
+                  (node.followupRemaining || 0) > 0 && (
+                    <ActionBadge
+                      type="number"
+                      number={node.followupRemaining}
+                      title={`Follow-up: ${node.followupRemaining} ações restantes`}
+                    />
+                  )}
+                {!node.needsAttention &&
+                  !node.followupActive &&
+                  node.cycleStage !== "sem_ciclo" &&
+                  node.cycleStage !== "encerrado" && (
+                    <ActionBadge
+                      type="plane"
+                      title="Você já falou, aguarda resposta"
+                    />
+                  )}
+                {node.hasMatureNotes &&
+                  !node.needsAttention &&
+                  !node.followupActive &&
+                  (node.cycleStage === "sem_ciclo" ||
+                    node.cycleStage === "resolvido") && (
+                    <ActionBadge
+                      type="chat"
+                      title="Existe contexto aqui"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleLeadClick(node.id);
+                      }}
+                    />
+                  )}
+
+                {hasFollowUpDue && !node.needsAttention && <FollowUpRing />}
+
+                <div
+                  className={`flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border-2 bg-[var(--orbit-glass)] text-xs font-light text-[var(--orbit-text)] backdrop-blur-sm transition-all duration-300 ${isHighlighted && isResponding
+                      ? "animate-lead-highlight scale-110 border-[var(--orbit-glow)]"
+                      : hasFollowUpDue
+                        ? "border-amber-400 shadow-[0_0_16px_rgba(251,191,36,0.5)]"
+                        : node.isNew
+                          ? "border-[var(--orbit-glow)] animate-new-lead-glow"
+                          : `${stageColors.ring} ${stageColors.glow}`
+                    }`}
+                  style={{
+                    animationDelay: isHighlighted ? `${highlightDelay}s` : "0s",
+                  }}
+                >
+                  {node.photoUrl ? (
+                    <img
+                      src={node.photoUrl}
+                      alt={node.name}
+                      className="h-full w-full object-cover"
+                      onError={(e) => {
+                        e.currentTarget.style.display = "none";
+                        const parent = e.currentTarget.parentElement;
+                        if (parent) {
+                          const fallback = document.createElement("span");
+                          fallback.textContent = node.avatar;
+                          parent.appendChild(fallback);
+                        }
+                      }}
+                    />
+                  ) : (
+                    node.avatar
+                  )}
+                </div>
+
+                {node.badge && (
+                  <div className="absolute -right-1 -top-1">
+                    <BadgeContent badge={node.badge} />
+                  </div>
+                )}
+
+                {/* Memory signal markers */}
+                {memorySignal.hasNotes && node.cycleStage !== "encerrado" && (
+                  <div
+                    className="absolute -left-0.5 top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full bg-violet-400"
+                    title="Has notes"
+                  />
+                )}
+                {memorySignal.hasRecentContacts &&
+                  node.cycleStage !== "encerrado" && (
+                    <div
+                      className="absolute -right-0.5 top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full bg-teal-400"
+                      title="Active contacts"
+                    />
+                  )}
+              </div>
+
+              {/* Name label */}
+              <div
+                className={`mt-1 flex flex-col items-center text-center text-xs font-light leading-tight backdrop-blur-sm transition-all duration-[240ms] ${isHighlighted && isResponding
+                    ? "text-[var(--orbit-glow)]"
+                    : node.cycleStage === "encerrado" ||
+                      node.cycleStage === "sem_ciclo"
+                      ? "text-[var(--orbit-text-muted)]"
+                      : "text-[var(--orbit-text)] group-hover:text-[var(--orbit-glow)]"
+                  }`}
+              >
+                {node.name.split(" ").map((part, i) => (
+                  <span key={i}>{part}</span>
+                ))}
+              </div>
+
+              {/* Activity indicators */}
+              <ActivityIndicators
+                leadId={node.id}
+                leadStates={leadStates}
+                hasFollowUpDue={hasFollowUpDue}
+              />
+
+              {/* Visual state indicator */}
+              <VisualStateIndicator
+                leadId={node.id}
+                visualState={getLeadVisualState(node.id)}
+                onStateChange={setLeadVisualState}
+              />
+            </div>
+          </div>
+        );
+      })}
+    </div>
   );
 }
