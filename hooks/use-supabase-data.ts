@@ -29,9 +29,15 @@ export interface OrbitLead {
   // Cognitive State Layer
   interestScore?: number
   momentumScore?: number
+  riskScore?: number
+  clarityLevel?: number
   currentState?: 'latent' | 'curious' | 'exploring' | 'evaluating' | 'deciding' | 'resolved' | 'dormant'
   lastAiAnalysisAt?: string | null
   hasMatureNotes?: boolean
+  cycleStage?: string
+  followupActive?: boolean
+  followupRemaining?: number
+  followupDoneToday?: boolean
 }
 
 function mapStateToEmotionalState(state: string | null): "engaged" | "warm" | "neutral" | "cooling" {
@@ -130,8 +136,14 @@ export function useSupabaseLeads() {
         orbit_stage: string | null; 
         orbit_visual_state: string | null; 
         action_suggested: string | null;
+        cycle_stage?: string | null;
+        followup_active?: boolean | null;
+        followup_remaining?: number | null;
+        followup_done_today?: boolean | null;
         interest_score?: number;
         momentum_score?: number;
+        risk_score?: number;
+        clarity_level?: number;
         current_state?: string;
         last_ai_analysis_at?: string | null;
       }> = {}
@@ -141,7 +153,7 @@ export function useSupabaseLeads() {
         const [leadsRes, cognitiveRes] = await Promise.all([
           supabase
             .from('leads')
-            .select('id, orbit_stage, orbit_visual_state, action_suggested')
+            .select('id, orbit_stage, orbit_visual_state, action_suggested, cycle_stage, followup_active, followup_remaining, followup_done_today')
             .in('id', leadIds),
           supabase
             .from('lead_cognitive_state')
@@ -156,17 +168,32 @@ export function useSupabaseLeads() {
               orbit_stage: lead.orbit_stage || null,
               orbit_visual_state: lead.orbit_visual_state || null,
               action_suggested: lead.action_suggested || null,
+              cycle_stage: lead.cycle_stage || null,
+              followup_active: lead.followup_active ?? false,
+              followup_remaining: lead.followup_remaining ?? 0,
+              followup_done_today: lead.followup_done_today ?? false,
             }
           }
         }
 
         if (cognitiveRes.data) {
           for (const state of cognitiveRes.data as any[]) {
-            if (orbitDataMap[state.lead_id]) {
+            if (state.lead_id) {
+              const prev = orbitDataMap[state.lead_id] || { 
+                orbit_stage: null, 
+                orbit_visual_state: null, 
+                action_suggested: null,
+                cycle_stage: null,
+                followup_active: false,
+                followup_remaining: 0,
+                followup_done_today: false
+              };
               orbitDataMap[state.lead_id] = {
-                ...orbitDataMap[state.lead_id],
+                ...prev,
                 interest_score: state.interest_score,
                 momentum_score: state.momentum_score,
+                risk_score: state.risk_score,
+                clarity_level: state.clarity_level,
                 current_state: state.current_state,
                 last_ai_analysis_at: state.last_ai_analysis_at
               }
@@ -222,8 +249,14 @@ export function useSupabaseLeads() {
           orbitStage: orbitData?.orbit_stage,
           orbitVisualState: orbitData?.orbit_visual_state,
           needsAttention: orbitData?.action_suggested === 'needs_attention',
+          cycleStage: orbitData?.cycle_stage || 'sem_ciclo',
+          followupActive: orbitData?.followup_active || false,
+          followupRemaining: orbitData?.followup_remaining || 0,
+          followupDoneToday: orbitData?.followup_done_today || false,
           interestScore: orbitData?.interest_score,
           momentumScore: orbitData?.momentum_score,
+          riskScore: orbitData?.risk_score,
+          clarityLevel: orbitData?.clarity_level,
           currentState: orbitData?.current_state as any,
           lastAiAnalysisAt: orbitData?.last_ai_analysis_at,
           hasMatureNotes: lead.lead_id ? matureNotesMap[lead.lead_id] || false : false,

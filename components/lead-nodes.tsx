@@ -15,6 +15,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card";
 
 interface LeadNodesProps {
   highlightedLeads: string[];
@@ -27,9 +32,23 @@ type EmotionalAura =
   | "curious"
   | "conflicted"
   | "aware"
-  | "silentGravity";
+  | "silentGravity"
+  | "whatsapp";
 type Priority = "hot" | "warm" | "neutral" | "cold";
 
+// Cognitive AI state → subtle inner ring
+const stateRingColors: Record<string, { ring: string; glow: string }> = {
+  latent:     { ring: "border-zinc-500/20",     glow: "" },
+  curious:    { ring: "border-sky-400/40",      glow: "shadow-[0_0_4px_rgba(56,189,248,0.1)]" },
+  exploring:  { ring: "border-blue-400/60",     glow: "shadow-[0_0_6px_rgba(59,130,246,0.2)]" },
+  evaluating: { ring: "border-orange-400/60",   glow: "shadow-[0_0_8px_rgba(251,146,60,0.2)]" },
+  deciding:   { ring: "border-red-500/70",      glow: "shadow-[0_0_12px_rgba(239,68,68,0.3)]" },
+  resolved:   { ring: "border-violet-400/60",   glow: "shadow-[0_0_8px_rgba(167,139,250,0.2)]" },
+  dormant:    { ring: "border-zinc-800",         glow: "" },
+};
+const DEFAULT_STATE_RING = { ring: "border-zinc-500/30", glow: "" };
+
+// CycleStage kept for gravity/positioning logic only (not used for rings)
 type CycleStage =
   | "sem_ciclo"
   | "inicio"
@@ -38,33 +57,14 @@ type CycleStage =
   | "resolvido"
   | "encerrado";
 
-const stageRingColors: Record<CycleStage, { ring: string; glow: string }> = {
-  sem_ciclo: { ring: "border-zinc-400/50", glow: "" },
-  inicio: {
-    ring: "border-blue-400",
-    glow: "shadow-[0_0_12px_rgba(96,165,250,0.4)]",
-  },
-  explorando: {
-    ring: "border-amber-400",
-    glow: "shadow-[0_0_14px_rgba(251,191,36,0.5)]",
-  },
-  decidindo: {
-    ring: "border-orange-400",
-    glow: "shadow-[0_0_16px_rgba(251,146,60,0.6)]",
-  },
-  resolvido: {
-    ring: "border-emerald-400",
-    glow: "shadow-[0_0_14px_rgba(52,211,153,0.5)]",
-  },
-  encerrado: { ring: "border-zinc-600", glow: "" },
-};
-
+// Emotional intensity based on aura (used on the node wrapper)
 const emotionalIntensity: Record<EmotionalAura, string> = {
-  intent: "brightness-110",
-  curious: "brightness-105",
-  conflicted: "brightness-100",
-  aware: "brightness-95",
+  intent:       "brightness-110",
+  curious:      "brightness-105",
+  conflicted:   "brightness-100",
+  aware:        "brightness-95",
   silentGravity: "brightness-90 opacity-80",
+  whatsapp:     "brightness-110",
 };
 
 interface LeadNode {
@@ -87,28 +87,36 @@ interface LeadNode {
   followupActive?: boolean;
   followupRemaining?: number;
   followupDoneToday?: boolean;
+  interestScore?: number;
+  riskScore?: number;
+  currentState?: string;
 }
 
 const auraColors: Record<EmotionalAura, { ring: string; glow: string }> = {
   intent: {
-    ring: "border-emerald-400",
-    glow: "shadow-[0_0_16px_rgba(52,211,153,0.5)]",
+    ring: "border-emerald-400/60",
+    glow: "shadow-[0_0_8px_rgba(52,211,153,0.3)]",
   },
   curious: {
-    ring: "border-[#FFC87A]",
-    glow: "shadow-[0_0_16px_rgba(255,200,122,0.5)]",
+    ring: "border-[#FFC87A]/60",
+    glow: "shadow-[0_0_8px_rgba(255,200,122,0.3)]",
   },
   conflicted: {
-    ring: "border-orange-400",
-    glow: "shadow-[0_0_16px_rgba(251,146,60,0.5)]",
+    ring: "border-orange-400/60",
+    glow: "shadow-[0_0_8px_rgba(251,146,60,0.3)]",
   },
   aware: {
-    ring: "border-[#2EC5FF]",
-    glow: "shadow-[0_0_16px_rgba(46,197,255,0.5)]",
+    ring: "border-[#2EC5FF]/60",
+    glow: "shadow-[0_0_8px_rgba(46,197,255,0.3)]",
   },
   silentGravity: {
-    ring: "border-cyan-300",
-    glow: "shadow-[0_0_16px_rgba(103,232,249,0.5)]",
+    ring: "border-cyan-300/60",
+    glow: "shadow-[0_0_8px_rgba(103,232,249,0.3)]",
+  },
+  // Green override: unread WhatsApp message — pulsing, replaces current aura until lead is opened
+  whatsapp: {
+    ring: "border-emerald-500/90",
+    glow: "shadow-[0_0_14px_rgba(16,185,129,0.5)]",
   },
 };
 
@@ -553,7 +561,7 @@ function VisualStateIndicator({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Mapping helpers (unchanged)
+// Mapping helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
 function mapEmotionalStateToPriority(state: string): Priority {
@@ -579,6 +587,20 @@ function mapEmotionalStateToAura(state: string): EmotionalAura {
       return "silentGravity";
     default:
       return "aware";
+  }
+}
+
+// Maps AI cognitive current_state to a subtle border color (not loud, no animation)
+function getCognitiveAuraClass(currentState?: string): { ring: string; glow: string } | null {
+  switch (currentState) {
+    case "deciding":    return { ring: "border-orange-400/60",   glow: "shadow-[0_0_10px_rgba(251,146,60,0.25)]" };
+    case "evaluating": return { ring: "border-amber-300/50",    glow: "shadow-[0_0_8px_rgba(252,211,77,0.20)]" };
+    case "exploring":  return { ring: "border-sky-400/50",      glow: "shadow-[0_0_8px_rgba(56,189,248,0.20)]" };
+    case "curious":    return { ring: "border-violet-400/50",   glow: "shadow-[0_0_8px_rgba(167,139,250,0.20)]" };
+    case "resolved":   return { ring: "border-emerald-400/50",  glow: "shadow-[0_0_8px_rgba(52,211,153,0.20)]" };
+    case "dormant":    return { ring: "border-zinc-500/40",     glow: "" };
+    case "latent":     return { ring: "border-zinc-400/30",     glow: "" };
+    default:           return null;
   }
 }
 
@@ -636,7 +658,6 @@ export function LeadNodes({
   const { leads: supabaseLeads, loading } = useSupabaseLeads();
 
   const {
-    hasActiveCycle,
     leadStates,
     newLeads,
     getLeadsWithActiveFollowUp,
@@ -690,11 +711,14 @@ export function LeadNodes({
       hasRecentActivity: lead.hasCapsuleActive,
       hasNotification: lead.emotionalState === "engaged",
       needsAttention: lead.needsAttention,
-      cycleStage: lead.cycleStage, // From database — NEVER calculate
+      cycleStage: (lead.cycleStage as CycleStage) || "sem_ciclo" as CycleStage, // From database — NEVER calculate
       hasMatureNotes: lead.hasMatureNotes,
       followupActive: lead.followupActive,
       followupRemaining: lead.followupRemaining,
       followupDoneToday: lead.followupDoneToday,
+      interestScore: lead.interestScore,
+      riskScore: lead.riskScore,
+      currentState: lead.currentState,
     }),
   );
 
@@ -781,7 +805,6 @@ export function LeadNodes({
           : 0;
 
         const leadState = leadStates[node.id];
-        const stageColors = stageRingColors[node.cycleStage] || stageRingColors["sem_ciclo"];
         const memorySignal = hasMemorySignal(leadState);
 
         const hasFollowUpDue = !!(
@@ -799,14 +822,20 @@ export function LeadNodes({
 
         const intensityClass = emotionalIntensity[node.emotionalAura];
 
+        // Opacity based on AI cognitive state (not cycleStage)
         const activityOpacity = isOrbitViewUnrelated
           ? "opacity-40"
-          : getActivityOpacity(
-            node.cycleStage,
-            leadState,
-            hasFollowUpDue,
-            node.followupDoneToday,
-          );
+          : node.currentState === "dormant"
+            ? "opacity-30 grayscale"
+            : node.currentState === "latent"
+              ? "opacity-50 grayscale-[0.4]"
+              : "opacity-100";
+
+        // AI state ring (inner, very thin)
+        const stateStyle = stateRingColors[node.currentState ?? ""] ?? DEFAULT_STATE_RING;
+        // Emotional aura ring (outer) — whatsapp green overrides when unread
+        const effectiveAura: EmotionalAura = node.needsAttention ? "whatsapp" : node.emotionalAura;
+        const aura = auraColors[effectiveAura];
 
         return (
           <div
@@ -829,103 +858,104 @@ export function LeadNodes({
               onClick={() => handleLeadClick(node.id)}
               className="cubic-bezier-smooth group flex cursor-pointer flex-col items-center transition-all duration-[240ms] hover:scale-105"
             >
-              <div className="relative">
-                {/* Action icons — hierarchical badges (mutually exclusive): ⚡ > 🔢 > ✈️ > 💬 */}
-                {node.needsAttention && node.cycleStage !== "encerrado" && (
-                  <ActionBadge
-                    type="lightning"
-                    title="Ele falou, você não tratou"
-                  />
-                )}
-                {!node.needsAttention &&
-                  node.followupActive &&
-                  (node.followupRemaining || 0) > 0 && (
-                    <ActionBadge
-                      type="number"
-                      number={node.followupRemaining}
-                      title={`Follow-up: ${node.followupRemaining} ações restantes`}
-                    />
-                  )}
-                {!node.needsAttention &&
-                  !node.followupActive &&
-                  node.cycleStage !== "sem_ciclo" &&
-                  node.cycleStage !== "encerrado" && (
-                    <ActionBadge
-                      type="plane"
-                      title="Você já falou, aguarda resposta"
-                    />
-                  )}
-                {node.hasMatureNotes &&
-                  !node.needsAttention &&
-                  !node.followupActive &&
-                  (node.cycleStage === "sem_ciclo" ||
-                    node.cycleStage === "resolvido") && (
-                    <ActionBadge
-                      type="chat"
-                      title="Existe contexto aqui"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleLeadClick(node.id);
-                      }}
-                    />
-                  )}
+              <HoverCard openDelay={200} closeDelay={100}>
+                <HoverCardTrigger asChild>
+                  <div className="relative">
+                    {/* Action badges */}
+                    {node.needsAttention && (
+                      <ActionBadge type="lightning" title="Mensagem não respondida" />
+                    )}
+                    {!node.needsAttention &&
+                      node.followupActive &&
+                      (node.followupRemaining || 0) > 0 && (
+                        <ActionBadge
+                          type="number"
+                          number={node.followupRemaining}
+                          title={`Follow-up: ${node.followupRemaining} ações restantes`}
+                        />
+                      )}
+                    {!node.needsAttention && !node.followupActive && node.hasMatureNotes && (
+                      <ActionBadge
+                        type="chat"
+                        title="Existe contexto aqui"
+                        onClick={(e) => { e.stopPropagation(); handleLeadClick(node.id); }}
+                      />
+                    )}
 
-                {hasFollowUpDue && !node.needsAttention && <FollowUpRing />}
+                    {hasFollowUpDue && !node.needsAttention && <FollowUpRing />}
 
-                <div
-                  className={`flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border-2 bg-[var(--orbit-glass)] text-xs font-light text-[var(--orbit-text)] backdrop-blur-sm transition-all duration-300 ${isHighlighted && isResponding
-                      ? "animate-lead-highlight scale-110 border-[var(--orbit-glow)]"
-                      : hasFollowUpDue
-                        ? "border-amber-400 shadow-[0_0_16px_rgba(251,191,36,0.5)]"
-                        : node.isNew
-                          ? "border-[var(--orbit-glow)] animate-new-lead-glow"
-                          : `${stageColors.ring} ${stageColors.glow}`
-                    }`}
-                  style={{
-                    animationDelay: isHighlighted ? `${highlightDelay}s` : "0s",
-                  }}
-                >
-                  {node.photoUrl ? (
-                    <img
-                      src={node.photoUrl}
-                      alt={node.name}
-                      className="h-full w-full object-cover"
-                      onError={(e) => {
-                        e.currentTarget.style.display = "none";
-                        const parent = e.currentTarget.parentElement;
-                        if (parent) {
-                          const fallback = document.createElement("span");
-                          fallback.textContent = node.avatar;
-                          parent.appendChild(fallback);
-                        }
-                      }}
-                    />
-                  ) : (
-                    node.avatar
-                  )}
-                </div>
-
-                {node.badge && (
-                  <div className="absolute -right-1 -top-1">
-                    <BadgeContent badge={node.badge} />
-                  </div>
-                )}
-
-                {/* Memory signal markers */}
-                {memorySignal.hasNotes && node.cycleStage !== "encerrado" && (
-                  <div
-                    className="absolute -left-0.5 top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full bg-violet-400"
-                    title="Has notes"
-                  />
-                )}
-                {memorySignal.hasRecentContacts &&
-                  node.cycleStage !== "encerrado" && (
+                    {/* Avatar — single ring, colored by cognitive state or whatsapp green */}
                     <div
-                      className="absolute -right-0.5 top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full bg-teal-400"
-                      title="Active contacts"
-                    />
-                  )}
-              </div>
+                      className={`flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border-2 bg-[var(--orbit-glass)] text-xs font-light text-[var(--orbit-text)] backdrop-blur-sm transition-all duration-500 ${
+                        isHighlighted && isResponding
+                          ? "animate-lead-highlight scale-110 border-[var(--orbit-glow)]"
+                          : node.isNew
+                            ? "border-[var(--orbit-glow)] animate-new-lead-glow"
+                            : node.needsAttention
+                              ? "border-emerald-500/90 shadow-[0_0_10px_rgba(16,185,129,0.4)] animate-pulse"
+                              : `${stateStyle.ring} ${stateStyle.glow}`
+                      }`}
+                      style={{ animationDelay: isHighlighted ? `${highlightDelay}s` : "0s" }}
+                    >
+                      {node.photoUrl ? (
+                        <img
+                          src={node.photoUrl}
+                          alt={node.name}
+                          className="h-full w-full object-cover"
+                          onError={(e) => {
+                            e.currentTarget.style.display = "none";
+                            const fallback = document.createElement("span");
+                            fallback.textContent = node.avatar;
+                            e.currentTarget.parentElement?.appendChild(fallback);
+                          }}
+                        />
+                      ) : node.avatar}
+                    </div>
+
+                    {node.badge && (
+                      <div className="absolute -right-1 -top-1">
+                        <BadgeContent badge={node.badge} />
+                      </div>
+                    )}
+                  </div>
+                </HoverCardTrigger>
+
+                <HoverCardContent
+                  side="right"
+                  align="center"
+                  sideOffset={16}
+                  className="w-52 border-white/10 bg-zinc-950/95 backdrop-blur-2xl shadow-2xl p-4"
+                >
+                  <div className="flex flex-col gap-3">
+                    <div>
+                      <p className="font-semibold text-slate-100 text-sm">{node.name}</p>
+                      {node.currentState && (
+                        <p className="text-[10px] text-zinc-400 capitalize mt-0.5">{node.currentState}</p>
+                      )}
+                    </div>
+                    <div className="space-y-1.5 text-xs">
+                      <div className="flex justify-between items-center">
+                        <span className="text-zinc-500">Interesse</span>
+                        <span className="text-zinc-300 font-medium">
+                          {node.interestScore ? `${node.interestScore}%` : "—"}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-zinc-500">Risco</span>
+                        <span className={`font-medium ${node.riskScore && node.riskScore > 60 ? "text-red-400" : "text-zinc-300"}`}>
+                          {node.riskScore ? `${node.riskScore}%` : "—"}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-zinc-500">Ação</span>
+                        <span className="text-amber-400 font-medium">
+                          {node.needsAttention ? "Responder" : "—"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </HoverCardContent>
+              </HoverCard>
 
               {/* Name label */}
               <div
