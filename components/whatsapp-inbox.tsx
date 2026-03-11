@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Inbox, Check, X, UserPlus, ShieldAlert, MessageSquare, Loader2 } from "lucide-react";
+import { Inbox, Check, X, UserPlus, ShieldAlert, MessageSquare, Loader2, Ban } from "lucide-react";
 import { getSupabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import {
@@ -73,7 +73,7 @@ export function WhatsAppInbox() {
     if (isOpen) fetchPending();
   }, [isOpen]);
 
-  const handleAction = async (leadId: string, newState: 'approved' | 'ignored') => {
+  const handleAction = async (leadId: string, newState: 'approved' | 'ignored' | 'blocked') => {
     try {
       const supabase = getSupabase();
       const { error } = await supabase
@@ -83,9 +83,23 @@ export function WhatsAppInbox() {
 
       if (error) throw error;
 
+      let title = "";
+      let description = "";
+
+      if (newState === 'approved') {
+        title = "Lead Aprovado!";
+        description = "O contato agora faz parte do Orbit e será analisado.";
+      } else if (newState === 'ignored') {
+        title = "Lead Ignorado";
+        description = "O contato foi movido para a lista de ignorados.";
+      } else if (newState === 'blocked') {
+        title = "Lead Bloqueado";
+        description = "O contato não aparecerá mais na triagem ao enviar mensagens.";
+      }
+
       toast({
-        title: newState === 'approved' ? "Lead Aprovado!" : "Lead Ignorado",
-        description: newState === 'approved' ? "O contato agora faz parte do Orbit e será analisado." : "O contato foi movido para a lista de ignorados.",
+        title,
+        description,
       });
 
       // Se aprovado, disparamos a análise inicial via API (opcional se o webhook já tratar isso no futuro, 
@@ -192,6 +206,15 @@ export function WhatsAppInbox() {
                       >
                         <ShieldAlert className="h-3 w-3" />
                         Ignorar
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="ghost" 
+                        onClick={() => handleAction(lead.id, 'blocked')}
+                        className="h-8 flex-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 text-[11px] gap-1.5"
+                      >
+                        <Ban className="h-3 w-3" />
+                        Bloquear
                       </Button>
                     </div>
                   </div>
