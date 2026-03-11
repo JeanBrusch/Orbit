@@ -955,7 +955,11 @@ export function LeadNodes({
             {/* Custom lightweight hover tooltip */}
             {hoveredLeadId === node.id && (
               <div
-                className="absolute left-1/2 -top-4 -translate-x-1/2 -translate-y-full w-52 rounded-md border border-white/10 bg-zinc-950/95 backdrop-blur-2xl shadow-2xl p-4 z-50 pointer-events-none animate-in fade-in zoom-in-95 duration-200"
+                className={`absolute left-1/2 -translate-x-1/2 w-52 rounded-md border border-white/10 bg-zinc-950/95 backdrop-blur-2xl shadow-2xl p-4 z-[9999] pointer-events-none animate-in fade-in zoom-in-95 duration-200 ${
+                  parseFloat(adjustedPosition.top) < 20 
+                    ? "top-full mt-4" 
+                    : "-top-4 -translate-y-full"
+                }`}
               >
                 <div className="flex flex-col gap-3">
                   <div>
