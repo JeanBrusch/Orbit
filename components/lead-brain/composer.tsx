@@ -7,12 +7,13 @@ import { ManualInteractionModal } from "./manual-interaction-modal"
 
 interface LeadBrainComposerProps {
   leadId: string
-  leadPhone?: string | null
-  aiSuggestion?: string | null
-  onMessageSent?: () => void
+  leadPhone?: string
+  leadLid?: string
+  aiSuggestion: string
+  onMessageSent: (content: string) => void
 }
 
-export function LeadBrainComposer({ leadId, leadPhone, aiSuggestion, onMessageSent }: LeadBrainComposerProps) {
+export function LeadBrainComposer({ leadId, leadPhone, leadLid, aiSuggestion, onMessageSent }: LeadBrainComposerProps) {
   const [value, setValue] = useState("")
   const [status, setStatus] = useState<"idle" | "sending" | "done" | "error">("idle")
   const [showModal, setShowModal] = useState(false)
@@ -22,8 +23,8 @@ export function LeadBrainComposer({ leadId, leadPhone, aiSuggestion, onMessageSe
 
     setStatus("sending")
     try {
-      const rawPhone = leadPhone
-      const phone = rawPhone ? (rawPhone.includes('@lid') ? rawPhone : `${rawPhone}@lid`) : null
+      const lid = leadLid ? (leadLid.includes('@lid') ? leadLid : `${leadLid}@lid`) : null
+      const phone = lid || leadPhone
 
       if (!phone) {
         // No phone number: save locally as operator message only
@@ -46,8 +47,9 @@ export function LeadBrainComposer({ leadId, leadPhone, aiSuggestion, onMessageSe
       }
 
       setStatus("done")
+      const sentContent = value.trim()
       setValue("")
-      onMessageSent?.()
+      onMessageSent(sentContent)
       setTimeout(() => setStatus("idle"), 1500)
     } catch (err) {
       console.error("[COMPOSER] Send error:", err)
@@ -64,7 +66,10 @@ export function LeadBrainComposer({ leadId, leadPhone, aiSuggestion, onMessageSe
   }
 
   const applySuggestion = () => {
-    if (aiSuggestion) setValue(aiSuggestion)
+    if (aiSuggestion) {
+      setValue(aiSuggestion)
+      onMessageSent(aiSuggestion)
+    }
   }
 
   return (

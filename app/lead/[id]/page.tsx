@@ -374,8 +374,8 @@ export default function LeadTerminalPage({ params }: { params: Promise<{ id: str
   }, [messages, timelineKey])
 
   // ── Send message ────────────────────────────────────────────────────────────
-  const sendTo = lead?.phone || 
-    (lead?.lid ? (lead.lid.includes('@lid') ? lead.lid : `${lead.lid}@lid`) : null)
+  // Prioritize LID over phone for reliability (Brazilian number ambiguity)
+  const sendTo = (lead?.lid ? (lead.lid.includes('@lid') ? lead.lid : `${lead.lid}@lid`) : null) || lead?.phone
 
   const handleSend = async () => {
     if (!composerText.trim() || sendStatus !== "idle") return

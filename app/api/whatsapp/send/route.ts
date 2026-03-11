@@ -35,13 +35,16 @@ export async function POST(request: NextRequest) {
       const supabase = getSupabaseServer()
       const idempotencyKey = `zapi:${result.messageId}`
       
+      // We check 'messages' because that's what the chat UI displays.
+      // Checking 'interactions' was causing a mismatch if the interaction existed but the message didn't.
       const { data: existing } = await supabase
-        .from('interactions')
+        .from('messages')
         .select('id')
         .eq('idempotency_key', idempotencyKey)
         .maybeSingle()
       
       if (!existing) {
+        console.log('[SEND] Message not found in history, inserting:', idempotencyKey)
         const { data: newMessage, error } = await supabase.from('messages').insert({
           lead_id: leadId,
           source: 'operator',
@@ -52,17 +55,16 @@ export async function POST(request: NextRequest) {
         
         if (error) {
           if (error.code === '23505' && error.message?.includes('idempotency')) {
-            console.log('[SEND] Message already exists (constraint):', idempotencyKey)
+            console.log('[SEND] Message already exists (race condition/constraint):', idempotencyKey)
           } else {
-            console.error('[SEND] Error saving message:', error)
-            // CRITICAL: If message save fails, we should notify the client
+            console.error('[SEND] Error saving message to historical table:', error)
             return NextResponse.json(
               { error: `Mensagem enviada no WhatsApp (${result.messageId}), mas falhou ao salvar no histórico: ${error.message}` },
               { status: 500 }
             )
           }
         } else {
-          console.log('[SEND] Message saved with key:', idempotencyKey)
+          console.log('[SEND] Message saved in historical table:', idempotencyKey)
           
           await supabase
             .from('leads')
@@ -71,13 +73,12 @@ export async function POST(request: NextRequest) {
             })
             .eq('id', leadId)
 
-          // Opcional: Acionar Orbit Core para outbound
           processEventWithCore(leadId, message, 'message_outbound', newMessage?.id).catch((e) => {
              console.error('[SEND] Orbit Core processing error:', e)
           })
         }
       } else {
-        console.log('[SEND] Interaction already exists (query check):', idempotencyKey)
+        console.log('[SEND] Message already exists in historical table (idempotency):', idempotencyKey)
       }
     }
 

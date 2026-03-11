@@ -429,6 +429,10 @@ export async function POST(request: NextRequest) {
     
     const result = await saveMessage(lead.id, messageText, fromMe ? 'operator' : 'whatsapp', idempotencyKey, mediaData)
     
+    if (fromMe) {
+      console.log(`[WEBHOOK:${requestId}] OUTBOUND SYNC: leadId=${lead.id}, saved=${result.saved}, skipped=${result.skipped}`)
+    }
+    
     console.log(`[WEBHOOK:${requestId}] COMPLETED: leadId=${lead.id}, direction=${direction}, saved=${result.saved}, skipped=${result.skipped}`)
     
     return NextResponse.json({ 
