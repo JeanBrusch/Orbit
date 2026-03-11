@@ -22,6 +22,7 @@ interface Lead {
   id: string
   name: string | null
   phone: string | null
+  lid: string | null
   photo_url: string | null
   orbit_stage: string | null
   action_suggested: string | null
@@ -318,7 +319,7 @@ export default function LeadTerminalPage({ params }: { params: Promise<{ id: str
     const [
       leadRes, cogRes, memRes, insRes, msgRes, interRes, remRes
     ] = await Promise.all([
-      supabase.from("leads").select("id,name,phone,photo_url,orbit_stage,action_suggested,last_interaction_at").eq("id", id).single(),
+      supabase.from("leads").select("id,name,phone,lid,photo_url,orbit_stage,action_suggested,last_interaction_at").eq("id", id).single(),
       supabase.from("lead_cognitive_state").select("*").eq("lead_id", id).maybeSingle(),
       supabase.from("memory_items").select("id,type,content,confidence,created_at").eq("lead_id", id).order("created_at", { ascending: false }).limit(40),
       supabase.from("ai_insights").select("id,content,urgency,created_at").eq("lead_id", id).order("created_at", { ascending: false }).limit(5),
@@ -373,14 +374,20 @@ export default function LeadTerminalPage({ params }: { params: Promise<{ id: str
   }, [messages, timelineKey])
 
   // ── Send message ────────────────────────────────────────────────────────────
+  const sendTo = lead?.phone || (lead?.lid ? `${lead.lid}@lid` : null)
   const handleSend = async () => {
     if (!composerText.trim() || sendStatus !== "idle") return
+    if (!sendTo) {
+      setSendStatus("error")
+      setTimeout(() => setSendStatus("idle"), 2000)
+      return
+    }
     setSendStatus("sending")
     try {
       await fetch("/api/whatsapp/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: lead?.phone, message: composerText.trim(), leadId: id })
+        body: JSON.stringify({ phone: sendTo, message: composerText.trim(), leadId: id })
       })
       setSendStatus("done")
       setComposerText("")
@@ -639,7 +646,7 @@ export default function LeadTerminalPage({ params }: { params: Promise<{ id: str
 
               <button
                 onClick={handleSend}
-                disabled={!composerText.trim() || sendStatus !== "idle"}
+                disabled={!composerText.trim() || sendStatus !== "idle" || !sendTo}
                 className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
                   sendStatus === "done" ? "bg-emerald-500/20 text-emerald-400" :
                   composerText.trim() ? "bg-[#d4af35] text-[#0a0907] shadow-[0_0_15px_rgba(212,175,53,0.3)]" :
@@ -653,7 +660,7 @@ export default function LeadTerminalPage({ params }: { params: Promise<{ id: str
             </div>
 
             <p className="text-[9px] text-center text-slate-700 mt-2 tracking-widest uppercase">
-              {lead.phone ? `Enviando via WhatsApp · ${lead.phone}` : "Sem número · gravando internamente"}
+              {sendTo ? `Enviando via WhatsApp · ${lead?.phone || 'LID'}` : "Sem número ou LID · não é possível enviar pelo WhatsApp"}
             </p>
           </div>
         </section>
@@ -766,7 +773,7 @@ export default function LeadTerminalPage({ params }: { params: Promise<{ id: str
         {showModal && (
           <ManualInteractionModal
             leadId={id}
-            leadPhone={lead.phone}
+            leadPhone={sendTo}
             onClose={() => setShowModal(false)}
             onSaved={() => { setShowModal(false); setTimelineKey(k => k + 1); fetchAll() }}
           />
