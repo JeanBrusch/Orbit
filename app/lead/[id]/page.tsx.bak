@@ -1,0 +1,228 @@
+"use client";
+
+import { useState, useEffect, use } from "react";
+import { useRouter } from "next/navigation";
+import { LeadBrainHeader } from "@/components/lead-brain/header";
+import { SemanticTimeline } from "@/components/lead-brain/semantic-timeline";
+import { CognitiveAnalysis } from "@/components/lead-brain/cognitive-analysis";
+import { ContextActionDock } from "@/components/lead-brain/context-action-dock";
+import { LeadBrainComposer } from "@/components/lead-brain/composer";
+import { ArcMeter } from "@/components/lead-brain/arc-meter";
+import { OrbitalModules } from "@/components/lead-brain/orbital-modules";
+import { ConnectorLines } from "@/components/lead-brain/connector-lines";
+import { OrbitTimeline } from "@/components/lead-brain/orbit-timeline";
+
+export interface LeadData {
+  id: string;
+  name: string;
+  avatar: string;
+  emotionalState:
+    | "intent"
+    | "curious"
+    | "aware"
+    | "conflicted"
+    | "silentGravity";
+  emotionalLabel: string;
+  property: string;
+  lastResponse: string;
+  isPriority: boolean;
+  isMuted: boolean;
+}
+
+const leadsDatabase: Record<string, LeadData> = {
+  "1": {
+    id: "1",
+    name: "Marina Costa",
+    avatar: "MC",
+    emotionalState: "intent",
+    emotionalLabel: "INTENT",
+    property: "Laguna Premium",
+    lastResponse: "2min atrás",
+    isPriority: true,
+    isMuted: false,
+  },
+  "2": {
+    id: "2",
+    name: "Lucas Ferreira",
+    avatar: "LF",
+    emotionalState: "curious",
+    emotionalLabel: "CURIOUS",
+    property: "Cobertura 402",
+    lastResponse: "15min atrás",
+    isPriority: false,
+    isMuted: false,
+  },
+  "3": {
+    id: "3",
+    name: "Ana Rodrigues",
+    avatar: "AR",
+    emotionalState: "aware",
+    emotionalLabel: "AWARE",
+    property: "Torre Oceano",
+    lastResponse: "1h atrás",
+    isPriority: false,
+    isMuted: false,
+  },
+  "4": {
+    id: "4",
+    name: "Pedro Santos",
+    avatar: "PS",
+    emotionalState: "silentGravity",
+    emotionalLabel: "SILENT",
+    property: "Vista Mar",
+    lastResponse: "3h atrás",
+    isPriority: false,
+    isMuted: true,
+  },
+  "5": {
+    id: "5",
+    name: "Julia Mendes",
+    avatar: "JM",
+    emotionalState: "conflicted",
+    emotionalLabel: "CONFLICTED",
+    property: "Residencial Park",
+    lastResponse: "30min atrás",
+    isPriority: true,
+    isMuted: false,
+  },
+};
+
+type View = "orbit" | "chat";
+
+export default function LeadBrainPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = use(params);
+  const router = useRouter();
+  const [lead, setLead] = useState<LeadData | null>(null);
+  const [showMobileSidebar, setShowMobileSidebar] = useState(false);
+  const [view, setView] = useState<View>("orbit");
+
+  useEffect(() => {
+    const leadData = leadsDatabase[id];
+    if (leadData) {
+      setLead(leadData);
+    }
+  }, [id]);
+
+  const handleBack = () => {
+    router.push("/");
+  };
+
+  const handleTogglePriority = () => {
+    if (lead) {
+      setLead({ ...lead, isPriority: !lead.isPriority });
+    }
+  };
+
+  const handleToggleMute = () => {
+    if (lead) {
+      setLead({ ...lead, isMuted: !lead.isMuted });
+    }
+  };
+
+  if (!lead) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-gradient-to-b from-[#0a0a0f] to-[#050508]">
+        <div className="text-[#64748b] font-mono text-sm">Carregando...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex h-screen flex-col bg-gradient-to-b from-[#0a0a0f] to-[#050508] text-white overflow-hidden">
+      {/* Header */}
+      <LeadBrainHeader
+        lead={lead}
+        onBack={handleBack}
+        onTogglePriority={handleTogglePriority}
+        onToggleMute={handleToggleMute}
+        onToggleMobileSidebar={() => setShowMobileSidebar(!showMobileSidebar)}
+      />
+
+      {/* View toggle */}
+      <div className="flex items-center justify-center gap-1 py-2 border-b border-[rgba(46,197,255,0.08)]">
+        <button
+          onClick={() => setView("orbit")}
+          className={`px-4 py-1 text-[11px] font-mono uppercase tracking-widest rounded transition-all ${
+            view === "orbit"
+              ? "bg-[rgba(46,197,255,0.1)] text-[#2ec5ff] border border-[rgba(46,197,255,0.2)]"
+              : "text-[#64748b] hover:text-white"
+          }`}
+        >
+          Painel Cognitivo
+        </button>
+        <button
+          onClick={() => setView("chat")}
+          className={`px-4 py-1 text-[11px] font-mono uppercase tracking-widest rounded transition-all ${
+            view === "chat"
+              ? "bg-[rgba(46,197,255,0.1)] text-[#2ec5ff] border border-[rgba(46,197,255,0.2)]"
+              : "text-[#64748b] hover:text-white"
+          }`}
+        >
+          Chat Operacional
+        </button>
+      </div>
+
+      {/* Orbit view */}
+      {view === "orbit" && (
+        <div className="flex-1 flex flex-col overflow-hidden relative">
+          {/* Radial gradient */}
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background:
+                "radial-gradient(ellipse 60% 50% at 50% 45%, oklch(0.20 0.01 195 / 0.15), transparent)",
+            }}
+          />
+
+          {/* Arc meter + modules */}
+          <div className="flex-1 relative flex flex-col items-center justify-center">
+            <ConnectorLines />
+            <OrbitalModules lead={lead} />
+            <ArcMeter lead={lead} />
+          </div>
+
+          {/* Timeline */}
+          <div className="relative pb-4">
+            <OrbitTimeline />
+          </div>
+
+          {/* Action dock */}
+          <ContextActionDock emotionalState={lead.emotionalState} />
+        </div>
+      )}
+
+      {/* Chat view */}
+      {view === "chat" && (
+        <div className="flex-1 flex min-h-0 relative overflow-hidden">
+          {/* Chat column */}
+          <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+            <div className="flex-1 overflow-y-auto px-4 pb-4 pt-4 md:px-8 lg:w-full">
+              <SemanticTimeline leadId={lead.id} />
+            </div>
+            <LeadBrainComposer />
+          </div>
+
+          {/* Right context panel */}
+          <div
+            className={`absolute right-0 top-0 z-30 h-full transform transition-transform duration-300 lg:relative lg:translate-x-0 ${
+              showMobileSidebar ? "translate-x-0" : "translate-x-full"
+            }`}
+          >
+            <CognitiveAnalysis lead={lead} />
+          </div>
+
+          {showMobileSidebar && (
+            <div
+              className="absolute inset-0 z-20 bg-black/50 lg:hidden"
+              onClick={() => setShowMobileSidebar(false)}
+            />
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

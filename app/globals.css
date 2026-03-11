@@ -1,0 +1,642 @@
+@import "mapbox-gl/dist/mapbox-gl.css";
+@import "tailwindcss";
+@import "tw-animate-css";
+
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  /* Refined light mode with subtle blue tint and stronger glass */
+  --orbit-bg: #f8fafc;
+  --orbit-bg-secondary: #eff6ff;
+  --orbit-glass: rgba(255, 255, 255, 0.85);
+  --orbit-glass-border: rgba(14, 165, 233, 0.15);
+  --orbit-glow: #0ea5e9;
+  --orbit-glow-rgb: 14, 165, 233;
+  --orbit-accent: #f59e0b;
+  --orbit-accent-rgb: 245, 158, 11;
+  --orbit-text: #0f172a;
+  --orbit-text-muted: #64748b;
+  --orbit-line: rgba(14, 165, 233, 0.2);
+  --orbit-shadow: 0 4px 24px rgba(14, 165, 233, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05);
+  --orbit-shadow-hover: 0 8px 32px rgba(14, 165, 233, 0.12), 0 2px 6px rgba(0, 0, 0, 0.08);
+
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --card: rgba(255, 255, 255, 0.85);
+  --card-foreground: #0f172a;
+  --popover: rgba(255, 255, 255, 0.85);
+  --popover-foreground: #0f172a;
+  --primary: #0ea5e9;
+  --primary-foreground: #ffffff;
+  --secondary: rgba(14, 165, 233, 0.1);
+  --secondary-foreground: #0f172a;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+  --accent: #f59e0b;
+  --accent-foreground: #0f172a;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --border: rgba(14, 165, 233, 0.15);
+  --input: rgba(14, 165, 233, 0.08);
+  --ring: #0ea5e9;
+  --radius: 0.75rem;
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+}
+
+.dark {
+  --orbit-bg: #05060a;
+  --orbit-bg-secondary: #0b1220;
+  --orbit-glass: rgba(15, 23, 42, 0.65);
+  --orbit-glass-border: rgba(46, 197, 255, 0.25);
+  --orbit-glow: #2ec5ff;
+  --orbit-glow-rgb: 46, 197, 255;
+  --orbit-accent: #ffc87a;
+  --orbit-accent-rgb: 255, 200, 122;
+  --orbit-text: #e6eef6;
+  --orbit-text-muted: #94a3b8;
+  --orbit-line: rgba(46, 197, 255, 0.35);
+  --orbit-shadow: 0 0 30px rgba(46, 197, 255, 0.15), 0 0 60px rgba(46, 197, 255, 0.08);
+  --orbit-shadow-hover: 0 0 40px rgba(46, 197, 255, 0.2), 0 0 80px rgba(46, 197, 255, 0.12);
+
+  --background: #05060a;
+  --foreground: #e6eef6;
+  --card: rgba(15, 23, 42, 0.65);
+  --card-foreground: #e6eef6;
+  --popover: rgba(15, 23, 42, 0.65);
+  --popover-foreground: #e6eef6;
+  --primary: #2ec5ff;
+  --primary-foreground: #05060a;
+  --secondary: rgba(46, 197, 255, 0.1);
+  --secondary-foreground: #e6eef6;
+  --muted: #0b1220;
+  --muted-foreground: #94a3b8;
+  --accent: #ffc87a;
+  --accent-foreground: #05060a;
+  --destructive: #ff7a7a;
+  --destructive-foreground: #05060a;
+  --border: rgba(46, 197, 255, 0.25);
+  --input: rgba(46, 197, 255, 0.1);
+  --ring: #2ec5ff;
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(0.269 0 0);
+  --sidebar-ring: oklch(0.439 0 0);
+}
+
+@theme inline {
+  --font-sans: "Inter", "Geist", sans-serif;
+  --font-mono: "Geist Mono", monospace;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Improved animation timings - 20s orbit rotation, 3.5s breathing */
+@keyframes orbit-rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes orbit-rotate-reverse {
+  from {
+    transform: rotate(360deg);
+  }
+  to {
+    transform: rotate(0deg);
+  }
+}
+
+@keyframes orbit-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.85;
+  }
+  50% {
+    transform: scale(1.02);
+    opacity: 1;
+  }
+}
+
+@keyframes orbit-pulse {
+  0%,
+  100% {
+    box-shadow: var(--orbit-shadow);
+  }
+  50% {
+    box-shadow: var(--orbit-shadow-hover);
+  }
+}
+
+/* Gentler floating animation */
+@keyframes node-float {
+  0%,
+  100% {
+    transform: translateY(0px) translateX(0px);
+  }
+  25% {
+    transform: translateY(-6px) translateX(2px);
+  }
+  50% {
+    transform: translateY(-10px) translateX(0px);
+  }
+  75% {
+    transform: translateY(-4px) translateX(-2px);
+  }
+}
+
+@keyframes wave-flow {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes particle-drift {
+  0% {
+    transform: translateX(0) translateY(0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(100px) translateY(-50px);
+    opacity: 0;
+  }
+}
+
+@keyframes semantic-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  50% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+
+/* Subtle opacity pulse for connection lines */
+@keyframes line-pulse {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+/* Stronger pulse for lines with recent activity */
+@keyframes line-pulse-active {
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* Sparkle icon pulse animation for composer */
+@keyframes sparkle-pulse {
+  0%,
+  100% {
+    opacity: 0.7;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.05);
+  }
+}
+
+/* Urgent badge pulse animation */
+@keyframes urgent-pulse {
+  0%,
+  100% {
+    opacity: 0.7;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+}
+
+/* Holographic notification ring animation for Julia Mendes */
+@keyframes notification-ring {
+  0% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 0.4;
+  }
+  100% {
+    transform: scale(1.8);
+    opacity: 0;
+  }
+}
+
+/* Hot lead subtle pulse animation */
+@keyframes hot-lead-pulse {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.1);
+  }
+}
+
+/* Activity indicator pulse for "5 ativos" */
+@keyframes activity-pulse {
+  0%,
+  100% {
+    opacity: 0.7;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+}
+
+.animate-orbit-rotate {
+  /* Disabled for performance - was: animation: orbit-rotate 20s linear infinite; */
+  animation: none;
+}
+
+.animate-orbit-rotate-reverse {
+  /* Disabled for performance - was: animation: orbit-rotate-reverse 25s linear infinite; */
+  animation: none;
+}
+
+.animate-orbit-breathe {
+  /* Disabled for performance - was: animation: orbit-breathe 3s cubic-bezier(0.4, 0, 0.2, 1) infinite; */
+  animation: none;
+}
+
+.animate-orbit-pulse {
+  /* Disabled for performance - was: animation: orbit-pulse 3.5s cubic-bezier(0.4, 0, 0.2, 1) infinite; */
+  animation: none;
+}
+
+/* 4-6s floating with cubic-bezier easing */
+.animate-node-float {
+  /* Disabled for performance - was: animation: node-float 5s cubic-bezier(0.4, 0, 0.2, 1) infinite; */
+  animation: none;
+}
+
+.animate-wave-flow {
+  /* Disabled for performance - was: animation: wave-flow 15s linear infinite; */
+  animation: none;
+}
+
+.animate-semantic-pulse {
+  animation: semantic-pulse 2s ease-in-out infinite;
+}
+
+.animate-line-pulse {
+  animation: line-pulse 4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+/* Active line pulse for leads with recent activity */
+.animate-line-pulse-active {
+  animation: line-pulse-active 2.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+/* Sparkle pulse for composer icon */
+.animate-sparkle-pulse {
+  animation: sparkle-pulse 2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+/* Urgent badge pulse */
+.animate-urgent-pulse {
+  animation: urgent-pulse 1.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.animate-notification-ring {
+  animation: notification-ring 2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.animate-hot-lead-pulse {
+  animation: hot-lead-pulse 3s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.animate-activity-pulse {
+  animation: activity-pulse 2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+/* New animations for interactive ORBIT core states */
+@keyframes core-listening {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: var(--orbit-shadow-hover);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 0 60px rgba(var(--orbit-glow-rgb), 0.4), 0 0 100px rgba(var(--orbit-glow-rgb), 0.2);
+  }
+}
+
+@keyframes core-processing-ripple {
+  0% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(2.5);
+    opacity: 0;
+  }
+}
+
+@keyframes ring-accelerate {
+  from {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+
+@keyframes ring-accelerate-reverse {
+  from {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+  to {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+}
+
+@keyframes connection-draw {
+  0% {
+    stroke-dashoffset: 1000;
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+}
+
+@keyframes lead-highlight-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 20px rgba(var(--orbit-glow-rgb), 0.6);
+  }
+  50% {
+    transform: scale(1.1);
+    box-shadow: 0 0 35px rgba(var(--orbit-glow-rgb), 0.9);
+  }
+}
+
+@keyframes text-fade-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-core-listening {
+  animation: core-listening 1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.animate-ring-fast {
+  animation: ring-accelerate 4s linear infinite;
+}
+
+.animate-ring-fast-reverse {
+  animation: ring-accelerate-reverse 5s linear infinite;
+}
+
+.animate-processing-ripple {
+  animation: core-processing-ripple 1.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.animate-connection-draw {
+  stroke-dasharray: 1000;
+  animation: connection-draw 600ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.animate-lead-highlight {
+  animation: lead-highlight-pulse 1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.animate-text-fade-in {
+  animation: text-fade-in 300ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* Smooth 300ms theme transition for all themed properties */
+* {
+  transition: background-color 300ms cubic-bezier(0.4, 0, 0.2, 1), border-color 300ms cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 300ms cubic-bezier(0.4, 0, 0.2, 1), color 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 240ms hover transitions for all interactive elements */
+.cubic-bezier-smooth {
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Custom scrollbar for Lead Brain */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 4px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(46, 197, 255, 0.2);
+  border-radius: 2px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: rgba(46, 197, 255, 0.4);
+}
+
+/* Duration utility for 240ms transitions */
+.duration-240 {
+  transition-duration: 240ms;
+}
+
+/* Lead Focus Panel slide-in animation */
+@keyframes panel-slide-in {
+  0% {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes panel-backdrop-fade {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.animate-panel-slide-in {
+  animation: panel-slide-in 300ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.animate-backdrop-fade {
+  animation: panel-backdrop-fade 200ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* Capsule View emergence animation */
+@keyframes capsule-emerge {
+  0% {
+    max-height: 0;
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  100% {
+    max-height: 500px;
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes capsule-card-enter {
+  0% {
+    opacity: 0;
+    transform: scale(0.95) translateY(-5px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.animate-capsule-emerge {
+  animation: capsule-emerge 400ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  overflow: hidden;
+}
+
+.animate-capsule-card-enter {
+  animation: capsule-card-enter 300ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* New lead entrance animation */
+@keyframes lead-emerge {
+  0% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes new-lead-glow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(var(--orbit-glow-rgb), 0.4);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(var(--orbit-glow-rgb), 0.7);
+  }
+}
+
+.animate-lead-emerge {
+  animation: lead-emerge 600ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.animate-new-lead-glow {
+  animation: new-lead-glow 1.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
