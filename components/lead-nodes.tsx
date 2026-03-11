@@ -15,11 +15,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  HoverCard,
-  HoverCardContent,
-  HoverCardTrigger,
-} from "@/components/ui/hover-card";
+import { useEffect } from "react";
 
 interface LeadNodesProps {
   highlightedLeads: string[];
@@ -663,8 +659,15 @@ export function LeadNodes({
     getLeadsWithActiveFollowUp,
     getLeadVisualState,
     setLeadVisualState,
-    orbitView,
   } = useOrbitContext();
+
+  const [activeVisualStates, setActiveVisualStates] = useState<
+    Record<string, LeadVisualState>
+  >({});
+  
+  const [hoveredLeadId, setHoveredLeadId] = useState<string | null>(null);
+
+  const { orbitView } = useOrbitContext();
 
   const followUpLeads = getLeadsWithActiveFollowUp();
 
@@ -853,13 +856,13 @@ export function LeadNodes({
               animationDelay: `${node.delay}s`,
               transitionDelay: isResponding ? `${highlightDelay}s` : "0s",
             }}
+            onMouseEnter={() => setHoveredLeadId(node.id)}
+            onMouseLeave={() => setHoveredLeadId(null)}
           >
-            <div
-              onClick={() => handleLeadClick(node.id)}
-              className="cubic-bezier-smooth group flex cursor-pointer flex-col items-center transition-all duration-[240ms] hover:scale-105"
-            >
-              <HoverCard openDelay={200} closeDelay={100}>
-                <HoverCardTrigger asChild>
+                <div
+                  onClick={() => handleLeadClick(node.id)}
+                  className="cubic-bezier-smooth group flex cursor-pointer flex-col items-center transition-all duration-[240ms] hover:scale-105"
+                >
                   <div className="relative">
                     {/* Action badges */}
                     {node.needsAttention && (
@@ -918,44 +921,6 @@ export function LeadNodes({
                       </div>
                     )}
                   </div>
-                </HoverCardTrigger>
-
-                <HoverCardContent
-                  side="right"
-                  align="center"
-                  sideOffset={16}
-                  className="w-52 border-white/10 bg-zinc-950/95 backdrop-blur-2xl shadow-2xl p-4"
-                >
-                  <div className="flex flex-col gap-3">
-                    <div>
-                      <p className="font-semibold text-slate-100 text-sm">{node.name}</p>
-                      {node.currentState && (
-                        <p className="text-[10px] text-zinc-400 capitalize mt-0.5">{node.currentState}</p>
-                      )}
-                    </div>
-                    <div className="space-y-1.5 text-xs">
-                      <div className="flex justify-between items-center">
-                        <span className="text-zinc-500">Interesse</span>
-                        <span className="text-zinc-300 font-medium">
-                          {node.interestScore ? `${node.interestScore}%` : "—"}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-zinc-500">Risco</span>
-                        <span className={`font-medium ${node.riskScore && node.riskScore > 60 ? "text-red-400" : "text-zinc-300"}`}>
-                          {node.riskScore ? `${node.riskScore}%` : "—"}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-zinc-500">Ação</span>
-                        <span className="text-amber-400 font-medium">
-                          {node.needsAttention ? "Responder" : "—"}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </HoverCardContent>
-              </HoverCard>
 
               {/* Name label */}
               <div
@@ -986,6 +951,42 @@ export function LeadNodes({
                 onStateChange={setLeadVisualState}
               />
             </div>
+            
+            {/* Custom lightweight hover tooltip */}
+            {hoveredLeadId === node.id && (
+              <div
+                className="absolute left-1/2 -top-4 -translate-x-1/2 -translate-y-full w-52 rounded-md border border-white/10 bg-zinc-950/95 backdrop-blur-2xl shadow-2xl p-4 z-50 pointer-events-none animate-in fade-in zoom-in-95 duration-200"
+              >
+                <div className="flex flex-col gap-3">
+                  <div>
+                    <p className="font-semibold text-slate-100 text-sm whitespace-nowrap overflow-hidden text-ellipsis">{node.name}</p>
+                    {node.currentState && (
+                      <p className="text-[10px] text-zinc-400 capitalize mt-0.5">{node.currentState}</p>
+                    )}
+                  </div>
+                  <div className="space-y-1.5 text-xs">
+                    <div className="flex justify-between items-center">
+                      <span className="text-zinc-500">Interesse</span>
+                      <span className="text-zinc-300 font-medium">
+                        {node.interestScore ? `${node.interestScore}%` : "—"}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-zinc-500">Risco</span>
+                      <span className={`font-medium ${node.riskScore && node.riskScore > 60 ? "text-red-400" : "text-zinc-300"}`}>
+                        {node.riskScore ? `${node.riskScore}%` : "—"}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-zinc-500">Ação</span>
+                      <span className="text-amber-400 font-medium">
+                        {node.needsAttention ? "Responder" : "—"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         );
       })}

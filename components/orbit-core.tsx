@@ -68,7 +68,7 @@ export function OrbitCore({ state, message, activeCount, onActivate, onQuerySubm
 
   const getCoreClasses = () => {
     const base =
-      "relative flex h-[180px] w-[180px] cursor-pointer items-center justify-center rounded-full bg-[var(--orbit-glass)] backdrop-blur-xl border border-[var(--orbit-glass-border)] transition-all duration-300"
+      "relative flex h-[180px] w-[180px] cursor-pointer items-center justify-center rounded-full bg-[var(--orbit-glass)] backdrop-blur-xl border border-[var(--orbit-glass-border)] transition-all duration-300 pointer-events-auto"
 
     if (state === "listening") {
       return `${base} animate-core-listening`
@@ -81,18 +81,7 @@ export function OrbitCore({ state, message, activeCount, onActivate, onQuerySubm
 
   return (
     <div
-      className="absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2"
-      role="button"
-      tabIndex={0}
-      aria-label="Centro de comando ORBIT, clique para interagir"
-      title="Clique para consultar leads"
-      onClick={state === "idle" ? onActivate : undefined}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" && state === "idle") {
-          onActivate()
-        }
-        handleKeyDown(e)
-      }}
+      className="absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
     >
       {/* Outermost ring — matches orbit ring 4 (r=480 → ⌀960) */}
       <div
@@ -144,7 +133,20 @@ export function OrbitCore({ state, message, activeCount, onActivate, onQuerySubm
       )}
 
       {/* Central core */}
-      <div className={getCoreClasses()}>
+      <div 
+        className={getCoreClasses()}
+        role="button"
+        tabIndex={0}
+        aria-label="Centro de comando ORBIT, clique para interagir"
+        title="Clique para consultar leads"
+        onClick={state === "idle" ? onActivate : undefined}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && state === "idle") {
+            onActivate()
+          }
+          handleKeyDown(e)
+        }}
+      >
         {/* Inner glow */}
         <div
           className={`absolute inset-2 rounded-full bg-gradient-to-br from-[var(--orbit-glow)]/10 to-transparent transition-opacity duration-300 ${
