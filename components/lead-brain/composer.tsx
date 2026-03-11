@@ -22,7 +22,8 @@ export function LeadBrainComposer({ leadId, leadPhone, aiSuggestion, onMessageSe
 
     setStatus("sending")
     try {
-      const phone = leadPhone
+      const rawPhone = leadPhone
+      const phone = rawPhone ? (rawPhone.includes('@lid') ? rawPhone : `${rawPhone}@lid`) : null
 
       if (!phone) {
         // No phone number: save locally as operator message only
@@ -31,7 +32,7 @@ export function LeadBrainComposer({ leadId, leadPhone, aiSuggestion, onMessageSe
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ leadId, content: value.trim(), source: "operator" }),
         })
-        if (!response.ok) throw new Error("Failed to save local message")
+        if (!response.ok) throw new Error("Falha ao salvar mensagem local")
       } else {
         const response = await fetch("/api/whatsapp/send", {
           method: "POST",
@@ -40,7 +41,7 @@ export function LeadBrainComposer({ leadId, leadPhone, aiSuggestion, onMessageSe
         })
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}))
-          throw new Error(errorData.error || "Failed to send WhatsApp message")
+          throw new Error(errorData.error || "Falha ao enviar mensagem via WhatsApp")
         }
       }
 

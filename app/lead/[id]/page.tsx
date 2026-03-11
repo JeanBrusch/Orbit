@@ -374,26 +374,37 @@ export default function LeadTerminalPage({ params }: { params: Promise<{ id: str
   }, [messages, timelineKey])
 
   // ── Send message ────────────────────────────────────────────────────────────
-  const sendTo = lead?.phone || (lead?.lid ? `${lead.lid}@lid` : null)
+  const sendTo = lead?.phone || 
+    (lead?.lid ? (lead.lid.includes('@lid') ? lead.lid : `${lead.lid}@lid`) : null)
+
   const handleSend = async () => {
     if (!composerText.trim() || sendStatus !== "idle") return
+    
     if (!sendTo) {
-      setSendStatus("error")
-      setTimeout(() => setSendStatus("idle"), 2000)
+      alert("Este lead não possui telefone nem identificador do WhatsApp (LID) cadastrados.")
       return
     }
+
     setSendStatus("sending")
     try {
-      await fetch("/api/whatsapp/send", {
+      const response = await fetch("/api/whatsapp/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone: sendTo, message: composerText.trim(), leadId: id })
       })
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        console.error("[TERMINAL] Send error:", errorData.error)
+        throw new Error(errorData.error || "Erro ao enviar mensagem")
+      }
+
       setSendStatus("done")
       setComposerText("")
       setTimelineKey(k => k + 1)
       setTimeout(() => { setSendStatus("idle"); fetchAll() }, 1500)
-    } catch {
+    } catch (err) {
+      console.error("[TERMINAL] Error in handleSend:", err)
       setSendStatus("error")
       setTimeout(() => setSendStatus("idle"), 2000)
     }
@@ -646,7 +657,7 @@ export default function LeadTerminalPage({ params }: { params: Promise<{ id: str
 
               <button
                 onClick={handleSend}
-                disabled={!composerText.trim() || sendStatus !== "idle" || !sendTo}
+                disabled={!composerText.trim() || sendStatus !== "idle"}
                 className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
                   sendStatus === "done" ? "bg-emerald-500/20 text-emerald-400" :
                   composerText.trim() ? "bg-[#d4af35] text-[#0a0907] shadow-[0_0_15px_rgba(212,175,53,0.3)]" :

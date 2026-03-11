@@ -16,6 +16,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Backend safety check: Prevent malformed LIDs (e.g., abc@lid@lid)
+    if (isLidFormat(phone) && phone.split('@lid').length > 2) {
+      return NextResponse.json(
+        { error: `Identificador inválido: ${phone}` },
+        { status: 400 }
+      )
+    }
+
     // If phone is LID format, use as-is; otherwise normalize
     const sendTo = isLidFormat(phone) ? phone : normalizePhone(phone)
     console.log('[SEND] Sending message to:', sendTo, isLidFormat(phone) ? '(LID)' : '(phone)')
@@ -34,33 +42,40 @@ export async function POST(request: NextRequest) {
         .maybeSingle()
       
       if (!existing) {
-      const { data: newMessage, error } = await supabase.from('messages').insert({
-        lead_id: leadId,
-        source: 'operator',
-        content: message,
-        idempotency_key: idempotencyKey,
-        timestamp: new Date().toISOString()
-      }).select('id').single()
-      
-      if (error) {
-        if (error.code === '23505' && error.message?.includes('idempotency')) {
-          console.log('[SEND] Message already exists (constraint):', idempotencyKey)
-        } else {
-          console.error('[SEND] Error saving message:', error)
-        }
-      } else {
-        console.log('[SEND] Message saved with key:', idempotencyKey)
+        const { data: newMessage, error } = await supabase.from('messages').insert({
+          lead_id: leadId,
+          source: 'operator',
+          content: message,
+          idempotency_key: idempotencyKey,
+          timestamp: new Date().toISOString()
+        }).select('id').single()
         
-        await supabase
-          .from('leads')
-          .update({ 
-            last_interaction_at: new Date().toISOString() 
-          })
-          .eq('id', leadId)
+        if (error) {
+          if (error.code === '23505' && error.message?.includes('idempotency')) {
+            console.log('[SEND] Message already exists (constraint):', idempotencyKey)
+          } else {
+            console.error('[SEND] Error saving message:', error)
+            // CRITICAL: If message save fails, we should notify the client
+            return NextResponse.json(
+              { error: `Mensagem enviada no WhatsApp (${result.messageId}), mas falhou ao salvar no histórico: ${error.message}` },
+              { status: 500 }
+            )
+          }
+        } else {
+          console.log('[SEND] Message saved with key:', idempotencyKey)
+          
+          await supabase
+            .from('leads')
+            .update({ 
+              last_interaction_at: new Date().toISOString() 
+            })
+            .eq('id', leadId)
 
-        // Opcional: Acionar Orbit Core para outbound (embora ignore por enquanto)
-        processEventWithCore(leadId, message, 'message_outbound', newMessage?.id).catch(() => {})
-      }
+          // Opcional: Acionar Orbit Core para outbound
+          processEventWithCore(leadId, message, 'message_outbound', newMessage?.id).catch((e) => {
+             console.error('[SEND] Orbit Core processing error:', e)
+          })
+        }
       } else {
         console.log('[SEND] Interaction already exists (query check):', idempotencyKey)
       }
