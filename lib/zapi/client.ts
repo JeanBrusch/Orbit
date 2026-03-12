@@ -18,6 +18,13 @@ function getBaseUrl() {
   return `${ZAPI_BASE_URL}/${instanceId}/token/${token}`
 }
 
+/** For profile/contact endpoints: pass LID as NUMBER@lid, phone as digits only. */
+function normalizeIdentifier(phoneOrLid: string): string {
+  if (!phoneOrLid) return ''
+  if (phoneOrLid.includes('@lid')) return phoneOrLid.trim()
+  return phoneOrLid.replace(/\D/g, '')
+}
+
 export interface ZAPIStatus {
   connected: boolean
   smartphoneConnected?: boolean
@@ -137,7 +144,7 @@ export interface ZAPIContactMetadata {
 }
 
 export async function getContactMetadata(phone: string): Promise<ZAPIContactMetadata> {
-  const cleanPhone = phone.replace(/\D/g, '')
+  const identifier = normalizeIdentifier(phone)
   const { securityToken } = getConfig()
   
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
@@ -146,37 +153,37 @@ export async function getContactMetadata(phone: string): Promise<ZAPIContactMeta
   }
   
   try {
-    const response = await fetch(`${getBaseUrl()}/contact-metadata?phone=${cleanPhone}`, {
+    const response = await fetch(`${getBaseUrl()}/contact-metadata?phone=${encodeURIComponent(identifier)}`, {
       method: 'GET',
       headers
     })
     
     if (!response.ok) {
       console.log('Z-API contact-metadata failed:', response.status)
-      return { phone: cleanPhone }
+      return { phone: identifier }
     }
     
     const data = await response.json()
     console.log('Z-API contact-metadata response:', JSON.stringify(data))
     return {
-      phone: cleanPhone,
+      phone: identifier,
       name: data.displayName || data.name || data.pushname,
       pushName: data.pushname,
       profilePicUrl: data.imgUrl || data.profilePic
     }
   } catch (error) {
     console.error('Z-API contact-metadata error:', error)
-    return { phone: cleanPhone }
+    return { phone: identifier }
   }
 }
 
 export async function getContactProfile(phone: string): Promise<{ name?: string; photoUrl?: string }> {
-  const cleanPhone = phone.replace(/\D/g, '')
+  const identifier = normalizeIdentifier(phone)
   
   // Fetch metadata and profile picture in parallel
   const [metadata, profilePicUrl] = await Promise.all([
-    getContactMetadata(cleanPhone),
-    getProfilePicture(cleanPhone)
+    getContactMetadata(identifier),
+    getProfilePicture(identifier)
   ])
   
   return {
@@ -186,7 +193,7 @@ export async function getContactProfile(phone: string): Promise<{ name?: string;
 }
 
 export async function getProfilePicture(phone: string): Promise<string | null> {
-  const cleanPhone = phone.replace(/\D/g, '')
+  const identifier = normalizeIdentifier(phone)
   const { securityToken } = getConfig()
   
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
@@ -195,7 +202,7 @@ export async function getProfilePicture(phone: string): Promise<string | null> {
   }
   
   try {
-    const response = await fetch(`${getBaseUrl()}/profile-picture?phone=${cleanPhone}`, {
+    const response = await fetch(`${getBaseUrl()}/profile-picture?phone=${encodeURIComponent(identifier)}`, {
       method: 'GET',
       headers
     })

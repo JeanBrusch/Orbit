@@ -12,15 +12,16 @@ export async function POST(request: NextRequest) {
       const supabase = getSupabaseServer()
       const { data: lead } = await supabase
         .from('leads')
-        .select('phone')
+        .select('phone, lid')
         .eq('id', leadId)
         .single()
 
-      if (!lead?.phone) {
-        return NextResponse.json({ error: 'Lead not found or has no phone' }, { status: 404 })
+      const profileIdentifier = lead?.phone || (lead?.lid ? (lead.lid.includes('@lid') ? lead.lid : `${lead.lid}@lid`) : null)
+      if (!lead || !profileIdentifier) {
+        return NextResponse.json({ error: 'Lead not found or has no phone/LID' }, { status: 404 })
       }
 
-      const profile = await getContactProfile(lead.phone)
+      const profile = await getContactProfile(profileIdentifier)
       console.log('Refresh profile result:', { leadId, profile })
 
       const updates: Record<string, any> = {}

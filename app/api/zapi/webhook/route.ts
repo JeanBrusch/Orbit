@@ -130,8 +130,9 @@ async function findOrCreateLeadSafe({ phone, lid, name }: FindLeadParams) {
       const needsProfileUpdate = !existingLead.photo_url || 
         existingLead.name?.startsWith('+')
       
-      if (needsProfileUpdate && normalizedPhone) {
-        updateLeadProfile(existingLead.id, normalizedPhone).catch(err => 
+      const profileIdentifier = existingLead.phone || (existingLead.lid ? (existingLead.lid.includes('@lid') ? existingLead.lid : `${existingLead.lid}@lid`) : null) || normalizedPhone
+      if (needsProfileUpdate && profileIdentifier) {
+        updateLeadProfile(existingLead.id, profileIdentifier).catch(err => 
           console.error('[WEBHOOK] Background profile update failed:', err)
         )
       }
@@ -142,13 +143,13 @@ async function findOrCreateLeadSafe({ phone, lid, name }: FindLeadParams) {
     
     let profileName = name
     let profilePhoto: string | undefined
-    
-    if (normalizedPhone) {
+    const profileIdentifier = normalizedPhone || (lid ? (lid.includes('@lid') ? lid : `${lid}@lid`) : null)
+    if (profileIdentifier) {
       try {
-        const profile = await getContactProfile(normalizedPhone)
+        const profile = await getContactProfile(profileIdentifier)
         if (profile.name) profileName = profile.name
         if (profile.photoUrl) profilePhoto = profile.photoUrl
-        console.log('[WEBHOOK] Z-API profile:', { phone: normalizedPhone, name: profileName, hasPhoto: !!profilePhoto })
+        console.log('[WEBHOOK] Z-API profile:', { identifier: profileIdentifier, name: profileName, hasPhoto: !!profilePhoto })
       } catch (err) {
         console.error('[WEBHOOK] Failed to fetch Z-API profile:', err)
       }
