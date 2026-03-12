@@ -608,12 +608,14 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Send message
+  // Send message: bridge Cognitive Terminal -> WhatsApp (via Z-API) + interaction log
   const handleSend = useCallback(async () => {
     if (!composerText.trim() || sendStatus !== "idle" || !leadId) return;
     setSendStatus("sending");
     const supabase = getSupabase();
     const text = composerText.trim();
+
+    // Optimistic UI update
     const optimistic: Message = {
       id: `opt-${Date.now()}`,
       source: "operator",
@@ -623,21 +625,56 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
     };
     setMessages(prev => [...prev, optimistic]);
     setComposerText("");
+
     try {
+      // Prefer LID over phone for WhatsApp routing
+      const sendTo =
+        (lead?.lid ? (lead.lid.includes("@lid") ? lead.lid : `${lead.lid}@lid`) : null) ||
+        lead?.phone;
+
+      console.log("[COG] lead.lid:", lead?.lid);
+      console.log("[COG] lead.phone:", lead?.phone);
+      console.log("[COG] sendTo:", sendTo);
+
+      if (!sendTo) {
+        alert("Este lead não possui telefone nem identificador do WhatsApp (LID) cadastrados.");
+        setSendStatus("error");
+        setTimeout(() => setSendStatus("idle"), 2000);
+        return;
+      }
+
+      // Send via WhatsApp/Z-API
+      const whatsappRes = await fetch("/api/whatsapp/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: sendTo, message: text, leadId }),
+      });
+
+      if (!whatsappRes.ok) {
+        const errorData = await whatsappRes.json().catch(() => ({}));
+        console.error("[COG] WhatsApp send failed:", errorData);
+        setSendStatus("error");
+        setTimeout(() => setSendStatus("idle"), 2000);
+        return;
+      }
+
+      // Log interaction for cognitive history
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await (supabase.from("interactions") as any).insert({
         lead_id: leadId,
         content: text,
         direction: "outbound",
-        channel: "manual",
+        channel: "whatsapp",
       });
+
       setSendStatus("done");
       setTimeout(() => setSendStatus("idle"), 2000);
-    } catch {
+    } catch (e) {
+      console.error("[COG] Error sending from Cognitive Terminal:", e);
       setSendStatus("error");
       setTimeout(() => setSendStatus("idle"), 2000);
     }
-  }, [composerText, sendStatus, leadId]);
+  }, [composerText, sendStatus, leadId, lead?.phone, lead?.lid]);
 
   if (!isOpen) return null;
 

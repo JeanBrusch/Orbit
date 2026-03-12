@@ -6,10 +6,19 @@ const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY || "dummy-key",
 });
 
-const supabase = createClient<Database>(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-);
+// Lazy Supabase init to prevent top-level crash if env vars are missing
+let _supabaseCache: any = null;
+function getSupabase() {
+  if (_supabaseCache) return _supabaseCache;
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !key) {
+    console.warn("[ORBIT CORE] Supabase credentials missing during access. Using mock.");
+    return null;
+  }
+  _supabaseCache = createClient<Database>(url, key);
+  return _supabaseCache;
+}
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -149,10 +158,10 @@ async function getContext(leadId: string) {
   type PropertyInteractionRow = Database['public']['Tables']['property_interactions']['Row'];
 
   const [messagesRes, memoryRes, stateRes, interactionsRes] = await Promise.all([
-    supabase.from("messages").select("*").eq("lead_id", leadId).order("timestamp", { ascending: false }).limit(10),
-    supabase.from("memory_items").select("*").eq("lead_id", leadId).limit(30),
-    supabase.from("lead_cognitive_state").select("*").eq("lead_id", leadId).maybeSingle(),
-    supabase.from("property_interactions").select("*").eq("lead_id", leadId).limit(10),
+    getSupabase()?.from("messages").select("*").eq("lead_id", leadId).order("timestamp", { ascending: false }).limit(10),
+    getSupabase()?.from("memory_items").select("*").eq("lead_id", leadId).limit(30),
+    getSupabase()?.from("lead_cognitive_state").select("*").eq("lead_id", leadId).maybeSingle(),
+    getSupabase()?.from("property_interactions").select("*").eq("lead_id", leadId).limit(10),
   ]);
 
   const messages = (messagesRes.data || []) as MessageRow[];
@@ -200,7 +209,7 @@ export async function processEventWithCore(
 
     // 1. Atualizar Mensagem
     if (messageId) {
-      await (supabase.from("messages") as any)
+      await (getSupabase()?.from("messages") as any)
         .update({ 
           ai_analysis: analysis as any,
           embedding: currentEmbedding 
@@ -214,7 +223,7 @@ export async function processEventWithCore(
     const newMomentum = Math.min(100, Math.max(0, (cur?.momentum_score || 50) + analysis.momentum_delta));
     const nextState = analysis.current_cognitive_state;
 
-    await (supabase.from("lead_cognitive_state") as any).upsert({
+    await (getSupabase()?.from("lead_cognitive_state") as any).upsert({
       lead_id: leadId,
       interest_score: newInterest,
       momentum_score: newMomentum,
@@ -225,7 +234,7 @@ export async function processEventWithCore(
     });
 
     // 3. Gravar Insight
-    await (supabase.from("ai_insights") as any).insert({
+    await (getSupabase()?.from("ai_insights") as any).insert({
       lead_id: leadId,
       type: "cognitive_update",
       content: `${analysis.intention} · Próxima ação: ${analysis.action_suggested}`,
@@ -240,7 +249,7 @@ export async function processEventWithCore(
     ];
 
     for (const mem of memoriesToSave) {
-      await (supabase.from("memory_items") as any).insert({
+      await (getSupabase()?.from("memory_items") as any).insert({
         lead_id: leadId,
         type: mem.type as any,
         content: mem.content,
@@ -277,14 +286,14 @@ export async function processEventWithCore(
             ((embEvents?.[i] || 0) * 0.1);
         }
 
-        await (supabase.from("leads") as any)
+        await (getSupabase()?.from("leads") as any)
           .update({ semantic_vector: compositeVector })
           .eq("id", leadId);
       }
     }
 
     // 6. Atualizar Sugestão Final no Lead
-    await (supabase.from("leads") as any)
+    await (getSupabase()?.from("leads") as any)
       .update({
         action_suggested: analysis.action_suggested,
         last_evaluated_at: new Date().toISOString(),

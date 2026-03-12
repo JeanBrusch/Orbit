@@ -26,6 +26,10 @@ export function LeadBrainComposer({ leadId, leadPhone, leadLid, aiSuggestion, on
       const lid = leadLid ? (leadLid.includes('@lid') ? leadLid : `${leadLid}@lid`) : null
       const phone = lid || leadPhone
 
+      console.log('[COMPOSER] leadLid:', leadLid)
+      console.log('[COMPOSER] leadPhone:', leadPhone)
+      console.log('[COMPOSER] phone calculado:', phone)
+
       if (!phone) {
         // No phone number: save locally as operator message only
         const response = await fetch("/api/messages", {
@@ -56,7 +60,7 @@ export function LeadBrainComposer({ leadId, leadPhone, leadLid, aiSuggestion, on
       setStatus("error")
       setTimeout(() => setStatus("idle"), 2000)
     }
-  }, [value, status, leadPhone, leadId, onMessageSent])
+  }, [value, status, leadPhone, leadId, onMessageSent, leadLid])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {

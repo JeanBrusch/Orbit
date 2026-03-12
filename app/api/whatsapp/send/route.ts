@@ -5,9 +5,11 @@ import { getSupabaseServer } from '@/lib/supabase-server'
 import { processEventWithCore } from '@/lib/orbit-core'
 
 export async function POST(request: NextRequest) {
+  console.log('[SEND] API route hit')
   try {
     const body = await request.json()
     const { phone, message, leadId, skipInteraction } = body
+    console.log('[SEND] Request data:', { phone, messageId: !!message, leadId, skipInteraction })
 
     if (!phone || !message) {
       return NextResponse.json(
@@ -82,13 +84,14 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    console.log('[SEND] Message process successful')
     return NextResponse.json({ 
       success: true, 
       messageId: result.messageId,
       phone: sendTo
     })
   } catch (error: any) {
-    console.error('[SEND] Error:', error)
+    console.error('[SEND] POST handler error:', error.message)
     return NextResponse.json(
       { error: error.message },
       { status: 500 }

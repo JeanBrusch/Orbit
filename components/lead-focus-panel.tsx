@@ -530,6 +530,7 @@ export function LeadFocusPanel({
   const [sendError, setSendError] = useState<string | null>(null);
 
   const handleSend = useCallback(async () => {
+    console.log('[SEND] handleSend called', { hasInput: !!inputValue?.trim(), leadId, hasLead: !!lead })
     if (!inputValue.trim() || !leadId) return;
     if (isSending) return;
 
@@ -539,6 +540,9 @@ export function LeadFocusPanel({
 
     // Determine what identifier to use: LID (preferred) or phone
     const sendTo = (lead?.lid ? `${lead.lid}@lid` : null) || lead?.phone;
+    console.log('[SEND] lead.lid:', lead?.lid)
+    console.log('[SEND] lead.phone:', lead?.phone)
+    console.log('[SEND] sendTo:', sendTo)
 
     if (!sendTo) {
       setSendError("Sem telefone ou LID para enviar");

@@ -6,10 +6,15 @@ function getConfig() {
   const securityToken = process.env.ZAPI_SECURITY_TOKEN?.trim()
   
   if (!instanceId || !token) {
-    console.error('[ZAPI] Missing configuration:', { instanceId: !!instanceId, token: !!token })
+    console.error('[ZAPI] Missing configuration (critical for Vercel):', { 
+      hasInstanceId: !!instanceId, 
+      hasToken: !!token,
+      environment: process.env.NODE_ENV
+    })
     throw new Error('ZAPI_INSTANCE_ID and ZAPI_TOKEN are required')
   }
   
+  console.log('[ZAPI] Config loaded successfully for instance:', instanceId)
   return { instanceId, token, securityToken }
 }
 
@@ -92,25 +97,32 @@ export async function sendMessage(phone: string, message: string): Promise<ZAPIS
   }
   
   const url = `${getBaseUrl()}/send-text`
-  console.log('[ZAPI] Sending to:', cleanPhone, 'url:', url.replace(/\/[^/]+$/, '/***'))
+  console.log('[ZAPI] Attempting fetch to:', url.replace(/\/[^/]+$/, '/***'), 'phone:', cleanPhone)
   
-  const response = await fetch(url, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({
-      phone: cleanPhone,
-      message: message
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        phone: cleanPhone,
+        message: message
+      })
     })
-  })
-  
-  const responseData = await response.json().catch(() => ({}))
+    
+    console.log('[ZAPI] Response status:', response.status)
+    const responseData = await response.json().catch(() => ({}))
 
-  if (!response.ok) {
-    console.error('[ZAPI] Error sending message:', responseData)
-    throw new Error(responseData.error || responseData.message || `Failed to send message: ${response.status}`)
+    if (!response.ok) {
+      console.error('[ZAPI] Error response from server:', responseData)
+      throw new Error(responseData.error || responseData.message || `Failed to send message: ${response.status}`)
+    }
+    
+    console.log('[ZAPI] Message sent successfully:', responseData.messageId)
+    return responseData
+  } catch (error: any) {
+    console.error('[ZAPI] Fetch exception:', error.message)
+    throw error
   }
-  
-  return responseData
 }
 
 export async function getContact(phone: string): Promise<ZAPIContact> {
