@@ -249,7 +249,7 @@ async function saveMessage(
     if (source === 'whatsapp') {
       // Still need to check if we should process core for existing idempotent message
       const { data: lead } = await supabase.from('leads').select('state').eq('id', leadId).single()
-      if (lead?.state !== 'pending' && lead?.state !== 'blocked' && lead?.state !== 'ignored') {
+      if (lead?.state !== 'blocked' && lead?.state !== 'ignored') {
         processEventWithCore(leadId, content, 'message_inbound', existing.id).catch(() => {})
       }
     }
@@ -291,7 +291,7 @@ async function saveMessage(
     // Only trigger Orbit Core analysis if lead is NOT pending
     const { data: lead } = await supabase.from('leads').select('state').eq('id', leadId).single()
     
-    if (lead?.state !== 'pending' && lead?.state !== 'blocked' && lead?.state !== 'ignored') {
+    if (lead?.state !== 'blocked' && lead?.state !== 'ignored') {
       await supabase
         .from('leads')
         .update({
@@ -303,13 +303,7 @@ async function saveMessage(
       // Acionar Orbit Core com o ID da nova mensagem
       processEventWithCore(leadId, content, 'message_inbound', data.id).catch(() => {})
     } else {
-      console.log('[WEBHOOK] Skipping Orbit Core for pending/blocked lead')
-      await supabase
-        .from('leads')
-        .update({
-          last_interaction_at: new Date().toISOString(),
-        } as any)
-        .eq('id', leadId)
+      console.log('[WEBHOOK] Skipping Orbit Core for blocked/ignored lead')
     }
   } else {
     const { error: updateError } = await supabase
