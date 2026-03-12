@@ -363,13 +363,48 @@ export default function LeadTerminalPage({ params }: { params: Promise<{ id: str
     setLoading(false)
   }, [id])
 
-  useEffect(() => { fetchAll() }, [fetchAll])
-
-  // Polling every 15s
   useEffect(() => {
-    const interval = setInterval(fetchAll, 15000)
-    return () => clearInterval(interval)
-  }, [fetchAll])
+    fetchAll()
+    const channel = supabase
+      .channel(`lead-terminal-${id}`)
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages', filter: `lead_id=eq.${id}` },
+        (payload) => {
+          setMessages(prev => {
+            const incoming = payload.new as Message
+            if (prev.some(m => m.id === incoming.id)) return prev
+            return [...prev, incoming]
+          })
+          setTimelineKey(k => k + 1)
+        }
+      )
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'lead_cognitive_state', filter: `lead_id=eq.${id}` },
+        (payload) => { setCognitive(payload.new as CognitiveState) }
+      )
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'ai_insights', filter: `lead_id=eq.${id}` },
+        (payload) => {
+          setInsights(prev => {
+            const incoming = payload.new as AiInsight
+            if (prev.some(i => i.id === incoming.id)) return prev
+            return [incoming, ...prev]
+          })
+        }
+      )
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'memory_items', filter: `lead_id=eq.${id}` },
+        (payload) => {
+          setMemories(prev => {
+            const incoming = payload.new as MemoryItem
+            if (prev.some(m => m.id === incoming.id)) return prev
+            return [incoming, ...prev]
+          })
+        }
+      )
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [fetchAll, id])
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -405,7 +440,7 @@ export default function LeadTerminalPage({ params }: { params: Promise<{ id: str
       setSendStatus("done")
       setComposerText("")
       setTimelineKey(k => k + 1)
-      setTimeout(() => { setSendStatus("idle"); fetchAll() }, 1500)
+      setTimeout(() => { setSendStatus("idle") }, 1500)
     } catch (err) {
       console.error("[TERMINAL] Error in handleSend:", err)
       setSendStatus("error")

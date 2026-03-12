@@ -1,23 +1,10 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { ChevronRight, ChevronLeft, Brain, MapPin, DollarSign, Star, Clock, AlertCircle, Zap, Loader2 } from "lucide-react"
-import { createClient } from "@supabase/supabase-js"
+import { useState, useEffect, useCallback } from "react"
+import { ChevronRight, ChevronLeft, Star, Clock, Zap, Loader2 } from "lucide-react"
+import type { LeadData } from "@/app/lead/[id]/page"
+import { getSupabase } from "@/lib/supabase"
 import { motion, AnimatePresence } from "framer-motion"
-
-export interface LeadData {
-  id: string
-  actionSuggested?: string
-  dominantPain?: string
-  cognitiveState?: {
-    interest_score: number
-    momentum_score: number
-    risk_score: number
-    clarity_level: number
-    current_state: string
-    last_ai_analysis_at: string | null
-  }
-}
 
 interface CognitiveAnalysisProps {
   lead: LeadData
@@ -84,33 +71,50 @@ export function CognitiveAnalysis({ lead }: CognitiveAnalysisProps) {
   const [loading, setLoading] = useState(true)
   const cog = lead.cognitiveState
 
-  // Fetch real memory items with polling
-  useEffect(() => {
-    let interval: NodeJS.Timeout
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    )
-
-    const fetchMemories = async () => {
-      const { data } = await supabase
-        .from('memory_items')
-        .select('id, type, content, confidence, created_at')
-        .eq('lead_id', lead.id)
-        .order('created_at', { ascending: false })
-        .limit(40)
-      if (data) setMemories(data as MemoryItem[])
-      setLoading(false)
-    }
-
-    fetchMemories()
-    interval = setInterval(fetchMemories, 15000)
-    return () => clearInterval(interval)
+  const fetchMemories = useCallback(async () => {
+    const supabase = getSupabase()
+    const { data } = await supabase
+      .from('memory_items')
+      .select('id, type, content, confidence, created_at')
+      .eq('lead_id', lead.id)
+      .order('created_at', { ascending: false })
+      .limit(40)
+    if (data) setMemories(data as MemoryItem[])
+    setLoading(false)
   }, [lead.id])
 
-  const profileItems  = memories.filter(m => PROFILE_TYPES.includes(m.type))
-  const contextItems  = memories.filter(m => CONTEXT_TYPES.includes(m.type))
-  const eventItems    = memories.filter(m => EVENT_TYPES.includes(m.type))
+  useEffect(() => {
+    fetchMemories()
+
+    const supabase = getSupabase()
+
+    // Realtime: append new memory_items as they arrive — no polling needed
+    const channel = supabase
+      .channel(`cognitive-analysis-${lead.id}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'memory_items', filter: `lead_id=eq.${lead.id}` },
+        (payload) => {
+          setMemories(prev => {
+            const incoming = payload.new as MemoryItem
+            if (prev.some(m => m.id === incoming.id)) return prev
+            return [incoming, ...prev]
+          })
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'memory_items', filter: `lead_id=eq.${lead.id}` },
+        () => { fetchMemories() }
+      )
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [lead.id, fetchMemories])
+
+  const profileItems = memories.filter(m => PROFILE_TYPES.includes(m.type))
+  const contextItems = memories.filter(m => CONTEXT_TYPES.includes(m.type))
+  const eventItems   = memories.filter(m => EVENT_TYPES.includes(m.type))
 
   return (
     <div className={`flex-shrink-0 border-l border-[#d4af35]/10 transition-all duration-300 flex flex-col h-full bg-[#0a0907] ${collapsed ? "w-10" : "w-[280px]"}`}>
@@ -133,57 +137,43 @@ export function CognitiveAnalysis({ lead }: CognitiveAnalysisProps) {
           {/* Analysis Timestamp */}
           <div className="text-[9px] font-mono text-slate-700">
             {cog?.last_ai_analysis_at
-              ? `Analisado · ${new Date(cog.last_ai_analysis_at).toLocaleString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}`
-              : 'Aguardando análise da IA'
-            }
+              ? `Última análise: ${new Date(cog.last_ai_analysis_at).toLocaleString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}`
+              : 'Aguardando análise...'}
           </div>
 
           {/* Cognitive Scores */}
           {cog && (
-            <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-2">
               {[
-                { label: 'Interesse', value: cog.interest_score, color: 'text-emerald-400' },
-                { label: 'Momentum', value: cog.momentum_score, color: 'text-blue-400' },
-                { label: 'Risco', value: cog.risk_score, color: 'text-amber-400' },
-                { label: 'Clareza', value: cog.clarity_level, color: 'text-[#d4af35]' },
-              ].map(s => (
-                <div key={s.label} className="bg-[#14120c] border border-white/5 rounded-lg px-2.5 py-2 text-center">
-                  <div className="text-[8px] text-slate-600 uppercase tracking-wider mb-1">{s.label}</div>
-                  <div className={`text-base font-bold font-mono ${s.color}`}>{s.value}</div>
+                { label: 'Interesse', value: cog.interest_score, color: '#d4af35' },
+                { label: 'Momentum', value: cog.momentum_score, color: '#d4af35' },
+                { label: 'Risco',    value: cog.risk_score,     color: '#ef4444' },
+                { label: 'Clareza', value: cog.clarity_level,  color: '#d4af35' },
+              ].map(({ label, value, color }) => (
+                <div key={label} className="space-y-1">
+                  <div className="flex justify-between text-[9px] text-slate-500">
+                    <span>{label}</span>
+                    <span>{Math.round(value ?? 0)}%</span>
+                  </div>
+                  <div className="h-1 bg-white/5 rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all duration-700"
+                      style={{ width: `${value ?? 0}%`, backgroundColor: color }}
+                    />
+                  </div>
                 </div>
               ))}
             </div>
           )}
 
-          {/* Action Suggested */}
-          {lead.actionSuggested && (
-            <div className="flex items-start gap-2 rounded-xl border border-[#d4af35]/20 bg-[#d4af35]/5 p-3">
-              <Zap className="w-3.5 h-3.5 text-[#d4af35] shrink-0 mt-0.5" />
-              <p className="text-[11px] text-[#d4af35]/80 leading-relaxed">{lead.actionSuggested}</p>
-            </div>
-          )}
-
-          {/* Dominant Pain */}
-          {lead.dominantPain && (
-            <div className="flex items-start gap-2 rounded-xl border border-amber-400/20 bg-amber-400/5 p-3">
-              <AlertCircle className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
-              <p className="text-[11px] text-amber-400/80 leading-relaxed">{lead.dominantPain}</p>
-            </div>
-          )}
-
           {/* Memory Sections */}
-          <div className="space-y-2">
-            <MemorySection title="Perfil" items={profileItems} />
-            <MemorySection title="Contexto Atual" items={contextItems} />
-            <MemorySection title="Eventos" items={eventItems} />
-          </div>
-
-          {memories.length === 0 && !loading && (
-            <div className="text-center py-6">
-              <Brain className="w-5 h-5 text-slate-700 mx-auto mb-2" />
-              <p className="text-[10px] text-slate-700">Memória vazia. Aguardando interações.</p>
-            </div>
+          {!loading && memories.length === 0 && (
+            <p className="text-[10px] text-slate-600 text-center py-4">Nenhuma memória ainda</p>
           )}
+
+          <MemorySection title="Perfil" items={profileItems} />
+          <MemorySection title="Contexto" items={contextItems} />
+          <MemorySection title="Eventos" items={eventItems} />
         </div>
       )}
     </div>

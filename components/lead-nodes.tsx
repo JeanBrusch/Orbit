@@ -34,44 +34,44 @@ type Priority = "hot" | "warm" | "neutral" | "cold";
 // ─── Visual Contact Cycle (Radar de Prioridade) ──────────────────────────────
 const contactCycleStyles: Record<string, { ring: string; glow: string; intensity: string; opacity: string; pulse?: string }> = {
   verde: { 
-    ring: "border-emerald-400", 
-    glow: "shadow-[0_0_15px_rgba(52,211,153,0.6)]", 
-    intensity: "brightness-125 saturate-150", 
+    ring: "border-emerald-500/40", 
+    glow: "", 
+    intensity: "", 
     opacity: "opacity-100",
-    pulse: "animate-pulse shadow-[0_0_20px_rgba(34,197,94,0.5)] border-emerald-400"
+    pulse: "animate-pulse border-emerald-400"
   },
   azul: { 
-    ring: "border-blue-500", 
-    glow: "shadow-[0_0_10px_rgba(59,130,246,0.4)]", 
-    intensity: "brightness-110", 
+    ring: "border-blue-500/30", 
+    glow: "", 
+    intensity: "", 
     opacity: "opacity-100" 
   },
   amarelo: { 
-    ring: "border-amber-400", 
-    glow: "shadow-[0_0_8px_rgba(251,191,36,0.3)]", 
-    intensity: "brightness-105", 
+    ring: "border-amber-400/30", 
+    glow: "", 
+    intensity: "", 
     opacity: "opacity-90" 
   },
   laranja: { 
-    ring: "border-orange-500", 
-    glow: "shadow-[0_0_8px_rgba(249,115,22,0.3)]", 
-    intensity: "brightness-100", 
+    ring: "border-orange-500/30", 
+    glow: "", 
+    intensity: "", 
     opacity: "opacity-80" 
   },
   vermelho: { 
-    ring: "border-rose-600", 
-    glow: "shadow-[0_0_14px_rgba(225,29,72,0.6)] animate-urgent-pulse", 
-    intensity: "brightness-110", 
+    ring: "border-rose-600/40", 
+    glow: "animate-urgent-pulse", 
+    intensity: "", 
     opacity: "opacity-100" 
   },
   cinza: { 
-    ring: "border-zinc-500/40", 
+    ring: "border-zinc-500/20", 
     glow: "", 
-    intensity: "brightness-75 grayscale opacity-50", 
+    intensity: "grayscale opacity-50", 
     opacity: "opacity-50" 
   },
 };
-const DEFAULT_STATE_RING = { ring: "border-zinc-500/30", glow: "", intensity: "opacity-70", opacity: "opacity-70" };
+const DEFAULT_STATE_RING = { ring: "border-zinc-500/10", glow: "", intensity: "opacity-70", opacity: "opacity-70" };
 
 // CycleStage kept for gravity/positioning logic only (not used for rings)
 type CycleStage =
@@ -121,29 +121,29 @@ interface LeadNode {
 
 const auraColors: Record<EmotionalAura, { ring: string; glow: string }> = {
   intent: {
-    ring: "border-emerald-400/60",
-    glow: "shadow-[0_0_8px_rgba(52,211,153,0.3)]",
+    ring: "border-emerald-400/30",
+    glow: "",
   },
   curious: {
-    ring: "border-[#FFC87A]/60",
-    glow: "shadow-[0_0_8px_rgba(255,200,122,0.3)]",
+    ring: "border-[#FFC87A]/30",
+    glow: "",
   },
   conflicted: {
-    ring: "border-orange-400/60",
-    glow: "shadow-[0_0_8px_rgba(251,146,60,0.3)]",
+    ring: "border-orange-400/30",
+    glow: "",
   },
   aware: {
-    ring: "border-[#2EC5FF]/60",
-    glow: "shadow-[0_0_8px_rgba(46,197,255,0.3)]",
+    ring: "border-[#2EC5FF]/30",
+    glow: "",
   },
   silentGravity: {
-    ring: "border-cyan-300/60",
-    glow: "shadow-[0_0_8px_rgba(103,232,249,0.3)]",
+    ring: "border-cyan-300/30",
+    glow: "",
   },
   // Green override: unread WhatsApp message — pulsing, replaces current aura until lead is opened
   whatsapp: {
-    ring: "border-emerald-500/90",
-    glow: "shadow-[0_0_14px_rgba(16,185,129,0.5)]",
+    ring: "border-emerald-500/50",
+    glow: "",
   },
 };
 
@@ -626,13 +626,13 @@ function mapEmotionalStateToAura(state: string): EmotionalAura {
 // Maps AI cognitive current_state to a subtle border color (not loud, no animation)
 function getCognitiveAuraClass(currentState?: string): { ring: string; glow: string } | null {
   switch (currentState) {
-    case "deciding":    return { ring: "border-orange-400/60",   glow: "shadow-[0_0_10px_rgba(251,146,60,0.25)]" };
-    case "evaluating": return { ring: "border-amber-300/50",    glow: "shadow-[0_0_8px_rgba(252,211,77,0.20)]" };
-    case "exploring":  return { ring: "border-sky-400/50",      glow: "shadow-[0_0_8px_rgba(56,189,248,0.20)]" };
-    case "curious":    return { ring: "border-violet-400/50",   glow: "shadow-[0_0_8px_rgba(167,139,250,0.20)]" };
-    case "resolved":   return { ring: "border-emerald-400/50",  glow: "shadow-[0_0_8px_rgba(52,211,153,0.20)]" };
-    case "dormant":    return { ring: "border-zinc-500/40",     glow: "" };
-    case "latent":     return { ring: "border-zinc-400/30",     glow: "" };
+    case "deciding":    return { ring: "border-orange-400/30",   glow: "" };
+    case "evaluating": return { ring: "border-amber-300/30",    glow: "" };
+    case "exploring":  return { ring: "border-sky-400/30",      glow: "" };
+    case "curious":    return { ring: "border-violet-400/30",   glow: "" };
+    case "resolved":   return { ring: "border-emerald-400/30",  glow: "" };
+    case "dormant":    return { ring: "border-zinc-500/20",     glow: "" };
+    case "latent":     return { ring: "border-zinc-400/20",     glow: "" };
     default:           return null;
   }
 }
@@ -720,7 +720,7 @@ const LeadNodeItem = memo(({
 
   return (
     <div
-      className={`pointer-events-auto absolute transition-all duration-700 ${intensityClass} ${cycleStyle.glow} ${node.contactCycle === 'verde' ? (cycleStyle.pulse || '') : ''} ${isResponding && hasHighlights && !isHighlighted
+      className={`pointer-events-auto absolute transition-all duration-700 ${intensityClass} ${node.contactCycle === 'verde' ? (cycleStyle.pulse || '') : ''} ${isResponding && hasHighlights && !isHighlighted
           ? "scale-95 opacity-40"
           : activityOpacity
         } ${!isResponding && !node.isNew ? "animate-node-float" : ""} ${node.cycleStage === "decidindo" || hasFollowUpDue
@@ -752,12 +752,12 @@ const LeadNodeItem = memo(({
           {hasFollowUpDue && !node.needsAttention && <FollowUpRing />}
 
           <div
-            className={`flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border-2 bg-[var(--orbit-glass)] text-[10px] font-light text-[var(--orbit-text)] backdrop-blur-sm transition-all duration-500 ${
+            className={`flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border-[1px] bg-[var(--orbit-glass)] text-[10px] font-light text-[var(--orbit-text)] backdrop-blur-sm transition-all duration-500 ${
               isHighlighted && isResponding
                 ? "animate-lead-highlight scale-110 border-[var(--orbit-glow)]"
                 : node.isNew
                   ? "border-[var(--orbit-glow)] animate-new-lead-glow"
-                  : `${cycleStyle.ring} ${cycleStyle.glow}`
+                  : `${cycleStyle.ring}`
             }`}
             style={{ animationDelay: isHighlighted ? `${highlightDelay}s` : "0s" }}
           >
