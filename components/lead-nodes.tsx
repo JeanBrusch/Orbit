@@ -31,17 +31,46 @@ type EmotionalAura =
   | "whatsapp";
 type Priority = "hot" | "warm" | "neutral" | "cold";
 
-// Cognitive AI state → subtle inner ring
-const stateRingColors: Record<string, { ring: string; glow: string }> = {
-  latent:     { ring: "border-zinc-500/20",     glow: "" },
-  curious:    { ring: "border-sky-400/40",      glow: "shadow-[0_0_4px_rgba(56,189,248,0.1)]" },
-  exploring:  { ring: "border-blue-400/60",     glow: "shadow-[0_0_6px_rgba(59,130,246,0.2)]" },
-  evaluating: { ring: "border-orange-400/60",   glow: "shadow-[0_0_8px_rgba(251,146,60,0.2)]" },
-  deciding:   { ring: "border-red-500/70",      glow: "shadow-[0_0_12px_rgba(239,68,68,0.3)]" },
-  resolved:   { ring: "border-violet-400/60",   glow: "shadow-[0_0_8px_rgba(167,139,250,0.2)]" },
-  dormant:    { ring: "border-zinc-800",         glow: "" },
+// ─── Visual Contact Cycle (Radar de Prioridade) ──────────────────────────────
+const contactCycleStyles: Record<string, { ring: string; glow: string; intensity: string; opacity: string }> = {
+  verde: { 
+    ring: "border-emerald-400", 
+    glow: "shadow-[0_0_15px_rgba(52,211,153,0.6)]", 
+    intensity: "brightness-125 saturate-150 animate-pulse", 
+    opacity: "opacity-100" 
+  },
+  azul: { 
+    ring: "border-blue-500", 
+    glow: "shadow-[0_0_10px_rgba(59,130,246,0.4)]", 
+    intensity: "brightness-110", 
+    opacity: "opacity-100" 
+  },
+  amarelo: { 
+    ring: "border-amber-400", 
+    glow: "shadow-[0_0_8px_rgba(251,191,36,0.3)]", 
+    intensity: "brightness-105", 
+    opacity: "opacity-90" 
+  },
+  laranja: { 
+    ring: "border-orange-500", 
+    glow: "shadow-[0_0_8px_rgba(249,115,22,0.3)]", 
+    intensity: "brightness-100", 
+    opacity: "opacity-80" 
+  },
+  vermelho: { 
+    ring: "border-rose-600", 
+    glow: "shadow-[0_0_14px_rgba(225,29,72,0.6)] animate-urgent-pulse", 
+    intensity: "brightness-110", 
+    opacity: "opacity-100" 
+  },
+  cinza: { 
+    ring: "border-zinc-500/40", 
+    glow: "", 
+    intensity: "brightness-75 grayscale opacity-50", 
+    opacity: "opacity-50" 
+  },
 };
-const DEFAULT_STATE_RING = { ring: "border-zinc-500/30", glow: "" };
+const DEFAULT_STATE_RING = { ring: "border-zinc-500/30", glow: "", intensity: "opacity-70", opacity: "opacity-70" };
 
 // CycleStage kept for gravity/positioning logic only (not used for rings)
 type CycleStage =
@@ -78,6 +107,8 @@ interface LeadNode {
   isNew?: boolean;
   isProvisional?: boolean;
   cycleStage: CycleStage;
+  contactCycle: 'verde' | 'azul' | 'amarelo' | 'laranja' | 'vermelho' | 'cinza';
+  daysSinceInteraction?: number;
   hasMatureNotes?: boolean;
   followupActive?: boolean;
   followupRemaining?: number;
@@ -276,13 +307,19 @@ function getStagePullStrength(cycleStage: CycleStage): number {
 function applyGravity(
   position: { top: string; left: string },
   cycleStage: CycleStage,
+  contactCycle: string,
   extraBoost: number = 0, // e.g. follow-up or recent contacts bonus
 ): { top: string; left: string } {
-  const pullStrength = Math.min(
+  let pullStrength = Math.min(
     0.65,
     getStagePullStrength(cycleStage) + extraBoost,
   );
-  if (pullStrength <= 0) return position;
+
+  if (contactCycle === 'cinza') {
+    pullStrength = -0.12; // Empurra para a periferia
+  }
+
+  if (pullStrength === 0) return position;
 
   const top = parseFloat(position.top);
   const left = parseFloat(position.left);
@@ -673,18 +710,12 @@ const LeadNodeItem = memo(({
     !node.followupDoneToday
   );
 
-  const intensityClass = emotionalIntensity[node.emotionalAura];
-  
+  const cycleStyle = contactCycleStyles[node.contactCycle] || DEFAULT_STATE_RING;
   const activityOpacity = orbitViewStatus.isUnrelated
-    ? "opacity-40"
-    : node.currentState === "dormant"
-      ? "opacity-30 grayscale"
-      : node.currentState === "latent"
-        ? "opacity-50 grayscale-[0.4]"
-        : "opacity-100";
+    ? "opacity-30"
+    : cycleStyle.opacity;
 
-  const stateStyle = stateRingColors[node.currentState ?? ""] ?? DEFAULT_STATE_RING;
-  const effectiveAura: EmotionalAura = node.needsAttention ? "whatsapp" : node.emotionalAura;
+  const intensityClass = cycleStyle.intensity;
 
   return (
     <div
@@ -725,9 +756,7 @@ const LeadNodeItem = memo(({
                 ? "animate-lead-highlight scale-110 border-[var(--orbit-glow)]"
                 : node.isNew
                   ? "border-[var(--orbit-glow)] animate-new-lead-glow"
-                  : node.needsAttention
-                    ? "border-emerald-500/90 shadow-[0_0_10px_rgba(16,185,129,0.4)] animate-pulse"
-                    : `${stateStyle.ring} ${stateStyle.glow}`
+                  : `${cycleStyle.ring} ${cycleStyle.glow}`
             }`}
             style={{ animationDelay: isHighlighted ? `${highlightDelay}s` : "0s" }}
           >
@@ -745,6 +774,13 @@ const LeadNodeItem = memo(({
               />
             ) : node.avatar}
           </div>
+
+          {node.contactCycle === 'cinza' && (
+            <div className="absolute -bottom-1 -right-1 flex items-center gap-0.5 rounded-full bg-zinc-900/80 px-1 py-0.5 text-[7px] text-zinc-400 border border-white/5 font-medium">
+              <span>⟳</span>
+              <span>{node.daysSinceInteraction}d</span>
+            </div>
+          )}
 
           {node.badge && (
             <div className="absolute -right-1 -top-1">
@@ -838,6 +874,8 @@ export function LeadNodes({
       isNew: newLeads.includes(state.id),
       isProvisional: state.isProvisional,
       cycleStage: "sem_ciclo" as CycleStage,
+      contactCycle: "azul" as const,
+      daysSinceInteraction: 0,
     }));
   }, [leadStates, newLeads]);
 
@@ -861,6 +899,8 @@ export function LeadNodes({
       hasNotification: lead.emotionalState === "engaged",
       needsAttention: lead.needsAttention,
       cycleStage: (lead.cycleStage as CycleStage) || "sem_ciclo" as CycleStage,
+      contactCycle: lead.contactCycle || 'azul',
+      daysSinceInteraction: lead.daysSinceInteraction,
       hasMatureNotes: lead.hasMatureNotes,
       followupActive: lead.followupActive,
       followupRemaining: lead.followupRemaining,
@@ -904,7 +944,7 @@ export function LeadNodes({
       const memSignal = hasMemorySignal(leadState);
       const hasFollowUpDue = !!(node.followupActive && (node.followupRemaining || 0) > 0 && !node.followupDoneToday);
       const extraBoost = (hasFollowUpDue ? 0.1 : 0) + (memSignal.hasRecentContacts ? 0.05 : 0);
-      let pos = applyGravity(node.position, node.cycleStage, extraBoost);
+      let pos = applyGravity(node.position, node.cycleStage, node.contactCycle, extraBoost);
       const orbitScore = orbitViewLeadScores.get(node.id) || 0;
       if (orbitView.active && orbitScore > 0) {
         pos = applyOrbitViewGravity(pos, orbitScore, dayLoadFactor);

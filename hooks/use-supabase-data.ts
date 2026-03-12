@@ -35,9 +35,20 @@ export interface OrbitLead {
   lastAiAnalysisAt?: string | null
   hasMatureNotes?: boolean
   cycleStage?: string
+  contactCycle?: 'verde' | 'azul' | 'amarelo' | 'laranja' | 'vermelho' | 'cinza'
   followupActive?: boolean
   followupRemaining?: number
   followupDoneToday?: boolean
+}
+
+function calculateContactCycle(needsAttention: boolean, daysSince: number | undefined): 'verde' | 'azul' | 'amarelo' | 'laranja' | 'vermelho' | 'cinza' {
+  if (needsAttention) return 'verde'
+  if (daysSince === undefined) return 'azul'
+  if (daysSince <= 3) return 'azul'
+  if (daysSince <= 7) return 'amarelo'
+  if (daysSince <= 15) return 'laranja'
+  if (daysSince <= 30) return 'vermelho'
+  return 'cinza'
 }
 
 function mapStateToEmotionalState(state: string | null): "engaged" | "warm" | "neutral" | "cooling" {
@@ -249,6 +260,7 @@ export function useSupabaseLeads() {
           orbitStage: orbitData?.orbit_stage,
           orbitVisualState: orbitData?.orbit_visual_state,
           needsAttention: orbitData?.action_suggested === 'needs_attention',
+          contactCycle: calculateContactCycle(orbitData?.action_suggested === 'needs_attention', lead.dias_sem_interacao || 0),
           cycleStage: orbitData?.cycle_stage || 'sem_ciclo',
           followupActive: orbitData?.followup_active || false,
           followupRemaining: orbitData?.followup_remaining || 0,
