@@ -75,7 +75,7 @@ export async function GET(
         )
       }
       
-      matchingLead = allLeads?.find(lead => verifyLeadToken(token, lead.id))
+      matchingLead = (allLeads?.find(lead => verifyLeadToken(token, lead.id)) as typeof matchingLead)
     }
     
     if (!matchingLead) {
