@@ -1,11 +1,12 @@
 const ZAPI_BASE_URL = 'https://api.z-api.io/instances'
 
 function getConfig() {
-  const instanceId = process.env.ZAPI_INSTANCE_ID
-  const token = process.env.ZAPI_TOKEN
-  const securityToken = process.env.ZAPI_SECURITY_TOKEN
+  const instanceId = process.env.ZAPI_INSTANCE_ID?.trim()
+  const token = process.env.ZAPI_TOKEN?.trim()
+  const securityToken = process.env.ZAPI_SECURITY_TOKEN?.trim()
   
   if (!instanceId || !token) {
+    console.error('[ZAPI] Missing configuration:', { instanceId: !!instanceId, token: !!token })
     throw new Error('ZAPI_INSTANCE_ID and ZAPI_TOKEN are required')
   }
   
@@ -27,6 +28,7 @@ export interface ZAPIStatus {
 export interface ZAPISendResult {
   zaapId: string
   messageId: string
+  id?: string
 }
 
 export interface ZAPIContact {
@@ -60,7 +62,7 @@ export async function getStatus(): Promise<ZAPIStatus> {
     console.log('Z-API status response:', data)
     return {
       connected: data.connected === true,
-      smartphoneConnected: data.smartphoneConnected,
+      smartphoneConnected: data.smartphoneConnected === true,
       session: data.session,
       error: data.error
     }
@@ -72,17 +74,18 @@ export async function getStatus(): Promise<ZAPIStatus> {
 
 export async function sendMessage(phone: string, message: string): Promise<ZAPISendResult> {
   const isLid = phone.includes('@lid')
+  // Z-API expects 'NUMBER@lid' for LIDs or 'NUMBER' for phones.
+  // We ensure the identifier is clean.
   const cleanPhone = isLid ? phone.trim() : phone.replace(/\D/g, '')
   
   const { securityToken } = getConfig()
-  
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-  if (securityToken) {
-    headers['Client-Token'] = securityToken
+  const headers: Record<string, string> = { 
+    'Content-Type': 'application/json',
+    ...(securityToken ? { 'Client-Token': securityToken } : {})
   }
   
   const url = `${getBaseUrl()}/send-text`
-  console.log('Z-API sending to:', url, 'identifier:', cleanPhone)
+  console.log('[ZAPI] Sending to:', cleanPhone, 'url:', url.replace(/\/[^/]+$/, '/***'))
   
   const response = await fetch(url, {
     method: 'POST',
@@ -93,12 +96,14 @@ export async function sendMessage(phone: string, message: string): Promise<ZAPIS
     })
   })
   
+  const responseData = await response.json().catch(() => ({}))
+
   if (!response.ok) {
-    const error = await response.text()
-    throw new Error(`Failed to send message: ${error}`)
+    console.error('[ZAPI] Error sending message:', responseData)
+    throw new Error(responseData.error || responseData.message || `Failed to send message: ${response.status}`)
   }
   
-  return response.json()
+  return responseData
 }
 
 export async function getContact(phone: string): Promise<ZAPIContact> {

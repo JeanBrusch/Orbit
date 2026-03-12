@@ -243,7 +243,10 @@ function MessageBubble({ msg, leadPhoto, leadName }: { msg: Message; leadPhoto: 
       <div className="bg-[#d4af35]/10 border border-[#d4af35]/30 rounded-2xl rounded-tr-none px-4 py-3 text-sm leading-relaxed text-slate-200">
         {text}
       </div>
-      <span className="text-[10px] text-slate-500 mr-1">{formatTime(msg.timestamp)}</span>
+      <div className="flex items-center gap-1.5 mr-1">
+        <span className="text-[10px] text-slate-500">{formatTime(msg.timestamp)}</span>
+        <Check className="w-3 h-3 text-emerald-500/70" />
+      </div>
     </div>
   )
 }
