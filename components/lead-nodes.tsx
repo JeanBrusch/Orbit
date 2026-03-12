@@ -623,18 +623,20 @@ function mapEmotionalStateToAura(state: string): EmotionalAura {
   }
 }
 
-// Maps AI cognitive current_state to a subtle border color (not loud, no animation)
-function getCognitiveAuraClass(currentState?: string): { ring: string; glow: string } | null {
-  switch (currentState) {
-    case "deciding":    return { ring: "border-orange-400/30",   glow: "" };
-    case "evaluating": return { ring: "border-amber-300/30",    glow: "" };
-    case "exploring":  return { ring: "border-sky-400/30",      glow: "" };
-    case "curious":    return { ring: "border-violet-400/30",   glow: "" };
-    case "resolved":   return { ring: "border-emerald-400/30",  glow: "" };
-    case "dormant":    return { ring: "border-zinc-500/20",     glow: "" };
-    case "latent":     return { ring: "border-zinc-400/20",     glow: "" };
-    default:           return null;
-  }
+// Ciclo de contato → cor do anel baseada em dias desde última interação
+function getContactCycleRing(
+  days: number | undefined,
+  needsAttention: boolean,
+): { ring: string; glow: string } {
+  // needsAttention é tratado no effectiveAura (border verde pulsante),
+  // mas se cair aqui como fallback retorna o mesmo verde dessaturado
+  if (needsAttention) return { ring: "border-[#2d6a42]", glow: "shadow-[0_0_6px_rgba(45,106,66,0.3)]" }
+  const d = days ?? 0
+  if (d <= 3)  return { ring: "border-[#1e4976]", glow: "" }  // azul   — ≤ 3 dias
+  if (d <= 7)  return { ring: "border-[#5a4a0a]", glow: "" }  // âmbar  — 4–7 dias
+  if (d <= 15) return { ring: "border-[#6b3a10]", glow: "" }  // laranja — 8–15 dias
+  if (d <= 30) return { ring: "border-[#6b1f1f]", glow: "" }  // vermelho — 16–30 dias
+  return               { ring: "border-[#2a2a2e]", glow: "" }  // cinza  — > 30 dias
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -711,16 +713,16 @@ const LeadNodeItem = memo(({
     !node.followupDoneToday
   );
 
-  const cycleStyle = contactCycleStyles[node.contactCycle] || DEFAULT_STATE_RING;
+  const cycleStyle = getContactCycleRing(node.daysSinceInteraction, !!node.needsAttention);
   const activityOpacity = orbitViewStatus.isUnrelated
     ? "opacity-30"
-    : cycleStyle.opacity;
+    : "opacity-100"; // Removing cycleStyle.opacity since the patch didn't provide it, replacing with fixed
 
-  const intensityClass = cycleStyle.intensity;
+  const intensityClass = "opacity-70"; // Fallback to original intent
 
   return (
     <div
-      className={`pointer-events-auto absolute transition-all duration-700 ${intensityClass} ${node.contactCycle === 'verde' ? (cycleStyle.pulse || '') : ''} ${isResponding && hasHighlights && !isHighlighted
+      className={`pointer-events-auto absolute transition-all duration-700 ${intensityClass} ${node.contactCycle === 'verde' ? 'animate-pulse border-emerald-400' : ''} ${isResponding && hasHighlights && !isHighlighted
           ? "scale-95 opacity-40"
           : activityOpacity
         } ${!isResponding && !node.isNew ? "animate-node-float" : ""} ${node.cycleStage === "decidindo" || hasFollowUpDue
