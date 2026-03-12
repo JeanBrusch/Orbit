@@ -887,13 +887,13 @@ export function LeadNodes({
   // ── Orbit-view scores ────────────────────────────────────────────────────
   const orbitViewLeadScores = useMemo(() => {
     if (!orbitView.active) return new Map<string, number>();
-    const sortedLeads = [...orbitView.leads].sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0));
+    const sortedLeads = [...orbitView.results.leads].sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0));
     const scores = new Map<string, number>();
     for (const lead of sortedLeads.slice(0, 18)) {
-      scores.set(lead.leadId, lead.relevanceScore || 0.7);
+      scores.set(lead.id, lead.relevanceScore || 0.7);
     }
     return scores;
-  }, [orbitView.active, orbitView.leads]);
+  }, [orbitView.active, orbitView.results.leads]);
 
   // ── Combine + gravity + collision ────────────────────────────────────────
   const allLeadNodes = useMemo(() => {

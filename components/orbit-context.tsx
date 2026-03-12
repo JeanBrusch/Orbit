@@ -243,11 +243,13 @@ interface OrbitContextValue {
     active: boolean
     query: string
     results: {
-      leads: Array<{ id: string; name: string; stage: string; lastInteraction: string; intent?: string }>
+      leads: Array<{ id: string; name: string; stage: string; lastInteraction: string; intent?: string; relevanceScore?: number }>
       properties: Array<{ id: string; title: string; price: string; location: string }>
       intentions: Array<{ text: string }>
     }
     sourceLeadId?: string
+    /** @deprecated Use results.leads */
+    leads: Array<{ id: string; name: string; stage: string; lastInteraction: string; intent?: string; relevanceScore?: number }>
   }
   activateOrbitView: (query: string, sourceLeadId?: string) => Promise<void>
   deactivateOrbitView: () => void
@@ -340,7 +342,7 @@ export function OrbitProvider({ children }: { children: ReactNode }) {
   const [isFocusModeActive, setIsFocusModeActive] = useState(false)
   
   // ORBIT VIEW state - temporary work mode by intention
-  const [orbitView, setOrbitView] = useState<{
+  const [orbitViewState, setOrbitViewState] = useState<{
     active: boolean
     query: string
     results: {
@@ -359,6 +361,12 @@ export function OrbitProvider({ children }: { children: ReactNode }) {
     },
     sourceLeadId: undefined,
   })
+
+  // Computed orbitView with compatibility alias
+  const orbitView = useMemo(() => ({
+    ...orbitViewState,
+    leads: orbitViewState.results.leads
+  }), [orbitViewState])
   const [atlasInvokeContext, setAtlasInvokeContext] = useState<{
     leadId?: string
     leadName?: string
@@ -525,7 +533,7 @@ export function OrbitProvider({ children }: { children: ReactNode }) {
       
       const data = await response.json()
       
-      setOrbitView({
+      setOrbitViewState({
         active: true,
         query: query.trim(),
         results: {
@@ -541,7 +549,7 @@ export function OrbitProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const deactivateOrbitView = useCallback(() => {
-    setOrbitView({
+    setOrbitViewState({
       active: false,
       query: '',
       results: {

@@ -58,7 +58,7 @@ If a field is not present in the intent, leave it as null.
 User Query: "${query}"`
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-2.0-flash",
       contents: prompt,
       config: {
         responseMimeType: "application/json",

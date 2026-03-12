@@ -39,3 +39,4 @@ pnpm-lock.yaml
 .agents/
 .local*
 **/.*
+Arquivos espelhos/
