@@ -156,7 +156,7 @@ export function LeadBrainComposer({ leadId, leadPhone, leadLid, aiSuggestion, on
             leadId={leadId}
             leadPhone={leadPhone}
             onClose={() => setShowModal(false)}
-            onSaved={() => { onMessageSent?.(); setShowModal(false) }}
+            onSaved={() => { onMessageSent(""); setShowModal(false) }}
           />
         )}
       </AnimatePresence>
