@@ -1,19 +1,26 @@
-import { GoogleGenAI } from "@google/genai";
+import OpenAI from "openai";
 import { createClient } from "@supabase/supabase-js";
 import { Database } from "./database.types";
 
-const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY || "dummy-key",
-});
+let _openaiCache: OpenAI | null = null;
+function getOpenAI() {
+  if (_openaiCache) return _openaiCache;
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey || apiKey === "dummy-key") return null;
+  _openaiCache = new OpenAI({ apiKey });
+  return _openaiCache;
+}
 
 // Lazy Supabase init to prevent top-level crash if env vars are missing
 let _supabaseCache: any = null;
 function getSupabase() {
   if (_supabaseCache) return _supabaseCache;
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  // Prioriza SERVICE_ROLE_KEY para operações de backend (bypass RLS)
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  
   if (!url || !key) {
-    console.warn("[ORBIT CORE] Supabase credentials missing during access. Using mock.");
+    console.warn("[ORBIT CORE] Supabase credentials missing during access.");
     return null;
   }
   _supabaseCache = createClient<Database>(url, key);
@@ -47,28 +54,34 @@ interface CoreAnalysis {
 // ─── Geração de Embedding ─────────────────────────────────────────────────────
 
 export async function generateEmbedding(text: string): Promise<number[] | null> {
-  if (!process.env.GEMINI_API_KEY || !text || text.trim() === "") return null;
+  if (!process.env.OPENAI_API_KEY) {
+    console.warn("[ORBIT CORE] OPENAI_API_KEY missing for embedding.");
+    return null;
+  }
+  if (!text || text.trim() === "") return null;
   try {
-    const response = await ai.models.embedContent({
-      model: "text-embedding-004",
-      contents: [text],
+    const openai = getOpenAI();
+    if (!openai) {
+      console.warn("[ORBIT CORE] OpenAI client not initialized for embedding.");
+      return null;
+    }
+    const response = await openai.embeddings.create({
+      model: "text-embedding-3-small",
+      input: text,
     });
     
-    // O SDK 1.44.0 retorna um objeto com 'embeddings' (plural) no caso de múltiplos inputs, 
-    // ou conforme a estrutura retornada pelo backend.
-    // Baseado no d.ts: embedContent returns types.EmbedContentResponse which contains embeddings?: Array<Embedding>
-    const embeddings = (response as any).embeddings;
-    if (embeddings && embeddings.length > 0) {
-      return embeddings[0].values || null;
+    return response.data[0].embedding || null;
+  } catch (err: any) {
+    if (err.status === 429) {
+      console.error("[ORBIT CORE] QUOTA EXCEDIDA (429) na OpenAI (Embeddings).");
+    } else {
+      console.error("[ORBIT CORE] Erro ao gerar embedding (OpenAI):", err);
     }
-    return null;
-  } catch (err) {
-    console.error("[ORBIT CORE] Erro ao gerar embedding:", err);
     return null;
   }
 }
 
-// ─── Análise com Gemini ───────────────────────────────────────────────────────
+// ─── Análise com OpenAI ───────────────────────────────────────────────────────
 
 async function analyzeContext(
   leadId: string,
@@ -81,7 +94,10 @@ async function analyzeContext(
     propertyInteractions: string;
   }
 ): Promise<CoreAnalysis | null> {
-  if (!process.env.GEMINI_API_KEY) return null;
+  if (!process.env.OPENAI_API_KEY) {
+    console.warn("[ORBIT CORE] OPENAI_API_KEY missing for analysis.");
+    return null;
+  }
 
   try {
     const prompt = `Você é o ORBIT Core, o cérebro cognitivo de um ecossistema imobiliário de luxo.
@@ -116,35 +132,47 @@ Sua tarefa:
 
 3. Calcule o delta de interesse (interesse no tema) e momentum (velocidade para a decisão).
 
-Responda APENAS com um JSON (sem blocos de código markdown):
+Responda APENAS com um JSON puro contendo estas chaves:
 {
   "intention": "resumo da intenção real",
   "pain": "dor ou objeção identificada ou null",
   "signal": "positive|negative|neutral",
   "urgency": 0-100,
-  "interest_delta": número de -20 a 20,
-  "momentum_delta": número de -20 a 20,
+  "interest_delta": número de -20 a 20 (use valores negativos para desinteresse/negativas),
+  "momentum_delta": número de -20 a 20 (use valores negativos se o lead esfriar),
   "memory_profile": [{"type": "string", "content": "string"}] | null,
   "memory_context": [{"type": "string", "content": "string"}] | null,
   "memory_events": [{"type": "string", "content": "string"}] | null,
   "current_cognitive_state": "latent|curious|exploring|evaluating|deciding|resolved|dormant",
   "action_suggested": "próxima ação sugerida"
-}`;
+}
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash",
-      contents: prompt,
-      config: {
-        temperature: 0.2,
-      },
+IMPORTANTE: Se o lead disser que não tem interesse ou for rude, use signal="negative", baixe o interesse e momentum (deltas negativos) e mude o estado para "resolved" ou "dormant".`;
+
+    const openai = getOpenAI();
+    if (!openai) {
+      console.warn("[ORBIT CORE] OpenAI client not initialized for analysis.");
+      return null;
+    }
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: "Você é o ORBIT Core. Responda apenas em JSON." },
+        { role: "user", content: prompt }
+      ],
+      response_format: { type: "json_object" },
+      temperature: 0.1,
     });
 
-    const text = response.text || "";
-    // Limpa possível markdown do JSON
-    const cleanJson = text.replace(/```json|```/g, "").trim();
-    return JSON.parse(cleanJson) as CoreAnalysis;
-  } catch (err) {
-    console.error("[ORBIT CORE] Erro na análise Gemini:", err);
+    const text = response.choices[0].message.content || "{}";
+    return JSON.parse(text) as CoreAnalysis;
+  } catch (err: any) {
+    if (err.status === 429) {
+      console.error("[ORBIT CORE] QUOTA EXCEDIDA (429) na OpenAI (Chat).");
+    } else {
+      console.error("[ORBIT CORE] Erro na análise OpenAI:", err);
+    }
     return null;
   }
 }
@@ -205,7 +233,16 @@ export async function processEventWithCore(
     const currentEmbedding = await generateEmbedding(content);
 
     const analysis = await analyzeContext(leadId, content, type, context);
-    if (!analysis) return;
+    if (!analysis) {
+      console.error(`[ORBIT CORE] Falha ao obter análise para leadId=${leadId}`);
+      return;
+    }
+
+    console.log(`[ORBIT CORE] Análise gerada para ${leadId}:`, {
+      intention: analysis.intention,
+      state: analysis.current_cognitive_state,
+      deltas: `I:${analysis.interest_delta}, M:${analysis.momentum_delta}`
+    });
 
     // 1. Atualizar Mensagem
     if (messageId) {

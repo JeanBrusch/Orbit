@@ -1,24 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseServer } from '@/lib/supabase-server'
-import { GoogleGenAI } from '@google/genai'
+import OpenAI from 'openai'
 
-const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY || 'dummy-key-to-prevent-crash',
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY || 'dummy-key',
 })
 
 async function generateEmbedding(content: string): Promise<number[] | null> {
-  if (!process.env.GEMINI_API_KEY) {
+  if (!process.env.OPENAI_API_KEY) {
     return null
   }
   
   try {
-    const response = await ai.models.embedContent({
-      model: 'text-embedding-004',
-      contents: content,
+    const response = await openai.embeddings.create({
+      model: 'text-embedding-3-small',
+      input: content,
     })
-    return response.embeddings?.[0]?.values || null
+    return response.data[0].embedding || null
   } catch (err) {
-    console.error('[SEARCH] Error generating query embedding with Gemini:', err)
+    console.error('[SEARCH] Error generating query embedding with OpenAI:', err)
     return null
   }
 }
@@ -33,7 +33,7 @@ interface ParsedIntent {
 }
 
 async function parseIntent(query: string): Promise<ParsedIntent> {
-  if (!process.env.GEMINI_API_KEY) {
+  if (!process.env.OPENAI_API_KEY) {
     return {
       nameSearch: query,
       semanticSearch: query,
@@ -57,16 +57,17 @@ If a field is not present in the intent, leave it as null.
 
 User Query: "${query}"`
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash",
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        temperature: 0,
-      }
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: "You are a search intent parser for a real estate CRM. Respond only in JSON." },
+        { role: "user", content: prompt }
+      ],
+      response_format: { type: "json_object" },
+      temperature: 0,
     })
     
-    const parsed = JSON.parse(response.text || "{}")
+    const parsed = JSON.parse(response.choices[0].message.content || "{}")
     return {
       nameSearch: parsed.nameSearch || null,
       semanticSearch: parsed.semanticSearch || null,
@@ -76,7 +77,7 @@ User Query: "${query}"`
       }
     }
   } catch (err) {
-    console.error('[SEARCH] Error parsing intent with Gemini:', err)
+    console.error('[SEARCH] Error parsing intent with OpenAI:', err)
     // Fallback
     return {
       nameSearch: query,

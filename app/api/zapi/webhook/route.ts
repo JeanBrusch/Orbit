@@ -250,7 +250,10 @@ async function saveMessage(
       // Still need to check if we should process core for existing idempotent message
       const { data: lead } = await supabase.from('leads').select('state').eq('id', leadId).single()
       if (lead?.state !== 'pending' && lead?.state !== 'blocked' && lead?.state !== 'ignored') {
-        processEventWithCore(leadId, content, 'message_inbound', existing.id).catch(() => {})
+        console.log(`[WEBHOOK] Disparando redeliver de Orbit Core para lead=${leadId}`);
+        processEventWithCore(leadId, content, 'message_inbound', existing.id).catch((err) => {
+          console.error('[WEBHOOK] Erro no Orbit Core (idempotency fallback):', err);
+        })
       }
     }
     return { saved: true, skipped: true, id: existing.id }
@@ -301,7 +304,10 @@ async function saveMessage(
         .eq('id', leadId)
       
       // Acionar Orbit Core com o ID da nova mensagem
-      processEventWithCore(leadId, content, 'message_inbound', data.id).catch(() => {})
+      console.log(`[WEBHOOK] Disparando Orbit Core para lead=${leadId}`);
+      processEventWithCore(leadId, content, 'message_inbound', data.id).catch((err) => {
+        console.error('[WEBHOOK] Erro no Orbit Core:', err);
+      })
     } else {
       console.log('[WEBHOOK] Skipping Orbit Core for pending/blocked lead')
       await supabase
