@@ -395,12 +395,6 @@ export function OrbitCore({
           )}
         </div>
 
-        {/* Pulse ring */}
-        <div
-          className={`absolute top-0 left-0 w-[180px] h-[180px] -ml-[90px] -mt-[90px] rounded-full border border-[var(--orbit-glow)]/50 ${
-            state === "idle" ? "animate-semantic-pulse" : "opacity-0"
-          }`}
-        />
       </div>
 
       {/* Autocomplete Dropdown - Positioned relative to Parent w-0 h-0 */}
