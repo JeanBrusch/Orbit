@@ -55,7 +55,7 @@ async function getCapsuleData(token: string): Promise<PublicLeadCapsule | null> 
       return null
     }
     
-    let matchingLead = leads?.[0]
+    let matchingLead: { id: any; name: any } | undefined = leads?.[0]
     
     if (!matchingLead) {
       console.log('[getCapsuleData] No lead found by public_token, trying fallback verification')
