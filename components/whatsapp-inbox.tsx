@@ -76,9 +76,8 @@ export function WhatsAppInbox() {
   const handleAction = async (leadId: string, newState: 'approved' | 'ignored' | 'blocked') => {
     try {
       const supabase = getSupabase();
-      const { error } = await supabase
-        .from("leads")
-        .update({ state: newState } as any)
+      const { error } = await (supabase.from("leads") as any)
+        .update({ state: newState })
         .eq("id", leadId);
 
       if (error) throw error;
