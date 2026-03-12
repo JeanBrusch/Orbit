@@ -108,7 +108,6 @@ interface LeadNode {
   isNew?: boolean;
   isProvisional?: boolean;
   cycleStage: CycleStage;
-  contactCycle: 'verde' | 'azul' | 'amarelo' | 'laranja' | 'vermelho' | 'cinza';
   daysSinceInteraction?: number;
   hasMatureNotes?: boolean;
   followupActive?: boolean;
@@ -308,7 +307,7 @@ function getStagePullStrength(cycleStage: CycleStage): number {
 function applyGravity(
   position: { top: string; left: string },
   cycleStage: CycleStage,
-  contactCycle: string,
+  daysSinceInteraction: number | undefined,
   extraBoost: number = 0, // e.g. follow-up or recent contacts bonus
 ): { top: string; left: string } {
   let pullStrength = Math.min(
@@ -316,7 +315,7 @@ function applyGravity(
     getStagePullStrength(cycleStage) + extraBoost,
   );
 
-  if (contactCycle === 'cinza') {
+  if ((daysSinceInteraction ?? 0) > 30) {
     pullStrength = -0.12; // Empurra para a periferia
   }
 
@@ -623,20 +622,38 @@ function mapEmotionalStateToAura(state: string): EmotionalAura {
   }
 }
 
-// Ciclo de contato → cor do anel baseada em dias desde última interação
+// Ciclo de contato → cor do anel baseada em dias desde a última interação.
+// Retorna a cor como string CSS para usar no style inline (funciona em ambos temas).
 function getContactCycleRing(
   days: number | undefined,
   needsAttention: boolean,
-): { ring: string; glow: string } {
-  // needsAttention é tratado no effectiveAura (border verde pulsante),
-  // mas se cair aqui como fallback retorna o mesmo verde dessaturado
-  if (needsAttention) return { ring: "border-[#2d6a42]", glow: "shadow-[0_0_6px_rgba(45,106,66,0.3)]" }
+  isDark: boolean,
+): string {
+  if (needsAttention) {
+    // verde — mensagem nova não respondida (complementa o effectiveAura que já anima)
+    return isDark ? "#2d6a42" : "#166534"
+  }
   const d = days ?? 0
-  if (d <= 3)  return { ring: "border-[#1e4976]", glow: "" }  // azul   — ≤ 3 dias
-  if (d <= 7)  return { ring: "border-[#5a4a0a]", glow: "" }  // âmbar  — 4–7 dias
-  if (d <= 15) return { ring: "border-[#6b3a10]", glow: "" }  // laranja — 8–15 dias
-  if (d <= 30) return { ring: "border-[#6b1f1f]", glow: "" }  // vermelho — 16–30 dias
-  return               { ring: "border-[#2a2a2e]", glow: "" }  // cinza  — > 30 dias
+  if (d <= 3)  return isDark ? "#1e4976" : "#1d4ed8"   // azul   — ≤ 3 dias
+  if (d <= 7)  return isDark ? "#5a4a0a" : "#a16207"   // âmbar  — 4–7 dias
+  if (d <= 15) return isDark ? "#6b3a10" : "#c2410c"   // laranja — 8–15 dias
+  if (d <= 30) return isDark ? "#6b1f1f" : "#b91c1c"   // vermelho — 16–30 dias
+  return               isDark ? "#2a2a2e" : "#9ca3af"   // cinza  — > 30 dias
+}
+
+// hook leve para detectar o tema atual (lê a classe do <html>)
+function useIsDark(): boolean {
+  const [isDark, setIsDark] = useState(
+    () => document.documentElement.classList.contains("dark")
+  )
+  useEffect(() => {
+    const obs = new MutationObserver(() => {
+      setIsDark(document.documentElement.classList.contains("dark"))
+    })
+    obs.observe(document.documentElement, { attributeFilter: ["class"] })
+    return () => obs.disconnect()
+  }, [])
+  return isDark
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -707,22 +724,33 @@ const LeadNodeItem = memo(({
   visualState: LeadVisualState | undefined;
   onVisualStateChange: (id: string, state: LeadVisualState|undefined) => void;
 }) => {
+  const isDark = useIsDark();
+
   const hasFollowUpDue = !!(
     node.followupActive &&
     (node.followupRemaining || 0) > 0 &&
     !node.followupDoneToday
   );
 
-  const cycleStyle = getContactCycleRing(node.daysSinceInteraction, !!node.needsAttention);
+  const getFadeDepth = (days: number | undefined, needsAttention: boolean): string => {
+    if (needsAttention) return ""                                  // sempre pleno
+    const d = days ?? 0
+    if (d <= 3)  return ""                                         // pleno
+    if (d <= 7)  return "opacity-90"                               // quase pleno
+    if (d <= 15) return "opacity-70 scale-[0.97]"                  // começa a recuar
+    if (d <= 30) return "opacity-50 scale-[0.94] grayscale-[0.3]"  // recuado
+    return            "opacity-30 scale-[0.90] grayscale-[0.6]"    // esvaecido, menor
+  }
+
   const activityOpacity = orbitViewStatus.isUnrelated
-    ? "opacity-30"
-    : "opacity-100"; // Removing cycleStyle.opacity since the patch didn't provide it, replacing with fixed
+    ? "opacity-40 scale-[0.95]"
+    : getFadeDepth(node.daysSinceInteraction, !!node.needsAttention);
 
   const intensityClass = "opacity-70"; // Fallback to original intent
 
   return (
     <div
-      className={`pointer-events-auto absolute transition-all duration-700 ${intensityClass} ${node.contactCycle === 'verde' ? 'animate-pulse border-emerald-400' : ''} ${isResponding && hasHighlights && !isHighlighted
+      className={`pointer-events-auto absolute transition-all duration-700 ${intensityClass} ${node.needsAttention ? 'animate-pulse border-emerald-400' : ''} ${isResponding && hasHighlights && !isHighlighted
           ? "scale-95 opacity-40"
           : activityOpacity
         } ${!isResponding && !node.isNew ? "animate-node-float" : ""} ${node.cycleStage === "decidindo" || hasFollowUpDue
@@ -754,14 +782,23 @@ const LeadNodeItem = memo(({
           {hasFollowUpDue && !node.needsAttention && <FollowUpRing />}
 
           <div
-            className={`flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border-[1px] bg-[var(--orbit-glass)] text-[10px] font-light text-[var(--orbit-text)] backdrop-blur-sm transition-all duration-500 ${
+            className={`flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border-[3px] bg-white/80 dark:bg-[var(--orbit-glass)] text-[10px] font-medium text-slate-700 dark:text-zinc-200 backdrop-blur-sm transition-all duration-500 ${
               isHighlighted && isResponding
-                ? "animate-lead-highlight scale-110 border-[var(--orbit-glow)]"
+                ? "animate-lead-highlight scale-110"
                 : node.isNew
-                  ? "border-[var(--orbit-glow)] animate-new-lead-glow"
-                  : `${cycleStyle.ring}`
+                  ? "animate-new-lead-glow"
+                  : node.needsAttention
+                    ? "shadow-[0_0_10px_rgba(16,185,129,0.4)] animate-pulse"
+                    : ""
             }`}
-            style={{ animationDelay: isHighlighted ? `${highlightDelay}s` : "0s" }}
+            style={{
+              animationDelay: isHighlighted ? `${highlightDelay}s` : "0s",
+              borderColor: isHighlighted && isResponding
+                ? "var(--orbit-glow)"
+                : node.isNew
+                  ? "var(--orbit-glow)"
+                  : getContactCycleRing(node.daysSinceInteraction, !!node.needsAttention, isDark),
+            }}
           >
             {node.photoUrl && node.photoUrl !== "null" ? (
               <img
@@ -778,8 +815,8 @@ const LeadNodeItem = memo(({
             ) : node.avatar}
           </div>
 
-          {node.contactCycle === 'cinza' && (
-            <div className="absolute -bottom-1 -right-1 flex items-center gap-0.5 rounded-full bg-zinc-900/80 px-1 py-0.5 text-[7px] text-zinc-400 border border-white/5 font-medium">
+          {(node.daysSinceInteraction ?? 0) > 30 && (
+            <div className="absolute -bottom-1 -right-1 flex items-center gap-0.5 rounded-full bg-slate-50/90 dark:bg-zinc-900/80 px-1 py-0.5 text-[7px] text-slate-500 dark:text-zinc-400 border border-slate-200 dark:border-white/5 font-medium shadow-sm">
               <span>⟳</span>
               <span>{node.daysSinceInteraction}d</span>
             </div>
@@ -793,11 +830,11 @@ const LeadNodeItem = memo(({
         </div>
 
         <div
-          className={`mt-1 flex flex-col items-center text-center text-[10px] font-light leading-tight backdrop-blur-sm transition-all duration-[240ms] ${isHighlighted && isResponding
-              ? "text-[var(--orbit-glow)]"
+          className={`mt-1 flex flex-col items-center text-center text-[10px] font-medium leading-tight backdrop-blur-sm transition-all duration-[240ms] drop-shadow-sm ${isHighlighted && isResponding
+              ? "text-[var(--orbit-glow)] font-semibold"
               : node.cycleStage === "encerrado" || node.cycleStage === "sem_ciclo"
-                ? "text-[var(--orbit-text-muted)]"
-                : "text-[var(--orbit-text)] group-hover:text-[var(--orbit-glow)]"
+                ? "text-slate-400 dark:text-zinc-500"
+                : "text-slate-700 dark:text-zinc-300 group-hover:text-[var(--orbit-glow)] dark:group-hover:text-[var(--orbit-glow)]"
             }`}
         >
           {node.name.split(" ").map((part, i) => (
@@ -902,7 +939,6 @@ export function LeadNodes({
       hasNotification: lead.emotionalState === "engaged",
       needsAttention: lead.needsAttention,
       cycleStage: (lead.cycleStage as CycleStage) || "sem_ciclo" as CycleStage,
-      contactCycle: lead.contactCycle || 'azul',
       daysSinceInteraction: lead.daysSinceInteraction,
       hasMatureNotes: lead.hasMatureNotes,
       followupActive: lead.followupActive,
@@ -947,7 +983,7 @@ export function LeadNodes({
       const memSignal = hasMemorySignal(leadState);
       const hasFollowUpDue = !!(node.followupActive && (node.followupRemaining || 0) > 0 && !node.followupDoneToday);
       const extraBoost = (hasFollowUpDue ? 0.1 : 0) + (memSignal.hasRecentContacts ? 0.05 : 0);
-      let pos = applyGravity(node.position, node.cycleStage, node.contactCycle, extraBoost);
+      let pos = applyGravity(node.position, node.cycleStage, node.daysSinceInteraction, extraBoost);
       const orbitScore = orbitViewLeadScores.get(node.id) || 0;
       if (orbitView.active && orbitScore > 0) {
         pos = applyOrbitViewGravity(pos, orbitScore, dayLoadFactor);
