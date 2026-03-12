@@ -289,6 +289,28 @@ export function useSupabaseLeads() {
   useEffect(() => {
     fetchLeads()
     
+    // Set up Realtime subscription
+    const supabase = getSupabase()
+    const channel = supabase
+      .channel('leads-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'leads' },
+        () => {
+          console.log('Realtime update: leads table changed')
+          fetchLeads()
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'lead_cognitive_state' },
+        () => {
+          console.log('Realtime update: lead_cognitive_state table changed')
+          fetchLeads()
+        }
+      )
+      .subscribe()
+
     // Refetch when tab regains focus (after being away)
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
@@ -301,6 +323,7 @@ export function useSupabaseLeads() {
     
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange)
+      supabase.removeChannel(channel)
     }
   }, [fetchLeads])
 
