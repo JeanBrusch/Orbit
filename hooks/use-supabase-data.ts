@@ -123,7 +123,7 @@ export function useSupabaseLeads() {
       const { data, error: fetchError } = await supabase
         .from('leads_center')
         .select('*')
-        .not('estado_atual', 'in', '("blocked","ignored")')
+        .not('estado_atual', 'in', '("pending","blocked","ignored")')
         .order('created_at', { ascending: false })
       
       if (fetchError) throw fetchError
@@ -248,7 +248,7 @@ export function useSupabaseLeads() {
           daysSinceInteraction: lead.dias_sem_interacao || undefined,
           orbitStage: orbitData?.orbit_stage,
           orbitVisualState: orbitData?.orbit_visual_state,
-          needsAttention: (orbitData?.action_suggested === 'needs_attention') || (lead.estado_atual === 'pending'),
+          needsAttention: orbitData?.action_suggested === 'needs_attention',
           cycleStage: orbitData?.cycle_stage || 'sem_ciclo',
           followupActive: orbitData?.followup_active || false,
           followupRemaining: orbitData?.followup_remaining || 0,
