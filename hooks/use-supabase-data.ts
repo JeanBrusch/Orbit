@@ -117,137 +117,76 @@ interface LeadCenterRow {
   tem_capsula_ativa: boolean | null
   last_evaluated_at: string | null
   created_at: string | null
+  cargo: string | null // Added cargo
+  profile_summary: string | null // Added profile_summary
+  context_summary: string | null // Added context_summary
+  event_summary: string | null // Added event_summary
 }
 
 export function useSupabaseLeads() {
   const [leads, setLeads] = useState<OrbitLead[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
+  const [optimisticAttentionLeads, setOptimisticAttentionLeads] = useState<Set<string>>(new Set())
 
   const fetchLeads = useCallback(async () => {
     try {
       setLoading(true)
-      
       const supabase = getSupabase()
-      
-      // Fetch leads_center - Exclude only those explicitly in triage or blocked
-      const { data, error: fetchError } = await supabase
+
+      // 1. Fetch aggregate data from view (leads_center)
+      const { data: leadsData, error: leadsError } = await supabase
         .from('leads_center')
         .select('*')
         .not('estado_atual', 'in', '("pending","blocked","ignored")')
         .order('created_at', { ascending: false })
       
-      if (fetchError) throw fetchError
+      if (leadsError) throw leadsError
+      const rows = (leadsData || []) as LeadCenterRow[]
 
-      const rows = (data || []) as LeadCenterRow[]
-      
-      // Fetch orbit fields and cognitive state
-      const leadIds = rows.map(r => r.lead_id).filter(Boolean) as string[]
-      let orbitDataMap: Record<string, { 
-        orbit_stage: string | null; 
-        orbit_visual_state: string | null; 
-        action_suggested: string | null;
-        cycle_stage?: string | null;
-        followup_active?: boolean | null;
-        followup_remaining?: number | null;
-        followup_done_today?: boolean | null;
-        interest_score?: number;
-        momentum_score?: number;
-        risk_score?: number;
-        clarity_level?: number;
-        current_state?: string;
-        last_ai_analysis_at?: string | null;
-      }> = {}
+      // 2. Fetch specific Orbit state from 'leads' table (where AI writes)
+      const leadIds = rows.map(r => r.lead_id).filter((id): id is string => !!id)
+      let orbitDataMap: Record<string, any> = {}
       let matureNotesMap: Record<string, boolean> = {}
-      
-      if (leadIds.length > 0) {
-        const [leadsRes, cognitiveRes] = await Promise.all([
-          supabase
-            .from('leads')
-            .select('id, orbit_stage, orbit_visual_state, action_suggested, cycle_stage, followup_active, followup_remaining, followup_done_today')
-            .in('id', leadIds),
-          supabase
-            .from('lead_cognitive_state')
-            .select('*')
-            .in('lead_id', leadIds)
-        ])
-        
-        if (leadsRes.data) {
-          for (const lead of leadsRes.data as any[]) {
-            orbitDataMap[lead.id] = {
-              ...orbitDataMap[lead.id],
-              orbit_stage: lead.orbit_stage || null,
-              orbit_visual_state: lead.orbit_visual_state || null,
-              action_suggested: lead.action_suggested || null,
-              cycle_stage: lead.cycle_stage || null,
-              followup_active: lead.followup_active ?? false,
-              followup_remaining: lead.followup_remaining ?? 0,
-              followup_done_today: lead.followup_done_today ?? false,
-            }
-          }
-        }
 
-        if (cognitiveRes.data) {
-          for (const state of cognitiveRes.data as any[]) {
-            if (state.lead_id) {
-              const prev = orbitDataMap[state.lead_id] || { 
-                orbit_stage: null, 
-                orbit_visual_state: null, 
-                action_suggested: null,
-                cycle_stage: null,
-                followup_active: false,
-                followup_remaining: 0,
-                followup_done_today: false
-              };
-              orbitDataMap[state.lead_id] = {
-                ...prev,
-                interest_score: state.interest_score,
-                momentum_score: state.momentum_score,
-                risk_score: state.risk_score,
-                clarity_level: state.clarity_level,
-                current_state: state.current_state,
-                last_ai_analysis_at: state.last_ai_analysis_at
-              }
-            }
-          }
+      if (leadIds.length > 0) {
+        const [leadsRes, cognitiveRes, notesRes] = await Promise.all([
+          supabase.from('leads').select('id, orbit_stage, orbit_visual_state, action_suggested, cycle_stage, followup_active, followup_remaining, followup_done_today').in('id', leadIds),
+          supabase.from('lead_cognitive_state').select('*').in('lead_id', leadIds),
+          supabase.from('internal_notes').select('lead_id').in('lead_id', leadIds).lt('created_at', new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString())
+        ])
+
+        if (leadsRes.data) {
+          leadsRes.data.forEach((l: any) => { orbitDataMap[l.id] = { ...orbitDataMap[l.id], ...l } })
         }
-        
-        // Fetch mature notes (notes older than 45 days - MEMORY_MIN_AGE)
-        const MEMORY_MIN_AGE_DAYS = 45
-        const memoryMinAge = new Date(Date.now() - MEMORY_MIN_AGE_DAYS * 24 * 60 * 60 * 1000).toISOString()
-        const { data: notesData } = await supabase
-          .from('internal_notes')
-          .select('lead_id')
-          .in('lead_id', leadIds)
-          .lt('created_at', memoryMinAge)
-        
-        if (notesData) {
-          for (const note of notesData as { lead_id: string | null }[]) {
-            if (note.lead_id) {
-              matureNotesMap[note.lead_id] = true
-            }
-          }
+        if (cognitiveRes.data) {
+          cognitiveRes.data.forEach((s: any) => { 
+            if (s.lead_id) orbitDataMap[s.lead_id] = { ...orbitDataMap[s.lead_id], ...s } 
+          })
+        }
+        if (notesRes.data) {
+          notesRes.data.forEach((n: any) => { if (n.lead_id) matureNotesMap[n.lead_id] = true })
         }
       }
-      
-      const mappedLeads: OrbitLead[] = rows.map((lead, index) => {
-        const badgeInfo = mapStateToBadge(lead.estado_atual, lead.acao_sugerida)
+
+      // 3. Mapping logic
+      const mappedLeads = rows.map((lead, index): OrbitLead => {
         const orbitData = lead.lead_id ? orbitDataMap[lead.lead_id] : undefined
+        
+        // Final urgency logic: DB flag OR local optimistic flag
+        const dbNeedsAttention = orbitData?.action_suggested === 'needs_attention' || orbitData?.action_suggested === 'Respond-urgent'
+        const isOptimistic = lead.lead_id ? optimisticAttentionLeads.has(lead.lead_id) : false
+        const needsAttention = dbNeedsAttention || isOptimistic
+
         return {
           id: lead.lead_id || `lead-${index}`,
           name: lead.name || 'Sem nome',
-          role: lead.origin || 'Lead',
+          role: lead.cargo || 'Lead',
           avatar: getInitials(lead.name),
           position: generatePosition(index, rows.length),
-          ...badgeInfo,
-          delay: index * 0.3,
+          delay: index * 0.1,
           emotionalState: mapStateToEmotionalState(lead.estado_atual),
-          keywords: [
-            lead.estado_atual || '',
-            lead.acao_sugerida || '',
-            lead.origin || '',
-            lead.last_event_type || '',
-          ].filter(Boolean),
+          keywords: [lead.profile_summary, lead.context_summary, lead.event_summary].filter(Boolean),
           phone: lead.phone || undefined,
           photoUrl: lead.photo_url || undefined,
           origin: lead.origin || undefined,
@@ -259,8 +198,8 @@ export function useSupabaseLeads() {
           daysSinceInteraction: lead.dias_sem_interacao || undefined,
           orbitStage: orbitData?.orbit_stage,
           orbitVisualState: orbitData?.orbit_visual_state,
-          needsAttention: orbitData?.action_suggested === 'needs_attention',
-          contactCycle: calculateContactCycle(orbitData?.action_suggested === 'needs_attention', lead.dias_sem_interacao || 0),
+          needsAttention,
+          contactCycle: calculateContactCycle(needsAttention, lead.dias_sem_interacao || 0),
           cycleStage: orbitData?.cycle_stage || 'sem_ciclo',
           followupActive: orbitData?.followup_active || false,
           followupRemaining: orbitData?.followup_remaining || 0,
@@ -279,54 +218,55 @@ export function useSupabaseLeads() {
       setError(null)
     } catch (err) {
       console.error('Error fetching leads:', err)
-      console.error('Error details:', JSON.stringify(err, null, 2))
-      setError(err instanceof Error ? err : new Error('Failed to fetch leads'))
+      setError(err instanceof Error ? err : new Error('An error occurred'))
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [optimisticAttentionLeads])
 
   useEffect(() => {
     fetchLeads()
     
-    // Set up Realtime subscription
+    // Set up Realtime
     const supabase = getSupabase()
     const channel = supabase
-      .channel('leads-realtime')
+      .channel('orbit-realtime-sync')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'leads' },
-        () => {
-          console.log('Realtime update: leads table changed')
-          fetchLeads()
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'lead_cognitive_state' },
-        () => {
-          console.log('Realtime update: lead_cognitive_state table changed')
+        (payload) => {
+          console.log('[REALTIME] Lead changed', payload)
+          if (payload.new && (payload.new as any).id) {
+            setOptimisticAttentionLeads(prev => {
+              const next = new Set(prev)
+              next.delete((payload.new as any).id)
+              return next
+            })
+          }
           fetchLeads()
         }
       )
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'messages' },
-        () => {
-          console.log('Realtime update: new message received')
-          fetchLeads()
+        (payload) => {
+          console.log('[REALTIME] New message', payload)
+          const newMsg = payload.new as any
+          if (newMsg?.source === 'whatsapp' && newMsg?.lead_id) {
+            setOptimisticAttentionLeads(prev => {
+              const next = new Set(prev)
+              next.add(newMsg.lead_id)
+              return next
+            })
+          }
+          setTimeout(fetchLeads, 2000)
         }
       )
       .subscribe()
 
-    // Refetch when tab regains focus (after being away)
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        console.log('Tab focused - light refetch')
-        fetchLeads()
-      }
+      if (document.visibilityState === 'visible') fetchLeads()
     }
-    
     document.addEventListener('visibilitychange', handleVisibilityChange)
     
     return () => {

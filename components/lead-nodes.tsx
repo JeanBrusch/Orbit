@@ -32,12 +32,13 @@ type EmotionalAura =
 type Priority = "hot" | "warm" | "neutral" | "cold";
 
 // ─── Visual Contact Cycle (Radar de Prioridade) ──────────────────────────────
-const contactCycleStyles: Record<string, { ring: string; glow: string; intensity: string; opacity: string }> = {
+const contactCycleStyles: Record<string, { ring: string; glow: string; intensity: string; opacity: string; pulse?: string }> = {
   verde: { 
     ring: "border-emerald-400", 
     glow: "shadow-[0_0_15px_rgba(52,211,153,0.6)]", 
-    intensity: "brightness-125 saturate-150 animate-pulse", 
-    opacity: "opacity-100" 
+    intensity: "brightness-125 saturate-150", 
+    opacity: "opacity-100",
+    pulse: "animate-pulse shadow-[0_0_20px_rgba(34,197,94,0.5)] border-emerald-400"
   },
   azul: { 
     ring: "border-blue-500", 
@@ -719,7 +720,7 @@ const LeadNodeItem = memo(({
 
   return (
     <div
-      className={`pointer-events-auto absolute transition-all duration-700 ${intensityClass} ${isResponding && hasHighlights && !isHighlighted
+      className={`pointer-events-auto absolute transition-all duration-700 ${intensityClass} ${cycleStyle.glow} ${node.contactCycle === 'verde' ? (cycleStyle.pulse || '') : ''} ${isResponding && hasHighlights && !isHighlighted
           ? "scale-95 opacity-40"
           : activityOpacity
         } ${!isResponding && !node.isNew ? "animate-node-float" : ""} ${node.cycleStage === "decidindo" || hasFollowUpDue
