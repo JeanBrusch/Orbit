@@ -62,7 +62,7 @@ export function CopilotoPanel() {
     if (!orbitView.active || orbitView.leads.length === 0) return;
 
     const ids = orbitView.leads
-      .map((l) => l.leadId)
+      .map((l) => l.id)
       .filter((id) => !leadInfos[id]);
     if (ids.length === 0) return;
 
@@ -140,11 +140,11 @@ export function CopilotoPanel() {
             </div>
           ) : (
             sorted.map((result, i) => {
-              const info = leadInfos[result.leadId];
+              const info = leadInfos[result.id];
               const isTop = i === 0;
               return (
                 <div
-                  key={result.leadId}
+                  key={result.id}
                   className={`
                     px-5 py-4 border-b border-[rgba(255,255,255,0.03)]
                     transition-colors cursor-pointer
@@ -162,7 +162,7 @@ export function CopilotoPanel() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
                         <span className="text-[12px] font-sans text-[#94a3b8] truncate">
-                          {info?.name || result.leadId.slice(0, 8) + "…"}
+                          {info?.name || result.id.slice(0, 8) + "…"}
                         </span>
                         <TrendIcon score={result.relevanceScore || 0} />
                       </div>

@@ -243,13 +243,13 @@ interface OrbitContextValue {
     active: boolean
     query: string
     results: {
-      leads: Array<{ id: string; name: string; stage: string; lastInteraction: string; intent?: string; relevanceScore?: number }>
+      leads: Array<{ id: string; name: string; stage: string; lastInteraction: string; intent?: string; relevanceScore?: number; snippet?: string; matchReason?: string }>
       properties: Array<{ id: string; title: string; price: string; location: string }>
       intentions: Array<{ text: string }>
     }
     sourceLeadId?: string
     /** @deprecated Use results.leads */
-    leads: Array<{ id: string; name: string; stage: string; lastInteraction: string; intent?: string; relevanceScore?: number }>
+    leads: Array<{ id: string; name: string; stage: string; lastInteraction: string; intent?: string; relevanceScore?: number; snippet?: string; matchReason?: string }>
   }
   activateOrbitView: (query: string, sourceLeadId?: string) => Promise<void>
   deactivateOrbitView: () => void
