@@ -309,6 +309,14 @@ export function useSupabaseLeads() {
           fetchLeads()
         }
       )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages' },
+        () => {
+          console.log('Realtime update: new message received')
+          fetchLeads()
+        }
+      )
       .subscribe()
 
     // Refetch when tab regains focus (after being away)

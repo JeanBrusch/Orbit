@@ -143,9 +143,14 @@ Responda APENAS com um JSON puro contendo estas chaves:
   "memory_profile": [{"type": "string", "content": "string"}] | null,
   "memory_context": [{"type": "string", "content": "string"}] | null,
   "memory_events": [{"type": "string", "content": "string"}] | null,
-  "current_cognitive_state": "latent|curious|exploring|evaluating|deciding|resolved|dormant",
-  "action_suggested": "próxima ação sugerida"
+  "action_suggested": "needs_attention | follow_up | none",
+  "action_description": "descrição curta da ação sugerida"
 }
+
+IMPORTANTE: 
+- Use "needs_attention" sempre que o lead fizer uma pergunta, demonstrar interesse imediato ou o usuário precisar responder.
+- Use "follow_up" para contatos que não exigem resposta imediata mas devem ser acompanhados.
+- Use "none" para interações encerradas ou sem necessidade de ação.
 
 IMPORTANTE: Se o lead disser que não tem interesse ou for rude, use signal="negative", baixe o interesse e momentum (deltas negativos) e mude o estado para "resolved" ou "dormant".`;
 
