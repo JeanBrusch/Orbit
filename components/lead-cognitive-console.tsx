@@ -19,6 +19,7 @@ interface Lead {
   orbit_stage: string | null;
   action_suggested: string | null;
   last_interaction_at: string | null;
+  lid: string | null;
 }
 
 interface CognitiveState {
@@ -609,8 +610,19 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
   }, [messages]);
 
   // Send message: bridge Cognitive Terminal -> WhatsApp (via Z-API) + interaction log
-  const handleSend = useCallback(async () => {
-    if (!composerText.trim() || sendStatus !== "idle" || !leadId) return;
+  const handleSend = useCallback(async (source = "unknown") => {
+    console.log(`[COG] handleSend triggered by: ${source}`, {
+      text: composerText.trim(),
+      status: sendStatus,
+      id: leadId,
+      phone: lead?.phone,
+      lid: lead?.lid
+    });
+
+    if (!composerText.trim() || sendStatus !== "idle" || !leadId) {
+      console.log('[COG] handleSend early return - empty text, not idle, or no leadId');
+      return;
+    }
     setSendStatus("sending");
     const supabase = getSupabase();
     const text = composerText.trim();
@@ -969,7 +981,7 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
                       onKeyDown={e => {
                         if (e.key === "Enter" && !e.shiftKey) {
                           e.preventDefault();
-                          handleSend();
+                          handleSend('Enter');
                           e.currentTarget.style.height = 'inherit';
                         }
                       }}
@@ -989,8 +1001,11 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
                     </button>
 
                     {/* Send */}
-                    <button
-                      onClick={handleSend}
+                     <button
+                       onClick={() => {
+                         console.log('[COG] Send Button Clicked');
+                         handleSend('Click');
+                       }}
                       disabled={!composerText.trim() || sendStatus === "sending" || isRecording}
                       className={`w-9 h-9 rounded-full flex items-center justify-center transition-all ${
                         sendStatus === "done" ? "bg-emerald-500 text-black" :
