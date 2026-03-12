@@ -50,8 +50,6 @@ export function WhatsAppConnection({ compact = false }: WhatsAppConnectionProps)
 
   useEffect(() => {
     checkStatus()
-    const interval = setInterval(checkStatus, 15000)
-    return () => clearInterval(interval)
   }, [checkStatus])
 
   useEffect(() => {
@@ -200,8 +198,6 @@ export function WhatsAppStatusIndicator() {
     }
 
     checkStatus()
-    const interval = setInterval(checkStatus, 15000)
-    return () => clearInterval(interval)
   }, [])
 
   if (status !== 'connected') return null

@@ -53,11 +53,6 @@ export function TopBar({ totalLeads, isDark, onThemeToggle, onLogout }: TopBarPr
 
     checkStatus();
     fetchPending();
-    const interval = setInterval(() => {
-      checkStatus();
-      fetchPending();
-    }, 30000); 
-    return () => clearInterval(interval);
   }, []);
 
   return (
