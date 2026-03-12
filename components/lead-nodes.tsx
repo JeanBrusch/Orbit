@@ -746,9 +746,7 @@ const LeadNodeItem = memo(({
     ? "opacity-40 scale-[0.95]"
     : getFadeDepth(node.daysSinceInteraction, !!node.needsAttention);
 
-  const intensityClass = node.needsAttention
-    ? "opacity-100"
-    : activityOpacity || "opacity-70";
+  const intensityClass = node.needsAttention ? "opacity-100" : "opacity-70";
 
   return (
     <div
