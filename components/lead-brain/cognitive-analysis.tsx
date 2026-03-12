@@ -2,9 +2,22 @@
 
 import { useState, useEffect } from "react"
 import { ChevronRight, ChevronLeft, Brain, MapPin, DollarSign, Star, Clock, AlertCircle, Zap, Loader2 } from "lucide-react"
-import type { LeadData } from "@/app/lead/[id]/page"
 import { createClient } from "@supabase/supabase-js"
 import { motion, AnimatePresence } from "framer-motion"
+
+export interface LeadData {
+  id: string
+  actionSuggested?: string
+  dominantPain?: string
+  cognitiveState?: {
+    interest_score: number
+    momentum_score: number
+    risk_score: number
+    clarity_level: number
+    current_state: string
+    last_ai_analysis_at: string | null
+  }
+}
 
 interface CognitiveAnalysisProps {
   lead: LeadData
