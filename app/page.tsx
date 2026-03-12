@@ -217,6 +217,7 @@ function OrbitInterfaceContent() {
             onActivate={handleCoreActivate}
             onQuerySubmit={handleQuerySubmit}
             onCancel={handleCoreCancel}
+            onLeadSelect={openLeadPanel}
           />
         </div>
       </div>

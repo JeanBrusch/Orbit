@@ -1,7 +1,6 @@
 "use client"
 
-import { createContext, useContext, useState, useCallback, useRef, useMemo, type ReactNode } from "react"
-import { getSupabase } from "@/lib/supabase"
+import { createContext, useContext, useState, useCallback, type ReactNode } from "react"
 
 // Location visibility for public views
 export type LocationVisibility = "visible" | "approximate" | "hidden"
@@ -43,18 +42,18 @@ export interface IngestedProperty {
   rawExtractedData?: Record<string, unknown> // Raw data from scraping
 }
 
-// Property interface - used for map display
+// Legacy Property interface - used for map display
 export interface Property {
   id: string
   name: string
-  locationText: string | null
+  address: string
   type: PropertyType
-  value: number | null
+  price: string
+  area: string
+  bedrooms?: number
   position: { x: number; y: number }
   highlight?: boolean
   url?: string // Source URL
-  domain?: string // Source domain
-  coverImage?: string | null // Cover image from og:image
   // Location accuracy for drag & drop
   locationAccuracy?: LocationAccuracy
   // Ingestion status for display
@@ -98,17 +97,6 @@ export interface NewLeadInput {
 
 export type LeadInternalState = "priority" | "focus" | "resolved" | "default"
 
-// Visual states for lead cards (manual, user-controlled)
-export type LeadVisualState = "ativo" | "aguardando" | "em_decisao" | "pausado" | "encerrado"
-
-export const LEAD_VISUAL_STATE_LABELS: Record<LeadVisualState, string> = {
-  ativo: "Ativo",
-  aguardando: "Aguardando",
-  em_decisao: "Em decisão",
-  pausado: "Pausado",
-  encerrado: "Encerrado",
-}
-
 // Call outcome types - simple interaction logging
 export type CallOutcome = "talked" | "not_reached" | "callback_requested"
 
@@ -120,7 +108,8 @@ export type ContactOutcome =
   | "whatsapp_replied" 
   | "no_response"
 
-
+// Cycle end reasons
+export type CycleEndReason = "bought" | "gave_up" | "no_return"
 
 // Call log entry - logged as events in lead history
 export interface CallLogEntry {
@@ -130,7 +119,23 @@ export interface CallLogEntry {
   timestamp: Date
 }
 
+// Follow-up reminder
+export interface FollowUpReminder {
+  date: Date
+  note?: string
+  isActive: boolean
+}
 
+// Decision Cycle - a period of active engagement with a lead
+export interface DecisionCycle {
+  id: string
+  name: string
+  startedAt: Date
+  endedAt?: Date
+  isActive: boolean
+  capsuleData: any[] // Properties sent during this cycle
+  endReason?: CycleEndReason // Why the cycle was closed
+}
 
 // Contact log entry - logged as events for any contact attempt
 export interface ContactLogEntry {
@@ -139,17 +144,12 @@ export interface ContactLogEntry {
   timestamp: Date
 }
 
-export interface FollowUpData {
-  date: string
-  isActive: boolean
-}
-
 // Operational memory - lightweight day-to-day tracking
 export interface OperationalMemory {
   notes: string // Free-text notes (auto-saved)
   callLog: CallLogEntry[] // Call outcome history (legacy)
   contactLog: ContactLogEntry[] // Contact outcomes (calls, whatsapp, etc.)
-  followUp?: FollowUpData | null
+  followUp?: FollowUpReminder // Next follow-up reminder
 }
 
 export interface LeadState {
@@ -158,22 +158,22 @@ export interface LeadState {
   isPriority: boolean
   isMuted: boolean
   linkedProperty?: Property // Property associated with the lead
+  cycles: DecisionCycle[] // All cycles for this lead
+  activeCycleId?: string // Currently active cycle (only one at a time)
   // Operational memory - lightweight tracking
   memory: OperationalMemory
-  // Visual state - manual, user-controlled status indicator
-  visualState?: LeadVisualState
   // Provisional state - leads from external sources (e.g., WhatsApp) before full registration
   isProvisional?: boolean
   provisionalSource?: string // e.g., "whatsapp", "instagram", "website"
-  // Admin data (static/local info)
+  // Admin-added lead data
   adminData?: {
     name: string
+    contact: string
+    note?: string
     avatar: string
-    photoUrl?: string
+    photoUrl?: string // Real contact photo URL
     position: { top: string; left: string }
     createdAt: Date
-    note?: string
-    contact?: string
     isProvisional?: boolean
     provisionalSource?: string
   }
@@ -186,26 +186,35 @@ interface OrbitContextValue {
   openLeadPanel: (leadId: string) => void
   closeLeadPanel: () => void
 
+  // Lead Expanded View (optional unified view: Chat + Capsule + Atlas)
+  isExpandedViewOpen: boolean
+  expandedViewLeadId: string | null
+  openExpandedView: (leadId: string) => void
+  closeExpandedView: () => void
+
   // Lead States (non-visual, behavioral)
   leadStates: Record<string, LeadState>
   updateLeadState: (leadId: string, state: Partial<LeadState>) => void
-  initializeLeadStates: (leads: Array<{ id: string; orbit_stage?: string | null; orbit_visual_state?: string | null }>) => void
-  getOrCreateLeadState: (leadId: string) => LeadState
-
-  // Visual State Management (manual, user-controlled)
-  setLeadVisualState: (leadId: string, visualState: LeadVisualState | undefined) => void
-  getLeadVisualState: (leadId: string) => LeadVisualState | undefined
 
   // Property linking
   linkPropertyToLead: (leadId: string, property: Property) => void
   getLinkedProperty: (leadId: string) => Property | undefined
 
+  // Decision Cycles
+  getActiveCycle: (leadId: string) => DecisionCycle | undefined
+  getAllCycles: (leadId: string) => DecisionCycle[]
+  startNewCycle: (leadId: string, cycleName?: string) => void
+  endCycle: (leadId: string, reason?: CycleEndReason) => void
+  updateCycleCapsule: (leadId: string, capsuleData: any[]) => void
+  hasActiveCycle: (leadId: string) => boolean
+
   // Operational Memory
-  updateLeadNotes: (leadId: string, notes: string) => Promise<{ success: boolean; noteId?: string; capsuleItemId?: string | null }>
+  updateLeadNotes: (leadId: string, notes: string) => void
+  logCallOutcome: (leadId: string, outcome: CallOutcome, note?: string) => void
   logContactOutcome: (leadId: string, outcome: ContactOutcome) => void
-  setFollowUpReminder: (leadId: string, date: Date) => void
+  setFollowUpReminder: (leadId: string, date: Date, note?: string) => void
   clearFollowUpReminder: (leadId: string) => void
-  getLeadsWithActiveFollowUp: () => string[]
+  getLeadsWithActiveFollowUp: () => string[] // Returns lead IDs with due follow-ups
 
   // System Mode Hooks (placeholders for future integration)
   isAtlasMapActive: boolean
@@ -222,7 +231,7 @@ interface OrbitContextValue {
   toggleFocusMode: () => void
 
   // Admin functions
-  addLead: (input: NewLeadInput) => Promise<string | null>
+  addLead: (input: NewLeadInput) => void
   newLeads: string[] // IDs of leads added via admin (for animations)
   atlasProperties: Property[] // Properties in Atlas (view model)
 
@@ -237,20 +246,6 @@ interface OrbitContextValue {
   updatePropertyLocation: (id: string, lat: number, lng: number, accuracy?: LocationAccuracy) => void
   locationUndoState: LocationUndoState | null
   undoLocationChange: () => void
-
-  // ORBIT VIEW - temporary work mode by intention
-  orbitView: {
-    active: boolean
-    query: string
-    results: {
-      leads: Array<{ id: string; name: string; stage: string; lastInteraction: string; intent?: string }>
-      properties: Array<{ id: string; title: string; price: string; location: string }>
-      intentions: Array<{ text: string }>
-    }
-    sourceLeadId?: string
-  }
-  activateOrbitView: (query: string, sourceLeadId?: string) => Promise<void>
-  deactivateOrbitView: () => void
 }
 
 const OrbitContext = createContext<OrbitContextValue | null>(null)
@@ -263,7 +258,24 @@ export function useOrbitContext() {
   return context
 }
 
+// Generate a cycle name based on date
+function generateCycleName(): string {
+  const now = new Date()
+  const month = now.toLocaleDateString("pt-BR", { month: "short" })
+  const year = now.getFullYear()
+  return `${month} ${year}`
+}
 
+// Create a new cycle
+function createCycle(name?: string): DecisionCycle {
+  return {
+    id: crypto.randomUUID(),
+    name: name || generateCycleName(),
+    startedAt: new Date(),
+    isActive: true,
+    capsuleData: [],
+  }
+}
 
 // Create default operational memory
 function createDefaultMemory(): OperationalMemory {
@@ -275,90 +287,79 @@ function createDefaultMemory(): OperationalMemory {
   }
 }
 
-
-
-// Map orbit_stage from Supabase to internal state
-function mapOrbitStageToInternalState(stage: string | null): LeadInternalState {
-  switch (stage) {
-    case 'deciding':
-    case 'evaluating':
-    case 'exploring':
-    case 'curious':
-      return 'focus'
-    case 'resolved':
-      return 'resolved'
-    default:
-      return 'default'
-  }
-}
-
-// Map orbit_visual_state from Supabase to visual state
-function mapOrbitVisualState(state: string | null): LeadVisualState | undefined {
-  if (!state) return undefined
-  const validStates: LeadVisualState[] = ['ativo', 'aguardando', 'em_decisao', 'pausado', 'encerrado']
-  return validStates.includes(state as LeadVisualState) ? (state as LeadVisualState) : undefined
-}
-
-// Create a LeadState from Supabase lead data
-function createLeadStateFromSupabase(lead: {
-  id: string
-  orbit_stage?: string | null
-  orbit_visual_state?: string | null
-}): LeadState {
-  return {
-    id: lead.id,
-    internalState: mapOrbitStageToInternalState(lead.orbit_stage || null),
-    isPriority: lead.orbit_stage === 'deciding',
-    isMuted: lead.orbit_stage === 'closed' || lead.orbit_stage === 'resolved',
+// Initial lead states (non-visual)
+const initialLeadStates: Record<string, LeadState> = {
+  "1": {
+    id: "1",
+    internalState: "priority",
+    isPriority: true,
+    isMuted: false,
+    cycles: [createCycle()],
+    activeCycleId: undefined, // Will be set below
     memory: createDefaultMemory(),
-    visualState: mapOrbitVisualState(lead.orbit_visual_state || null),
-  }
-}
-
-// Create default lead state for unknown leads
-function createDefaultLeadState(leadId: string): LeadState {
-  return {
-    id: leadId,
-    internalState: 'default',
+  },
+  "2": {
+    id: "2",
+    internalState: "default",
     isPriority: false,
     isMuted: false,
+    cycles: [createCycle()],
+    activeCycleId: undefined,
     memory: createDefaultMemory(),
-  }
+  },
+  "3": {
+    id: "3",
+    internalState: "default",
+    isPriority: false,
+    isMuted: false,
+    cycles: [createCycle()],
+    activeCycleId: undefined,
+    memory: createDefaultMemory(),
+  },
+  "4": {
+    id: "4",
+    internalState: "resolved",
+    isPriority: false,
+    isMuted: true,
+    cycles: [], // No active cycle - neutral
+    activeCycleId: undefined,
+    memory: createDefaultMemory(),
+  },
+  "5": {
+    id: "5",
+    internalState: "focus",
+    isPriority: true,
+    isMuted: false,
+    cycles: [createCycle()],
+    activeCycleId: undefined,
+    memory: createDefaultMemory(),
+  },
 }
+
+// Set active cycle IDs for leads with cycles
+Object.keys(initialLeadStates).forEach((leadId) => {
+  const state = initialLeadStates[leadId]
+  if (state.cycles.length > 0) {
+    state.activeCycleId = state.cycles[0].id
+  }
+})
 
 export function OrbitProvider({ children }: { children: ReactNode }) {
   // Lead Panel State
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null)
   const [isLeadPanelOpen, setIsLeadPanelOpen] = useState(false)
 
-  // Lead Internal States - starts empty, populated from Supabase
-  const [leadStates, setLeadStates] = useState<Record<string, LeadState>>({})
+  // Lead Expanded View State
+  const [isExpandedViewOpen, setIsExpandedViewOpen] = useState(false)
+  const [expandedViewLeadId, setExpandedViewLeadId] = useState<string | null>(null)
+
+  // Lead Internal States
+  const [leadStates, setLeadStates] = useState<Record<string, LeadState>>(initialLeadStates)
 
   // System Mode States (placeholders)
   const [isAtlasMapActive, setIsAtlasMapActive] = useState(false)
   const [isCapsuleActive, setIsCapsuleActive] = useState(false)
   const [isFocusModeActive, setIsFocusModeActive] = useState(false)
-  
-  // ORBIT VIEW state - temporary work mode by intention
-  const [orbitView, setOrbitView] = useState<{
-    active: boolean
-    query: string
-    results: {
-      leads: any[]
-      properties: any[]
-      intentions: any[]
-    }
-    sourceLeadId?: string
-  }>({
-    active: false,
-    query: '',
-    results: {
-      leads: [],
-      properties: [],
-      intentions: [],
-    },
-    sourceLeadId: undefined,
-  })
   const [atlasInvokeContext, setAtlasInvokeContext] = useState<{
     leadId?: string
     leadName?: string
@@ -386,6 +387,20 @@ export function OrbitProvider({ children }: { children: ReactNode }) {
     setTimeout(() => setSelectedLeadId(null), 300)
   }, [])
 
+  // Lead Expanded View Actions
+  const openExpandedView = useCallback((leadId: string) => {
+    setExpandedViewLeadId(leadId)
+    setIsExpandedViewOpen(true)
+    // Close the regular lead panel if open
+    setIsLeadPanelOpen(false)
+  }, [])
+
+  const closeExpandedView = useCallback(() => {
+    setIsExpandedViewOpen(false)
+    // Delay clearing the ID to allow exit animation
+    setTimeout(() => setExpandedViewLeadId(null), 300)
+  }, [])
+
   // Lead State Updates
   const updateLeadState = useCallback((leadId: string, state: Partial<LeadState>) => {
     setLeadStates((prev) => ({
@@ -396,79 +411,6 @@ export function OrbitProvider({ children }: { children: ReactNode }) {
       },
     }))
   }, [])
-
-  // Initialize lead states from Supabase data
-  const initializeLeadStates = useCallback((leads: Array<{ id: string; orbit_stage?: string | null; orbit_visual_state?: string | null }>) => {
-    setLeadStates((prev) => {
-      const newStates = { ...prev }
-      for (const lead of leads) {
-        if (!newStates[lead.id]) {
-          newStates[lead.id] = createLeadStateFromSupabase(lead)
-        } else {
-          // Update existing with Supabase data but preserve local cycle state
-          newStates[lead.id] = {
-            ...newStates[lead.id],
-            visualState: mapOrbitVisualState(lead.orbit_visual_state || null),
-            internalState: mapOrbitStageToInternalState(lead.orbit_stage || null),
-          }
-        }
-      }
-      return newStates
-    })
-  }, [])
-
-  // Get or create lead state on demand
-  const getOrCreateLeadState = useCallback((leadId: string): LeadState => {
-    // Note: This still needs to read leadStates to return the value.
-    // To make this stable, we'd need a Ref or shift the logic.
-    // However, calling it inside render is common, so it's tricky.
-    // For now, let's keep it but recognize it's a bottleneck.
-    const existing = leadStates[leadId]
-    if (existing) return existing
-    
-    const newState = createDefaultLeadState(leadId)
-    // We update async to avoid state-update-during-render warning
-    setTimeout(() => {
-      setLeadStates((prev) => {
-        if (prev[leadId]) return prev
-        return { ...prev, [leadId]: newState }
-      })
-    }, 0)
-    return newState
-  }, [leadStates])
-
-  // Visual State Management - persists to Supabase
-  const setLeadVisualState = useCallback(async (leadId: string, visualState: LeadVisualState | undefined) => {
-    // Update local state immediately
-    setLeadStates((prev) => {
-      const existing = prev[leadId] || createDefaultLeadState(leadId)
-      return {
-        ...prev,
-        [leadId]: {
-          ...existing,
-          visualState,
-        },
-      }
-    })
-    
-    // Persist to Supabase via API
-    try {
-      await fetch('/api/lead/visual-state', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ leadId, visualState: visualState || null })
-      })
-    } catch (error) {
-      console.error('Error persisting visual state:', error)
-    }
-  }, [])
-
-  const getLeadVisualState = useCallback(
-    (leadId: string) => {
-      return leadStates[leadId]?.visualState
-    },
-    [leadStates]
-  )
 
   // Property Linking
   const linkPropertyToLead = useCallback((leadId: string, property: Property) => {
@@ -505,52 +447,6 @@ export function OrbitProvider({ children }: { children: ReactNode }) {
 
   const toggleFocusMode = useCallback(() => {
     setIsFocusModeActive((prev) => !prev)
-  }, [])
-
-  // ORBIT VIEW functions
-  const activateOrbitView = useCallback(async (query: string, sourceLeadId?: string) => {
-    if (!query.trim()) return
-    
-    try {
-      const response = await fetch('/api/search/orbit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: query.trim(), sourceLeadId }),
-      })
-      
-      if (!response.ok) {
-        console.error('Failed to search notes')
-        return
-      }
-      
-      const data = await response.json()
-      
-      setOrbitView({
-        active: true,
-        query: query.trim(),
-        results: {
-          leads: data.results || [], // Assuming backend returns some structure
-          properties: [], // For now, properties might come from a different logic
-          intentions: [],
-        },
-        sourceLeadId,
-      })
-    } catch (err) {
-      console.error('Error activating ORBIT VIEW:', err)
-    }
-  }, [])
-
-  const deactivateOrbitView = useCallback(() => {
-    setOrbitView({
-      active: false,
-      query: '',
-      results: {
-        leads: [],
-        properties: [],
-        intentions: [],
-      },
-      sourceLeadId: undefined,
-    })
   }, [])
 
   // Helper to find a non-colliding position for a new lead
@@ -590,96 +486,78 @@ export function OrbitProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  // Admin: Add a new lead (persists to Supabase)
-  const addLead = useCallback(async (input: NewLeadInput): Promise<string | null> => {
-    try {
-      const response = await fetch('/api/lead', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: input.name,
-          phone: input.contact,
-          origin: input.provisionalSource || 'manual',
-          note: input.note,
-        }),
-      })
+  // Admin: Add a new lead
+  const addLead = useCallback((input: NewLeadInput) => {
+    const newId = `admin-${Date.now()}`
+    
+    // Generate initials from name
+    const initials = input.name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2)
 
-      if (!response.ok) {
-        console.error('Failed to create lead in Supabase')
-        return null
+    // Gather existing positions from all leads
+    const existingPositions: { top: number; left: number }[] = []
+    Object.values(leadStates).forEach((state) => {
+      if (state.adminData?.position) {
+        existingPositions.push({
+          top: parseFloat(state.adminData.position.top),
+          left: parseFloat(state.adminData.position.left),
+        })
       }
+    })
+    // Add static lead positions
+    const staticPositions = [
+      { top: 32, left: 28 },
+      { top: 35, left: 58 },
+      { top: 58, left: 22 },
+      { top: 68, left: 62 },
+      { top: 42, left: 12 },
+    ]
+    existingPositions.push(...staticPositions)
 
-      const data = await response.json()
-      const newId = data.id
+    // Find a non-colliding position
+    const position = findNonCollidingPosition(existingPositions)
 
-      // Generate initials from name
-      const initials = input.name
-        .split(" ")
-        .map((n) => n[0])
-        .join("")
-        .toUpperCase()
-        .slice(0, 2)
-
-      // Gather existing positions from all leads
-      const existingPositions: { top: number; left: number }[] = []
-      Object.values(leadStates).forEach((state) => {
-        if (state.adminData?.position) {
-          existingPositions.push({
-            top: parseFloat(state.adminData.position.top),
-            left: parseFloat(state.adminData.position.left),
-          })
-        }
-      })
-      const staticPositions = [
-        { top: 32, left: 28 },
-        { top: 35, left: 58 },
-        { top: 58, left: 22 },
-        { top: 68, left: 62 },
-        { top: 42, left: 12 },
-      ]
-      existingPositions.push(...staticPositions)
-
-      const position = findNonCollidingPosition(existingPositions)
-
-      setLeadStates((prev) => ({
-        ...prev,
-        [newId]: {
-          id: newId,
-          internalState: "default",
-          isPriority: false,
-          isMuted: false,
+    // Create the lead state
+    const newCycle = createCycle()
+    setLeadStates((prev) => ({
+      ...prev,
+      [newId]: {
+        id: newId,
+        internalState: "default",
+        isPriority: false,
+        isMuted: false,
+        isProvisional: input.isProvisional,
+        provisionalSource: input.provisionalSource,
+        cycles: [newCycle],
+        activeCycleId: newCycle.id,
+        memory: createDefaultMemory(),
+        // Store additional admin data
+        adminData: {
+          name: input.name,
+          contact: input.contact,
+          note: input.note,
+          avatar: initials,
+          photoUrl: input.photoUrl,
+          position: { top: `${position.top}%`, left: `${position.left}%` },
+          createdAt: new Date(),
           isProvisional: input.isProvisional,
           provisionalSource: input.provisionalSource,
-          memory: createDefaultMemory(),
-          adminData: {
-            name: input.name,
-            contact: input.contact,
-            note: input.note,
-            avatar: initials,
-            photoUrl: input.photoUrl,
-            position: { top: `${position.top}%`, left: `${position.left}%` },
-            createdAt: new Date(),
-            isProvisional: input.isProvisional,
-            provisionalSource: input.provisionalSource,
-          },
         },
-      }))
+      },
+    }))
 
-      setNewLeads((prev) => [...prev, newId])
+    // Track as new lead for animation
+    setNewLeads((prev) => [...prev, newId])
 
-      setTimeout(() => {
-        setNewLeads((prev) => prev.filter((id) => id !== newId))
-      }, 3000)
-
-      // Auto-open chat panel for the new lead
-      openLeadPanel(newId)
-
-      return newId
-    } catch (err) {
-      console.error('Error creating lead:', err)
-      return null
-    }
-  }, [leadStates, findNonCollidingPosition, openLeadPanel])
+    // Clear from newLeads after animation completes
+    setTimeout(() => {
+      setNewLeads((prev) => prev.filter((id) => id !== newId))
+    }, 3000)
+  }, [leadStates, findNonCollidingPosition])
 
   // Emit a property event
   const emitPropertyEvent = useCallback((type: PropertyEvent["type"], property: IngestedProperty) => {
@@ -783,9 +661,10 @@ export function OrbitProvider({ children }: { children: ReactNode }) {
     const viewProperty: Property = {
       id,
       name: "Carregando...",
-      locationText: null,
+      address: "Processando link...",
       type: "apartment",
-      value: null,
+      price: "—",
+      area: "—",
       position: {
         x: 20 + Math.random() * 60,
         y: 20 + Math.random() * 60,
@@ -911,7 +790,7 @@ export function OrbitProvider({ children }: { children: ReactNode }) {
       
       const updated = { ...prev[index] }
       if (data.title) updated.name = data.title
-      if (data.priceCents) updated.value = data.priceCents
+      if (data.priceCents) updated.price = `R$ ${(data.priceCents / 100).toLocaleString("pt-BR")}`
       if (data.lat && data.lng) {
         updated.position = {
           x: ((data.lng + 35.2) / 0.3) * 80 + 10,
@@ -930,8 +809,81 @@ export function OrbitProvider({ children }: { children: ReactNode }) {
     return ingestedProperties.find(p => p.id === id)
   }, [ingestedProperties])
 
+  // Decision Cycle Actions
+  const getActiveCycle = useCallback(
+    (leadId: string): DecisionCycle | undefined => {
+      const state = leadStates[leadId]
+      if (!state || !state.activeCycleId) return undefined
+      return state.cycles.find((c) => c.id === state.activeCycleId && c.isActive)
+    },
+    [leadStates]
+  )
+
+  const getAllCycles = useCallback(
+    (leadId: string): DecisionCycle[] => {
+      return leadStates[leadId]?.cycles || []
+    },
+    [leadStates]
+  )
+
+  const hasActiveCycle = useCallback(
+    (leadId: string): boolean => {
+      return !!getActiveCycle(leadId)
+    },
+    [getActiveCycle]
+  )
+
+  const startNewCycle = useCallback((leadId: string, cycleName?: string) => {
+    const newCycle = createCycle(cycleName)
+    setLeadStates((prev) => ({
+      ...prev,
+      [leadId]: {
+        ...prev[leadId],
+        cycles: [...(prev[leadId]?.cycles || []), newCycle],
+        activeCycleId: newCycle.id,
+      },
+    }))
+  }, [])
+
+  const endCycle = useCallback((leadId: string, reason?: CycleEndReason) => {
+    setLeadStates((prev) => {
+      const state = prev[leadId]
+      if (!state || !state.activeCycleId) return prev
+
+      return {
+        ...prev,
+        [leadId]: {
+          ...state,
+          cycles: state.cycles.map((c) =>
+            c.id === state.activeCycleId
+              ? { ...c, isActive: false, endedAt: new Date(), endReason: reason }
+              : c
+          ),
+          activeCycleId: undefined,
+        },
+      }
+    })
+  }, [])
+
+  const updateCycleCapsule = useCallback((leadId: string, capsuleData: any[]) => {
+    setLeadStates((prev) => {
+      const state = prev[leadId]
+      if (!state || !state.activeCycleId) return prev
+
+      return {
+        ...prev,
+        [leadId]: {
+          ...state,
+          cycles: state.cycles.map((c) =>
+            c.id === state.activeCycleId ? { ...c, capsuleData } : c
+          ),
+        },
+      }
+    })
+  }, [])
+
   // Operational Memory Actions
-  const updateLeadNotes = useCallback(async (leadId: string, notes: string): Promise<{ success: boolean; noteId?: string }> => {
+  const updateLeadNotes = useCallback((leadId: string, notes: string) => {
     setLeadStates((prev) => {
       const state = prev[leadId]
       if (!state) return prev
@@ -943,34 +895,7 @@ export function OrbitProvider({ children }: { children: ReactNode }) {
         },
       }
     })
-    
-    try {
-      const response = await fetch('/api/note', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          leadId, 
-          content: notes,
-        }),
-      })
-
-      if (!response.ok) {
-        console.error('[NOTE] API error:', response.status)
-        return { success: false }
-      }
-
-      const data = await response.json()
-      
-      return {
-        success: true,
-        noteId: data.noteId,
-      }
-    } catch (err) {
-      console.error('[NOTE] Error persisting note:', err)
-      return { success: false }
-    }
   }, [])
-
 
   const logCallOutcome = useCallback((leadId: string, outcome: CallOutcome, note?: string) => {
     const entry: CallLogEntry = {
@@ -1015,15 +940,51 @@ export function OrbitProvider({ children }: { children: ReactNode }) {
         },
       }
     })
-    
-    // Decrement follow-up on human action (call counts as explicit touch)
-    if (outcome === 'call_answered' || outcome === 'call_missed') {
-      // NOTE: Follow-up logic is now managed by cognitive state. 
-      // Manual decrement removed to avoid conflict.
-    }
   }, [])
 
+  const setFollowUpReminder = useCallback((leadId: string, date: Date, note?: string) => {
+    setLeadStates((prev) => {
+      const state = prev[leadId]
+      if (!state) return prev
+      return {
+        ...prev,
+        [leadId]: {
+          ...state,
+          memory: {
+            ...state.memory,
+            followUp: { date, note, isActive: true },
+          },
+        },
+      }
+    })
+  }, [])
 
+  const clearFollowUpReminder = useCallback((leadId: string) => {
+    setLeadStates((prev) => {
+      const state = prev[leadId]
+      if (!state) return prev
+      return {
+        ...prev,
+        [leadId]: {
+          ...state,
+          memory: {
+            ...state.memory,
+            followUp: undefined,
+          },
+        },
+      }
+    })
+  }, [])
+
+  const getLeadsWithActiveFollowUp = useCallback((): string[] => {
+    const now = new Date()
+    return Object.values(leadStates)
+      .filter((state) => {
+        if (!state.memory.followUp?.isActive) return false
+        return new Date(state.memory.followUp.date) <= now
+      })
+      .map((state) => state.id)
+  }, [leadStates])
 
   // Update property location (drag & drop in Atlas)
   const updatePropertyLocation = useCallback((id: string, lat: number, lng: number, accuracy: LocationAccuracy = "precise") => {
@@ -1090,6 +1051,7 @@ export function OrbitProvider({ children }: { children: ReactNode }) {
     }
   }, [ingestedProperties])
 
+  // Undo last location change (within 10 second window)
   const undoLocationChange = useCallback(() => {
     if (!locationUndoState) return
 
@@ -1127,122 +1089,30 @@ export function OrbitProvider({ children }: { children: ReactNode }) {
 
     // Clear undo state
     setLocationUndoState(null)
-  }, [locationUndoState, ingestedProperties])
+  }, [locationUndoState])
 
-  const getLeadsWithActiveFollowUp = useCallback(() => {
-    return Object.keys(leadStates).filter(id => leadStates[id].memory.followUp?.isActive)
-  }, [leadStates])
-
-  const setFollowUpReminder = useCallback((leadId: string, date: Date) => {
-    setLeadStates((prev) => {
-      const state = prev[leadId]
-      if (!state) return prev
-      return {
-        ...prev,
-        [leadId]: {
-          ...state,
-          memory: {
-            ...state.memory,
-            followUp: {
-              date: date.toISOString(),
-              isActive: true
-            }
-          }
-        }
-      }
-    })
-  }, [])
-
-  const clearFollowUpReminder = useCallback((leadId: string) => {
-    setLeadStates((prev) => {
-      const state = prev[leadId]
-      if (!state) return prev
-      return {
-        ...prev,
-        [leadId]: {
-          ...state,
-          memory: {
-            ...state.memory,
-            followUp: null
-          }
-        }
-      }
-    })
-  }, [])
-
-  const value = useMemo(() => ({
-    // Lead Focus Panel
+  const value: OrbitContextValue = {
     selectedLeadId,
     isLeadPanelOpen,
     openLeadPanel,
     closeLeadPanel,
-
-    // Lead States
+    // Lead Expanded View
+    isExpandedViewOpen,
+    expandedViewLeadId,
+    openExpandedView,
+    closeExpandedView,
     leadStates,
     updateLeadState,
-    initializeLeadStates,
-    getOrCreateLeadState,
-
-    // Visual States
-    setLeadVisualState,
-    getLeadVisualState,
-
-    // Property linking
     linkPropertyToLead,
     getLinkedProperty,
-
-    // Operational Memory
+    getActiveCycle,
+    getAllCycles,
+    startNewCycle,
+    endCycle,
+    updateCycleCapsule,
+    hasActiveCycle,
     updateLeadNotes,
-    logContactOutcome,
-    setFollowUpReminder,
-    clearFollowUpReminder,
-    getLeadsWithActiveFollowUp,
-
-    // System Mode
-    isAtlasMapActive,
-    isCapsuleActive,
-    isFocusModeActive,
-    atlasInvokeContext,
-    invokeAtlasMap,
-    closeAtlasMap,
-    emergeCapsule,
-    toggleFocusMode,
-
-    // Admin
-    addLead,
-    newLeads,
-    atlasProperties,
-
-    // Ingestion
-    ingestedProperties,
-    ingestPropertyFromUrl,
-    updateIngestedProperty,
-    getIngestedProperty,
-    propertyEvents,
-
-    // Location
-    updatePropertyLocation,
-    locationUndoState,
-    undoLocationChange,
-
-    // Orbit View
-    orbitView,
-    activateOrbitView,
-    deactivateOrbitView,
-  }), [
-    selectedLeadId,
-    isLeadPanelOpen,
-    openLeadPanel,
-    closeLeadPanel,
-    leadStates,
-    updateLeadState,
-    initializeLeadStates,
-    getOrCreateLeadState,
-    setLeadVisualState,
-    getLeadVisualState,
-    linkPropertyToLead,
-    getLinkedProperty,
-    updateLeadNotes,
+    logCallOutcome,
     logContactOutcome,
     setFollowUpReminder,
     clearFollowUpReminder,
@@ -1258,22 +1128,17 @@ export function OrbitProvider({ children }: { children: ReactNode }) {
     addLead,
     newLeads,
     atlasProperties,
+    // Property Ingestion Pipeline
     ingestedProperties,
     ingestPropertyFromUrl,
     updateIngestedProperty,
     getIngestedProperty,
     propertyEvents,
+    // Property Location Management
     updatePropertyLocation,
     locationUndoState,
     undoLocationChange,
-    orbitView,
-    activateOrbitView,
-    deactivateOrbitView,
-  ])
+  }
 
-  return (
-    <OrbitContext.Provider value={value}>
-      {children}
-    </OrbitContext.Provider>
-  )
+  return <OrbitContext.Provider value={value}>{children}</OrbitContext.Provider>
 }
