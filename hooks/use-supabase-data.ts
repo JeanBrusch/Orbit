@@ -186,7 +186,7 @@ export function useSupabaseLeads() {
           position: generatePosition(index, rows.length),
           delay: index * 0.1,
           emotionalState: mapStateToEmotionalState(lead.estado_atual),
-          keywords: [lead.profile_summary, lead.context_summary, lead.event_summary].filter(Boolean),
+          keywords: [lead.profile_summary, lead.context_summary, lead.event_summary].filter((k): k is string => !!k),
           phone: lead.phone || undefined,
           photoUrl: lead.photo_url || undefined,
           origin: lead.origin || undefined,
