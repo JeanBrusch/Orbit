@@ -631,7 +631,7 @@ function getContactCycleRing(
 ): string {
   if (needsAttention) {
     // verde — mensagem nova não respondida (complementa o effectiveAura que já anima)
-    return isDark ? "#2d6a42" : "#166534"
+    return isDark ? "#22c55e" : "#16a34a"
   }
   const d = days ?? 0
   if (d <= 3)  return isDark ? "#1e4976" : "#1d4ed8"   // azul   — ≤ 3 dias
@@ -746,7 +746,9 @@ const LeadNodeItem = memo(({
     ? "opacity-40 scale-[0.95]"
     : getFadeDepth(node.daysSinceInteraction, !!node.needsAttention);
 
-  const intensityClass = "opacity-70"; // Fallback to original intent
+  const intensityClass = node.needsAttention
+    ? "opacity-100"
+    : activityOpacity || "opacity-70";
 
   return (
     <div
@@ -782,13 +784,13 @@ const LeadNodeItem = memo(({
           {hasFollowUpDue && !node.needsAttention && <FollowUpRing />}
 
           <div
-            className={`flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border-[3px] bg-white/80 dark:bg-[var(--orbit-glass)] text-[10px] font-medium text-slate-700 dark:text-zinc-200 backdrop-blur-sm transition-all duration-500 ${
+            className={`flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border-[3px] bg-white/80 dark:bg-[var(--orbit-glass)] text-[10px] font-medium text-slate-700 dark:text-zinc-200 backdrop-blur-sm lead-node-avatar ${
               isHighlighted && isResponding
                 ? "animate-lead-highlight scale-110"
                 : node.isNew
                   ? "animate-new-lead-glow"
                   : node.needsAttention
-                    ? "shadow-[0_0_10px_rgba(16,185,129,0.4)] animate-pulse"
+                    ? "animate-attention-glow"
                     : ""
             }`}
             style={{
