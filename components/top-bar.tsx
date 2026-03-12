@@ -26,22 +26,9 @@ interface TopBarProps {
 }
 
 export function TopBar({ totalLeads, isDark, onThemeToggle, onLogout }: TopBarProps) {
-  const [wsStatus, setWsStatus] = useState<{ connected: boolean; loading: boolean }>({
-    connected: false,
-    loading: true
-  });
   const [pendingCount, setPendingCount] = useState(0);
 
   useEffect(() => {
-    const checkStatus = async () => {
-      try {
-        const res = await fetch("/api/zapi/status");
-        const data = await res.json();
-        setWsStatus({ connected: data.connected, loading: false });
-      } catch {
-        setWsStatus({ connected: false, loading: false });
-      }
-    };
 
     const fetchPending = async () => {
       try {
@@ -51,7 +38,6 @@ export function TopBar({ totalLeads, isDark, onThemeToggle, onLogout }: TopBarPr
       } catch {}
     };
 
-    checkStatus();
     fetchPending();
   }, []);
 
@@ -64,16 +50,6 @@ export function TopBar({ totalLeads, isDark, onThemeToggle, onLogout }: TopBarPr
           <span className="text-[10px] font-bold tracking-[0.2em] text-[var(--orbit-text)] uppercase">Orbit Core</span>
         </div>
 
-        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border backdrop-blur-md transition-all duration-500 ${
-          wsStatus.connected 
-            ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" 
-            : "bg-rose-500/10 border-rose-500/20 text-rose-400"
-        }`}>
-          {wsStatus.connected ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
-          <span className="text-[9px] font-bold uppercase tracking-wider">
-            {wsStatus.loading ? "Sincronizando..." : wsStatus.connected ? "Z-API ON" : "Z-API OFF"}
-          </span>
-        </div>
       </div>
 
       {/* CENTER: Cognitive Metrics */}
