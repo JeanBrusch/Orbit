@@ -222,6 +222,23 @@ export function AtlasFocusSurface() {
 
   const leadName = atlasInvokeContext?.leadName
 
+  // ── Hooks extracted from JSX to avoid conditional hook violation ─────────
+  const mapAtlasProperties = useMemo(() => supabaseProperties.map((prop): MapProperty => ({
+    id: prop.id,
+    name: prop.title || prop.internal_name || 'Imóvel sem nome',
+    lat: prop.lat,
+    lng: prop.lng,
+    value: prop.value,
+    locationText: prop.location_text,
+    coverImage: prop.cover_image,
+    url: prop.source_link,
+  })), [supabaseProperties])
+
+  const handleMapPropertyClick = useCallback((mapProp: MapProperty) => {
+    const fullProp = allProperties.find(p => p.id === mapProp.id)
+    if (fullProp) setSelectedProperty(fullProp)
+  }, [allProperties])
+
   // ── Guard: render nothing until Atlas is active ─────────────────────────
   if (!isAtlasMapActive) return null
 
@@ -280,21 +297,9 @@ export function AtlasFocusSurface() {
           {/* O MAPA REAL - GL */}
           <div className="flex-1 bg-zinc-900 overflow-hidden relative">
             <MapAtlas
-              properties={useMemo(() => supabaseProperties.map((prop): MapProperty => ({
-                id: prop.id,
-                name: prop.title || prop.internal_name || 'Imóvel sem nome',
-                lat: prop.lat,
-                lng: prop.lng,
-                value: prop.value,
-                locationText: prop.location_text,
-                coverImage: prop.cover_image,
-                url: prop.source_link,
-              })), [supabaseProperties])}
+              properties={mapAtlasProperties}
               selectedPropertyId={selectedProperty?.id}
-              onPropertyClick={useCallback((mapProp: MapProperty) => {
-                const fullProp = allProperties.find(p => p.id === mapProp.id)
-                if (fullProp) setSelectedProperty(fullProp)
-              }, [allProperties])}
+              onPropertyClick={handleMapPropertyClick}
               className="absolute inset-0"
             />
           </div>
