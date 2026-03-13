@@ -4,7 +4,7 @@ import { useRef, useState, useEffect, useCallback, memo, useMemo } from "react";
 import {
   X, ArrowUp, Play, Loader2, Check, Brain,
   Mic, Zap, Star, Building2, ExternalLink, Copy, CheckCheck,
-  Square, Paperclip, Search, StopCircle
+  Square, Paperclip, Search, StopCircle, FileText, User
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { getSupabase } from "@/lib/supabase";
@@ -47,7 +47,7 @@ interface AiInsight {
 
 interface Message {
   id: string;
-  source: "whatsapp" | "operator";
+  source: "whatsapp" | "operator" | "internal";
   content: string | null;
   timestamp: string;
   ai_analysis: Record<string, unknown> | null;
@@ -166,6 +166,28 @@ function AudioWaveform() {
 
 // ─── Message Bubble ────────────────────────────────────────────────────────────
 const MessageBubble = memo(function MessageBubble({ msg, leadPhoto, leadName }: { msg: Message; leadPhoto: string | null; leadName: string | null }) {
+  if (msg.source === "internal") {
+    return (
+      <div className="flex justify-center my-3">
+        <div className="bg-[#d4af35]/10 border border-[#d4af35]/30 rounded-2xl px-5 py-4 max-w-[85%] relative overflow-hidden group">
+          <div className="absolute top-0 right-0 p-1 opacity-10 group-hover:opacity-20 transition-opacity">
+             <Star className="w-12 h-12 text-[#d4af35]" />
+          </div>
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-5 h-5 rounded bg-[#d4af35]/20 flex items-center justify-center">
+              <Star className="w-3 h-3 text-[#d4af35] fill-current" />
+            </div>
+            <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#d4af35]">Nota Interna</span>
+            <span className="text-[9px] text-[#d4af35]/40 ml-auto">{formatTime(msg.timestamp)}</span>
+          </div>
+          <p className="text-sm text-slate-200 leading-relaxed font-medium">
+            {msg.content}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   const analysis = msg.ai_analysis as Record<string, string> | null;
   const signal = analysis?.signal;
   const intention = analysis?.intention;
@@ -346,6 +368,7 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
   // Composer
   const [composerText, setComposerText] = useState("");
   const [sendStatus, setSendStatus] = useState<"idle" | "sending" | "done" | "error">("idle");
+  const [isNoteMode, setIsNoteMode] = useState(false);
 
   // Copy to clipboard
   const [copied, setCopied] = useState(false);
@@ -697,7 +720,7 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
     // Optimistic UI update
     const optimistic: Message = {
       id: `opt-${Date.now()}`,
-      source: "operator",
+      source: isNoteMode ? "internal" : "operator",
       content: text,
       timestamp: new Date().toISOString(),
       ai_analysis: null,
@@ -706,48 +729,52 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
     setComposerText("");
 
     try {
-      // Prefer LID over phone for WhatsApp routing
-      const sendTo =
-        (lead?.lid ? (lead.lid.includes("@lid") ? lead.lid : `${lead.lid}@lid`) : null) ||
-        lead?.phone;
+      if (isNoteMode) {
+        // Send as Internal Note
+        const noteRes = await fetch(`/api/lead/${leadId}/note`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content: text }),
+        });
 
-      console.log("[COG] lead.lid:", lead?.lid);
-      console.log("[COG] lead.phone:", lead?.phone);
-      console.log("[COG] sendTo:", sendTo);
+        if (!noteRes.ok) {
+          throw new Error("Falha ao salvar nota");
+        }
+      } else {
+        // Prefer LID over phone for WhatsApp routing
+        const sendTo =
+          (lead?.lid ? (lead.lid.includes("@lid") ? lead.lid : `${lead.lid}@lid`) : null) ||
+          lead?.phone;
 
-      if (!sendTo) {
-        alert("Este lead não possui telefone nem identificador do WhatsApp (LID) cadastrados.");
-        setSendStatus("error");
-        setTimeout(() => setSendStatus("idle"), 2000);
-        return;
+        if (!sendTo) {
+          alert("Este lead não possui telefone nem identificador do WhatsApp (LID) cadastrados.");
+          setSendStatus("error");
+          setTimeout(() => setSendStatus("idle"), 2000);
+          return;
+        }
+
+        // Send via WhatsApp/Z-API
+        const whatsappRes = await fetch("/api/whatsapp/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phone: sendTo, message: text, leadId }),
+        });
+
+        if (!whatsappRes.ok) {
+          const errorData = await whatsappRes.json().catch(() => ({}));
+          console.error("[COG] WhatsApp send failed:", errorData);
+          setSendStatus("error");
+          setTimeout(() => setSendStatus("idle"), 2000);
+          return;
+        }
       }
-
-      // Send via WhatsApp/Z-API
-      const whatsappRes = await fetch("/api/whatsapp/send", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: sendTo, message: text, leadId }),
-      });
-
-      if (!whatsappRes.ok) {
-        const errorData = await whatsappRes.json().catch(() => ({}));
-        console.error("[COG] WhatsApp send failed:", errorData);
-        setSendStatus("error");
-        setTimeout(() => setSendStatus("idle"), 2000);
-        return;
-      }
-
-      // Log interaction for cognitive history
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (supabase.from("interactions") as any).insert({
-        lead_id: leadId,
-        content: text,
-        direction: "outbound",
-        channel: "whatsapp",
-      });
 
       setSendStatus("done");
-      setTimeout(() => setSendStatus("idle"), 2000);
+      setTimeout(() => {
+        setSendStatus("idle");
+        // Don't auto-reset note mode unless desired, but usually people send one note and want to keep chatting or vice versa.
+        // Let's keep it in the same mode for speed if adding multiple notes.
+      }, 2000);
     } catch (e) {
       console.error("[COG] Error sending from Cognitive Terminal:", e);
       setSendStatus("error");
@@ -1031,6 +1058,19 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
                       <Building2 className="w-4 h-4" />
                     </button>
 
+                    {/* Toggle Mode: Chat vs Note */}
+                    <button
+                      onClick={() => setIsNoteMode(!isNoteMode)}
+                      title={isNoteMode ? "Mudar para WhatsApp" : "Mudar para Anotação Interna"}
+                      className={`w-9 h-9 rounded-full border flex items-center justify-center transition-all ${
+                        isNoteMode 
+                          ? "bg-[#d4af35]/20 border-[#d4af35]/40 text-[#d4af35]" 
+                          : "bg-white/5 border-white/10 text-slate-400 hover:text-[#d4af35] hover:border-[#d4af35]/30"
+                      }`}
+                    >
+                      {isNoteMode ? <FileText className="w-4 h-4" /> : <User className="w-4 h-4" />}
+                    </button>
+
                     {/* Text input (Using textarea for better native autocorrect support) */}
                     <textarea
                       name="message"
@@ -1041,7 +1081,11 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
                       spellCheck={true}
                       autoCapitalize="sentences"
                       className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#d4af35]/40 placeholder-slate-600 transition-colors disabled:opacity-50 resize-none min-h-[42px] leading-relaxed"
-                      placeholder={isRecording ? "Gravando áudio…" : "Digite sua mensagem inteligente…"}
+                      placeholder={
+                        isRecording ? "Gravando áudio…" : 
+                        isNoteMode ? "Descreva o que aconteceu (reunião, ligação, etc)…" : 
+                        "Digite sua mensagem inteligente…"
+                      }
                       value={composerText}
                       disabled={isRecording}
                       onChange={e => {

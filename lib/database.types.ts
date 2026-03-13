@@ -73,7 +73,7 @@ export interface Database {
         Row: {
           id: string;
           lead_id: string | null;
-          source: 'whatsapp' | 'operator';
+          source: 'whatsapp' | 'operator' | 'internal';
           content: string | null;
           timestamp: string;
           ai_analysis: Json | null;
@@ -83,7 +83,7 @@ export interface Database {
         Insert: {
           id?: string;
           lead_id?: string | null;
-          source: 'whatsapp' | 'operator';
+          source: 'whatsapp' | 'operator' | 'internal';
           content?: string | null;
           timestamp?: string;
           ai_analysis?: Json | null;
@@ -93,7 +93,7 @@ export interface Database {
         Update: {
           id?: string;
           lead_id?: string | null;
-          source?: 'whatsapp' | 'operator';
+          source?: 'whatsapp' | 'operator' | 'internal';
           content?: string | null;
           timestamp?: string;
           ai_analysis?: Json | null;
