@@ -87,6 +87,24 @@ export function WhatsAppInbox({ externalCount, onCountChange }: WhatsAppInboxPro
     } catch {}
   }, []);
 
+  const formatPreview = (content: string | null) => {
+    if (!content) return "Nova conversa";
+    try {
+      if (content.startsWith("{")) {
+        const parsed = JSON.parse(content);
+        const types: Record<string, string> = {
+          audio: "🎵 Áudio",
+          image: "📷 Imagem",
+          video: "🎥 Vídeo",
+          document: "📄 Documento",
+          sticker: "✨ Sticker"
+        };
+        return types[parsed.type] || "[Mídia]";
+      }
+    } catch {}
+    return content;
+  };
+
   const fetchPending = useCallback(async () => {
     setLoading(true);
     try {
@@ -111,12 +129,13 @@ export function WhatsAppInbox({ externalCount, onCountChange }: WhatsAppInboxPro
         name: l.name,
         phone: l.phone,
         photo_url: l.photo_url,
-        last_message:
+        last_message: formatPreview(
           l.messages
             ?.sort(
               (a: any, b: any) =>
                 new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-            )[0]?.content || "Nova conversa",
+            )[0]?.content
+        ),
         created_at: l.created_at,
       }));
 
@@ -192,7 +211,7 @@ export function WhatsAppInbox({ externalCount, onCountChange }: WhatsAppInboxPro
 
       if (error) throw error;
 
-      const messages: Record<string, { title: string; description: string }> = {
+      const toastConfigs: Record<string, { title: string; description: string }> = {
         approved: {
           title: "Lead Aprovado!",
           description: "O contato agora faz parte do Orbit e será analisado.",
@@ -207,7 +226,7 @@ export function WhatsAppInbox({ externalCount, onCountChange }: WhatsAppInboxPro
         },
       };
 
-      toast(messages[newState]);
+      toast(toastConfigs[newState]);
     } catch (err) {
       console.error("Error updating lead state:", err);
       // Reverte em caso de erro
@@ -342,12 +361,12 @@ export function WhatsAppInbox({ externalCount, onCountChange }: WhatsAppInboxPro
                       "{lead.last_message}"
                     </p>
 
-                    <div className="flex items-center gap-2">
+                    <div className="grid grid-cols-3 gap-2">
                       <Button
                         size="sm"
                         variant="ghost"
                         onClick={() => handleAction(lead.id, "approved")}
-                        className="h-8 flex-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 text-[11px] gap-1.5"
+                        className="h-8 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 text-[10px] gap-1 px-1"
                       >
                         <UserPlus className="h-3 w-3" />
                         Cliente
@@ -356,7 +375,7 @@ export function WhatsAppInbox({ externalCount, onCountChange }: WhatsAppInboxPro
                         size="sm"
                         variant="ghost"
                         onClick={() => handleAction(lead.id, "ignored")}
-                        className="h-8 flex-1 bg-[var(--orbit-glass-border)] hover:bg-[var(--orbit-glow)]/10 text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)] border border-[var(--orbit-glass-border)] text-[11px] gap-1.5"
+                        className="h-8 bg-[var(--orbit-glass-border)] hover:bg-[var(--orbit-glow)]/10 text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)] border border-[var(--orbit-glass-border)] text-[10px] gap-1 px-1"
                       >
                         <ShieldAlert className="h-3 w-3" />
                         Ignorar
@@ -365,7 +384,7 @@ export function WhatsAppInbox({ externalCount, onCountChange }: WhatsAppInboxPro
                         size="sm"
                         variant="ghost"
                         onClick={() => handleAction(lead.id, "blocked")}
-                        className="h-8 flex-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 text-[11px] gap-1.5"
+                        className="h-8 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 text-[10px] gap-1 px-1"
                       >
                         <Ban className="h-3 w-3" />
                         Bloquear
