@@ -277,7 +277,7 @@ export async function processEventWithCore(
     console.log(`[ORBIT CORE] Passo 3 - inserindo insight...`);
     const r3 = await (getSupabase()?.from("ai_insights") as any).insert({
       lead_id: leadId,
-      type: "cognitive_update",
+      type: "suggestion",
       content: `${analysis.intention} · Próxima ação: ${analysis.action_suggested}`,
       urgency: analysis.urgency,
     });
