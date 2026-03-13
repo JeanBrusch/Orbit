@@ -368,19 +368,25 @@ export default function LeadTerminalPage({ params }: { params: Promise<{ id: str
     const channel = supabase
       .channel(`lead-terminal-${id}`)
       .on('postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'messages', filter: `lead_id=eq.${id}` },
+        { event: '*', schema: 'public', table: 'messages', filter: `lead_id=eq.${id}` },
         (payload) => {
-          setMessages(prev => {
-            const incoming = payload.new as Message
-            if (prev.some(m => m.id === incoming.id)) return prev
-            return [...prev, incoming]
-          })
-          setTimelineKey(k => k + 1)
+          console.log("[PAGE] Message Realtime:", payload.eventType, payload.new);
+          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+            setMessages(prev => {
+              const incoming = payload.new as Message
+              if (prev.some(m => m.id === incoming.id)) {
+                return prev.map(m => m.id === incoming.id ? incoming : m);
+              }
+              return [...prev, incoming]
+            })
+            setTimelineKey(k => k + 1)
+          }
         }
       )
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'lead_cognitive_state', filter: `lead_id=eq.${id}` },
         async (payload) => {
+          console.log("[PAGE] Cognitive Realtime:", payload.new);
           setCognitive(payload.new as CognitiveState)
           // Refresh memories and insights when cognitive state changes (analysis complete)
           const [memRes, insRes] = await Promise.all([
@@ -392,23 +398,33 @@ export default function LeadTerminalPage({ params }: { params: Promise<{ id: str
         }
       )
       .on('postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'ai_insights', filter: `lead_id=eq.${id}` },
+        { event: '*', schema: 'public', table: 'ai_insights', filter: `lead_id=eq.${id}` },
         (payload) => {
-          setInsights(prev => {
-            const incoming = payload.new as AiInsight
-            if (prev.some(i => i.id === incoming.id)) return prev
-            return [incoming, ...prev]
-          })
+          console.log("[PAGE] Insight Realtime:", payload.eventType, payload.new);
+          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+            setInsights(prev => {
+              const incoming = payload.new as AiInsight
+              if (prev.some(i => i.id === incoming.id)) {
+                return prev.map(i => i.id === incoming.id ? incoming : i);
+              }
+              return [incoming, ...prev]
+            })
+          }
         }
       )
       .on('postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'memory_items', filter: `lead_id=eq.${id}` },
+        { event: '*', schema: 'public', table: 'memory_items', filter: `lead_id=eq.${id}` },
         (payload) => {
-          setMemories(prev => {
-            const incoming = payload.new as MemoryItem
-            if (prev.some(m => m.id === incoming.id)) return prev
-            return [incoming, ...prev]
-          })
+          console.log("[PAGE] Memory Realtime:", payload.eventType, payload.new);
+          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+            setMemories(prev => {
+              const incoming = payload.new as MemoryItem
+              if (prev.some(m => m.id === incoming.id)) {
+                return prev.map(m => m.id === incoming.id ? incoming : m);
+              }
+              return [incoming, ...prev]
+            })
+          }
         }
       )
       .subscribe()

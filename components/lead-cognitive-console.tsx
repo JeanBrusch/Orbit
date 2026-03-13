@@ -627,13 +627,19 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
     const channel = supabase
       .channel(`lead-console-${leadId}`)
       .on('postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'messages', filter: `lead_id=eq.${leadId}` },
+        { event: '*', schema: 'public', table: 'messages', filter: `lead_id=eq.${leadId}` },
         (payload) => {
-          setMessages(prev => {
-            const incoming = payload.new as Message;
-            if (prev.some(m => m.id === incoming.id)) return prev;
-            return [...prev, incoming];
-          });
+          console.log("[COG] Message Realtime event:", payload.eventType, payload.new);
+          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+            setMessages(prev => {
+              const incoming = payload.new as Message;
+              if (prev.some(m => m.id === incoming.id)) {
+                // Update existing if it was an update (e.g. AI analysis added)
+                return prev.map(m => m.id === incoming.id ? incoming : m);
+              }
+              return [...prev, incoming];
+            });
+          }
         }
       )
       .on('postgres_changes',
