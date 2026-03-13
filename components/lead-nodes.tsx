@@ -741,8 +741,8 @@ const LeadNodeItem = memo(({
     if (d <= 3)  return ""                                         // pleno
     if (d <= 7)  return "opacity-90"                               // quase pleno
     if (d <= 15) return "opacity-80 scale-[0.97]"                  // começa a recuar, mas cor ainda visível
-    if (d <= 30) return "opacity-75 scale-[0.94]"                  // recuado (Removido grayscale para o Alerta Vermelho brilhar!)
-    return            "opacity-65 scale-[0.90]"                    // profundamente esvaecido, mas vermelho discernível
+    if (d <= 30) return "opacity-75 scale-[0.94] grayscale-[0.3]"  // recuado
+    return            "opacity-65 scale-[0.90] grayscale-[0.6]"    // profundamente esvaecido
   }
 
   const activityOpacity = orbitViewStatus.isUnrelated
@@ -774,7 +774,7 @@ const LeadNodeItem = memo(({
         className="cubic-bezier-smooth group flex cursor-pointer flex-col items-center transition-all duration-[240ms] hover:scale-105"
       >
         <div className="relative">
-          {node.needsAttention && <ActionBadge type="lightning" title="Mensagem não respondida" />}
+          {/* O raio de lightning badge foi removido conforme solicitação */}
           {!node.needsAttention && node.followupActive && (node.followupRemaining || 0) > 0 && (
             <ActionBadge type="number" number={node.followupRemaining} title={`Follow-up: ${node.followupRemaining} ações restantes`} />
           )}
@@ -900,6 +900,7 @@ export function LeadNodes({
   >({});
   
   const [hoveredLeadId, setHoveredLeadId] = useState<string | null>(null);
+  const [clearedAttentionLeads, setClearedAttentionLeads] = useState<string[]>([]);
 
   const { orbitView } = useOrbitContext();
 
@@ -944,7 +945,7 @@ export function LeadNodes({
       emotionalAura: mapEmotionalStateToAura(lead.emotionalState),
       hasRecentActivity: lead.hasCapsuleActive,
       hasNotification: lead.emotionalState === "engaged",
-      needsAttention: lead.needsAttention,
+      needsAttention: clearedAttentionLeads.includes(lead.id) ? false : lead.needsAttention,
       cycleStage: (lead.cycleStage as CycleStage) || "sem_ciclo" as CycleStage,
       daysSinceInteraction: lead.daysSinceInteraction,
       hasMatureNotes: lead.hasMatureNotes,
@@ -955,7 +956,7 @@ export function LeadNodes({
       riskScore: lead.riskScore,
       currentState: lead.currentState,
     }));
-  }, [supabaseLeads]);
+  }, [supabaseLeads, clearedAttentionLeads]);
 
   // ── Day-load factor ──────────────────────────────────────────────────────
   const activeLeadCount = useMemo(
@@ -1002,7 +1003,8 @@ export function LeadNodes({
   }, [supabaseLeadNodes, adminLeadNodes, leadStates, orbitViewLeadScores, orbitView.active, dayLoadFactor]);
 
   const handleLeadClick = (leadId: string) => {
-    onLeadClick?.(leadId);
+    setClearedAttentionLeads(prev => prev.includes(leadId) ? prev : [...prev, leadId]);
+    onLeadClick?.(leadId)
   };
 
   const handleMouseEnter = useCallback((id: string) => setHoveredLeadId(id), []);
