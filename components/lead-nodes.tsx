@@ -623,22 +623,23 @@ function mapEmotionalStateToAura(state: string): EmotionalAura {
 }
 
 // Ciclo de contato → cor do anel baseada em dias desde a última interação.
-// Retorna a cor como string CSS para usar no style inline (funciona em ambos temas).
-function getContactCycleRing(
+// Transpilation from hex strings to tailwind Ring/Glow object structure to match reference.
+function getContactCycleAura(
   days: number | undefined,
   needsAttention: boolean,
   isDark: boolean,
-): string {
+): { ring: string; glow: string } {
   if (needsAttention) {
-    // verde — mensagem nova não respondida (complementa o effectiveAura que já anima)
-    return isDark ? "#22c55e" : "#16a34a"
+    // Verde esmeralda forte - Atenção necessária
+    return { ring: "border-emerald-400", glow: "shadow-[0_0_16px_rgba(52,211,153,0.5)]" }
   }
   const d = days ?? 0
-  if (d <= 3)  return isDark ? "#1e4976" : "#1d4ed8"   // azul   — ≤ 3 dias
-  if (d <= 7)  return isDark ? "#5a4a0a" : "#a16207"   // âmbar  — 4–7 dias
-  if (d <= 15) return isDark ? "#6b3a10" : "#c2410c"   // laranja — 8–15 dias
-  if (d <= 30) return isDark ? "#6b1f1f" : "#b91c1c"   // vermelho — 16–30 dias
-  return               isDark ? "#2a2a2e" : "#9ca3af"   // cinza  — > 30 dias
+  if (d <= 3) return { ring: "border-[#2EC5FF]", glow: "shadow-[0_0_16px_rgba(46,197,255,0.5)]" } // azul (Aware)
+  if (d <= 7) return { ring: "border-[#FFC87A]", glow: "shadow-[0_0_16px_rgba(255,200,122,0.5)]" } // ambar (Curious)
+  if (d <= 15) return { ring: "border-orange-400", glow: "shadow-[0_0_16px_rgba(251,146,60,0.5)]" } // laranja (Conflicted)
+  if (d <= 30) return { ring: "border-rose-400", glow: "shadow-[0_0_16px_rgba(251,113,133,0.5)]" } // vermelho
+  // cinza recuado (SilentGravity)
+  return { ring: "border-cyan-300", glow: "shadow-[0_0_16px_rgba(103,232,249,0.2)]" }
 }
 
 // hook leve para detectar o tema atual (lê a classe do <html>)
@@ -782,22 +783,19 @@ const LeadNodeItem = memo(({
           {hasFollowUpDue && !node.needsAttention && <FollowUpRing />}
 
           <div
-            className={`flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border-[3px] bg-white/80 dark:bg-[var(--orbit-glass)] text-[10px] font-medium text-slate-700 dark:text-zinc-200 backdrop-blur-sm lead-node-avatar ${
+            className={`flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border-2 bg-[var(--orbit-glass)] text-xs font-light text-[var(--orbit-text)] backdrop-blur-sm transition-all duration-300 ${
               isHighlighted && isResponding
-                ? "animate-lead-highlight scale-110"
-                : node.isNew
-                  ? "animate-new-lead-glow"
-                  : node.needsAttention
-                    ? "animate-attention-glow"
-                    : ""
+                ? "animate-lead-highlight scale-110 border-[var(--orbit-glow)]"
+                : hasFollowUpDue
+                  ? "border-amber-400 shadow-[0_0_16px_rgba(251,191,36,0.5)]"
+                  : node.isNew
+                    ? "border-[var(--orbit-glow)] animate-new-lead-glow"
+                    : !(leadState?.visualState && ["ativo", "aguardando", "em_decisao"].includes(leadState.visualState))
+                      ? "border-zinc-500/50"
+                      : `${getContactCycleAura(node.daysSinceInteraction, !!node.needsAttention, isDark).ring} ${getContactCycleAura(node.daysSinceInteraction, !!node.needsAttention, isDark).glow}`
             }`}
             style={{
               animationDelay: isHighlighted ? `${highlightDelay}s` : "0s",
-              borderColor: isHighlighted && isResponding
-                ? "var(--orbit-glow)"
-                : node.isNew
-                  ? "var(--orbit-glow)"
-                  : getContactCycleRing(node.daysSinceInteraction, !!node.needsAttention, isDark),
             }}
           >
             {node.photoUrl && node.photoUrl !== "null" ? (
@@ -887,6 +885,13 @@ export function LeadNodes({
     getLeadVisualState,
     setLeadVisualState,
   } = useOrbitContext();
+
+  // Local helper para substituir a função removida do contexto
+  const hasActiveCycle = (id: string) => {
+    const state = leadStates[id]
+    if (!state) return false
+    return state.visualState && ["ativo", "aguardando", "em_decisao"].includes(state.visualState)
+  }
 
   const [activeVisualStates, setActiveVisualStates] = useState<
     Record<string, LeadVisualState>
