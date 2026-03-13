@@ -140,10 +140,11 @@ Responda APENAS com um JSON puro contendo estas chaves:
   "urgency": 0-100,
   "interest_delta": número de -20 a 20 (use valores negativos para desinteresse/negativas),
   "momentum_delta": número de -20 a 20 (use valores negativos se o lead esfriar),
-  "memory_profile": [{"type": "string", "content": "string"}] | null,
-  "memory_context": [{"type": "string", "content": "string"}] | null,
-  "memory_events": [{"type": "string", "content": "string"}] | null,
-  "action_suggested": "needs_attention | follow_up | none",
+  "current_cognitive_state": "latent|curious|exploring|evaluating|deciding|resolved|dormant",
+  "memory_profile": [{"type": "identity|budget_range|location_preference|property_type|feature_preference", "content": "string"}] | null,
+  "memory_context": [{"type": "current_search|location_focus|budget|priority", "content": "string"}] | null,
+  "memory_events": [{"type": "property_sent|visited|discarded|price_objection|proposal_made|visit_scheduled", "content": "string"}] | null,
+  "action_suggested": "needs_attention|follow_up|none",
   "action_description": "descrição curta da ação sugerida"
 }
 
