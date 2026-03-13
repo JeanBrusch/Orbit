@@ -233,7 +233,7 @@ export async function processEventWithCore(
 
   try {
     const context = await getContext(leadId);
-    const currentEmbedding = await generateEmbedding(content);
+
 
     const analysis = await analyzeContext(leadId, content, type, context);
     if (!analysis) {
@@ -250,6 +250,7 @@ export async function processEventWithCore(
     // 1. Atualizar Mensagem
     console.log(`[ORBIT CORE] Passo 1 - atualizando mensagem...`);
     if (messageId) {
+      const currentEmbedding = await generateEmbedding(content);
       const r1 = await (getSupabase()?.from("messages") as any)
         .update({ ai_analysis: analysis as any, embedding: currentEmbedding })
         .eq("id", messageId);
