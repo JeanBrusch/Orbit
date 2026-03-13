@@ -1103,7 +1103,7 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
                       <p className="text-sm font-semibold text-[#d4af35] mb-1 leading-snug">
                         {cog?.current_state === "deciding" ? "🎯 Acionar Agora" : "💡 Ação Recomendada"}
                       </p>
-                      <p className="text-[11px] text-slate-300 leading-relaxed">{humanStage(lead.action_suggested)}</p>
+                      <p className="text-[11px] text-slate-300 leading-relaxed">{lead.action_suggested || "Nenhuma ação sugerida"}</p>
                     </div>
                   ) : (
                     <div className="p-3 bg-white/3 border border-white/5 rounded-lg mb-4">

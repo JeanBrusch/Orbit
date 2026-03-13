@@ -45,6 +45,7 @@ interface CoreAnalysis {
   memory_events: { type: string, content: string }[] | null;
   current_cognitive_state: 'latent' | 'curious' | 'exploring' | 'evaluating' | 'deciding' | 'resolved' | 'dormant';
   action_suggested: string;
+  action_description: string;
 }
 
 // ─── Geração de Embedding ─────────────────────────────────────────────────────
@@ -141,7 +142,7 @@ Responda APENAS com um JSON puro contendo estas chaves:
   "memory_context": [{"type": "current_search|location_focus|budget|priority", "content": "string"}] | null,
   "memory_events": [{"type": "property_sent|visited|discarded|price_objection|proposal_made|visit_scheduled", "content": "string"}] | null,
   "action_suggested": "needs_attention|follow_up|none",
-  "action_description": "descrição curta da ação sugerida"
+  "action_description": "Ação específica e curta em português (ex: 'Enviar folder do Malibu', 'Perguntar sobre o prazo de mudança')"
 }
 
 IMPORTANTE: 
@@ -276,7 +277,7 @@ export async function processEventWithCore(
     const r3 = await (getSupabase()?.from("ai_insights") as any).insert({
       lead_id: leadId,
       type: "suggestion",
-      content: `${analysis.intention} · Próxima ação: ${analysis.action_suggested}`,
+      content: `${analysis.intention} · Próxima ação: ${analysis.action_description}`,
       urgency: urgency1to5,
     });
     if (r3?.error) {
@@ -349,7 +350,7 @@ export async function processEventWithCore(
     console.log(`[ORBIT CORE] Passo 6 - atualizando lead...`);
     const r6 = await (getSupabase()?.from("leads") as any)
       .update({
-        action_suggested: analysis.action_suggested,
+        action_suggested: analysis.action_description,
         last_evaluated_at: new Date().toISOString(),
         orbit_stage: nextState,
       })
