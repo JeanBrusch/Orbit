@@ -742,7 +742,7 @@ const LeadNodeItem = memo(({
     if (d <= 7)  return "opacity-90"                               // quase pleno
     if (d <= 15) return "opacity-80 scale-[0.97]"                  // começa a recuar, mas cor ainda visível
     if (d <= 30) return "opacity-75 scale-[0.94] grayscale-[0.3]"  // recuado
-    return            "opacity-65 scale-[0.90] grayscale-[0.6]"    // profundamente esvaecido
+    return            "opacity-20 scale-[0.80] grayscale"            // > 30 dias: quasi-invisível e menor
   }
 
   const activityOpacity = orbitViewStatus.isUnrelated
