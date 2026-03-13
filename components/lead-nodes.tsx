@@ -630,16 +630,18 @@ function getContactCycleAura(
   isDark: boolean,
 ): { ring: string; glow: string } {
   if (needsAttention) {
-    // Verde esmeralda forte - Atenção necessária
-    return { ring: "border-emerald-400", glow: "shadow-[0_0_16px_rgba(52,211,153,0.5)]" }
+    // 1. Mensagem Nova (Verde) - Prioridade Máxima
+    return { ring: "border-emerald-400", glow: "shadow-[0_0_24px_rgba(52,211,153,0.8)]" }
   }
+  
   const d = days ?? 0
-  if (d <= 3) return { ring: "border-[#2EC5FF]", glow: "shadow-[0_0_16px_rgba(46,197,255,0.5)]" } // azul (Aware)
-  if (d <= 7) return { ring: "border-[#FFC87A]", glow: "shadow-[0_0_16px_rgba(255,200,122,0.5)]" } // ambar (Curious)
-  if (d <= 15) return { ring: "border-orange-400", glow: "shadow-[0_0_16px_rgba(251,146,60,0.5)]" } // laranja (Conflicted)
-  if (d <= 30) return { ring: "border-rose-400", glow: "shadow-[0_0_16px_rgba(251,113,133,0.5)]" } // vermelho
-  // cinza recuado (SilentGravity)
-  return { ring: "border-cyan-300", glow: "shadow-[0_0_16px_rgba(103,232,249,0.2)]" }
+  
+  if (d <= 3) return { ring: "border-[#2EC5FF]", glow: "shadow-[0_0_16px_rgba(46,197,255,0.5)]" } // 5. Azul: contato recente
+  if (d <= 7) return { ring: "border-yellow-400", glow: "shadow-[0_0_16px_rgba(250,204,21,0.5)]" } // 4. Amarelo: precisa de atenção
+  if (d <= 15) return { ring: "border-orange-500", glow: "shadow-[0_0_16px_rgba(249,115,22,0.6)]" } // 3. Laranja: esfriando
+  
+  // 2. Vermelho: abandono (>15 dias) - Alerta Claro
+  return { ring: "border-[#FF7A7A]", glow: "shadow-[0_0_20px_rgba(255,122,122,0.7)]" }
 }
 
 // hook leve para detectar o tema atual (lê a classe do <html>)
@@ -734,13 +736,13 @@ const LeadNodeItem = memo(({
   );
 
   const getFadeDepth = (days: number | undefined, needsAttention: boolean): string => {
-    if (needsAttention) return ""                                  // sempre pleno
+    if (needsAttention) return ""                                  // 1. Mensagem Nova: sempre pleno
     const d = days ?? 0
     if (d <= 3)  return ""                                         // pleno
     if (d <= 7)  return "opacity-90"                               // quase pleno
-    if (d <= 15) return "opacity-70 scale-[0.97]"                  // começa a recuar
-    if (d <= 30) return "opacity-50 scale-[0.94] grayscale-[0.3]"  // recuado
-    return            "opacity-30 scale-[0.90] grayscale-[0.6]"    // esvaecido, menor
+    if (d <= 15) return "opacity-80 scale-[0.97]"                  // começa a recuar, mas cor ainda visível
+    if (d <= 30) return "opacity-75 scale-[0.94]"                  // recuado (Removido grayscale para o Alerta Vermelho brilhar!)
+    return            "opacity-65 scale-[0.90]"                    // profundamente esvaecido, mas vermelho discernível
   }
 
   const activityOpacity = orbitViewStatus.isUnrelated
