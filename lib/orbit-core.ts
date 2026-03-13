@@ -23,6 +23,8 @@ function getSupabase() {
     console.warn("[ORBIT CORE] Supabase credentials missing during access.");
     return null;
   }
+  const isServiceRole = !!process.env.SUPABASE_SERVICE_ROLE_KEY;
+  console.log(`[ORBIT CORE] Supabase key type: ${isServiceRole ? 'SERVICE_ROLE (bypass RLS)' : 'ANON (RLS active)'}`);
   _supabaseCache = createClient<Database>(url, key);
   return _supabaseCache;
 }
@@ -282,7 +284,11 @@ export async function processEventWithCore(
       content: `${analysis.intention} · Próxima ação: ${analysis.action_suggested}`,
       urgency: analysis.urgency,
     });
-    if (r3?.error) console.error(`[ORBIT CORE] Passo 3 ERRO:`, r3.error);
+    if (r3?.error) {
+      console.error(`[ORBIT CORE] Passo 3 ERRO (ai_insights):`, JSON.stringify(r3.error));
+    } else {
+      console.log(`[ORBIT CORE] Passo 3 OK - insight salvo`);
+    }
 
     // 4. Gravar Memórias
     console.log(`[ORBIT CORE] Passo 4 - gravando memórias...`, {
@@ -305,7 +311,11 @@ export async function processEventWithCore(
         confidence: Math.round(analysis.urgency),
         source_message_id: messageId || null,
       });
-      if (rm?.error) console.error(`[ORBIT CORE] Memória ERRO (tipo: ${mem.type}):`, rm.error);
+      if (rm?.error) {
+        console.error(`[ORBIT CORE] Memória ERRO (tipo: ${mem.type}):`, JSON.stringify(rm.error));
+      } else {
+        console.log(`[ORBIT CORE] Memória OK: tipo=${mem.type}`);
+      }
     }
 
     // 5. Cálculo do Lead Vector
