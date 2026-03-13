@@ -68,7 +68,6 @@ export async function generateEmbedding(text: string): Promise<number[] | null> 
     const response = await openai.embeddings.create({
       model: "text-embedding-3-small",
       input: text,
-      dimensions: 768,
     });
     
     return response.data[0].embedding || null;
