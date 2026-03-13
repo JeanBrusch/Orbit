@@ -11,22 +11,16 @@ function getOpenAI() {
   return _openaiCache;
 }
 
-// Lazy Supabase init to prevent top-level crash if env vars are missing
-let _supabaseCache: any = null;
+// Always create a fresh client — serverless environments cannot reuse connections safely
 function getSupabase() {
-  if (_supabaseCache) return _supabaseCache;
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  // Prioriza SERVICE_ROLE_KEY para operações de backend (bypass RLS)
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   
   if (!url || !key) {
     console.warn("[ORBIT CORE] Supabase credentials missing during access.");
     return null;
   }
-  const isServiceRole = !!process.env.SUPABASE_SERVICE_ROLE_KEY;
-  console.log(`[ORBIT CORE] Supabase key type: ${isServiceRole ? 'SERVICE_ROLE (bypass RLS)' : 'ANON (RLS active)'}`);
-  _supabaseCache = createClient<Database>(url, key);
-  return _supabaseCache;
+  return createClient<Database>(url, key);
 }
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -200,10 +194,10 @@ async function getContext(leadId: string) {
     getSupabase()?.from("property_interactions").select("*").eq("lead_id", leadId).limit(10),
   ]);
 
-  const messages = (messagesRes.data || []) as MessageRow[];
-  const memoryItems = (memoryRes.data || []) as MemoryItemRow[];
-  const cognitiveState = (stateRes.data || null) as LeadCognitiveStateRow | null;
-  const interactions = (interactionsRes.data || []) as PropertyInteractionRow[];
+  const messages = (messagesRes?.data || []) as MessageRow[];
+  const memoryItems = (memoryRes?.data || []) as MemoryItemRow[];
+  const cognitiveState = (stateRes?.data || null) as LeadCognitiveStateRow | null;
+  const interactions = (interactionsRes?.data || []) as PropertyInteractionRow[];
 
   return {
     lastMessages: [...messages]
