@@ -52,6 +52,7 @@ function OrbitInterfaceContent() {
     openLeadPanel,
     closeLeadPanel,
     initializeLeadStates,
+    isAtlasMapActive,
   } = useOrbitContext();
 
   useEffect(() => {
@@ -223,13 +224,19 @@ function OrbitInterfaceContent() {
       </div>
       
       {/* Atlas Geographic Layer */}
-      <AtlasFocusSurface />
+      <div className="absolute inset-0 z-[150] pointer-events-none">
+        <AtlasFocusSurface />
+      </div>
 
       {/* ── Layer 2: nodesLayer (D3 zoom applied here) ────────────────────── */}
       <div
         ref={nodesContainerRef}
-        className="absolute inset-0 z-[50] cursor-grab active:cursor-grabbing outline-none"
-        style={{ touchAction: "none" }}
+        className="absolute inset-0 z-[50] cursor-grab active:cursor-grabbing outline-none transition-opacity duration-500"
+        style={{ 
+          touchAction: "none",
+          opacity: isAtlasMapActive ? 0 : 1,
+          pointerEvents: isAtlasMapActive ? "none" : "auto",
+        }}
       >
         <div
           ref={nodesLayerRef}

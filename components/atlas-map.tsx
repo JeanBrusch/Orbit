@@ -304,7 +304,7 @@ export function AtlasFocusSurface() {
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: 380, opacity: 0 }}
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            className="fixed right-0 top-0 h-full w-[380px] z-[35] border-l border-white/10 bg-[#0a0a0c]/95 backdrop-blur-2xl flex flex-col overflow-hidden shadow-[-20px_0_50px_rgba(0,0,0,0.5)]"
+            className="fixed right-0 top-0 h-full w-[380px] z-[35] border-l border-white/10 bg-[#0a0a0c]/95 backdrop-blur-2xl flex flex-col overflow-hidden shadow-[-20px_0_50px_rgba(0,0,0,0.5)] pointer-events-auto"
           >
               <div className="w-[380px] h-full flex flex-col relative">
                 
@@ -416,7 +416,7 @@ export function AtlasFocusSurface() {
 
                 {/* Confirm Action Se houver Lead já pre-selecionado (envio ativo) */}
                 {atlasInvokeContext?.onPropertySelected && (
-                  <div className="p-5 border-t border-white/5 bg-[#0a0a0c]">
+                  <div className="shrink-0 p-5 border-t border-white/5 bg-[#0a0a0c]">
                     <button
                       onClick={handleConfirmSelection}
                       className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-medium text-sm text-white bg-indigo-600 hover:bg-indigo-500 transition-colors shadow-[0_0_20px_rgba(99,102,241,0.4)]"

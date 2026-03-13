@@ -337,7 +337,7 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
   const [cognitive, setCognitive] = useState<CognitiveState | null>(null);
   const [memories, setMemories] = useState<MemoryItem[]>([]);
   const [insights, setInsights] = useState<AiInsight[]>([]);
-  const { invokeAtlasMap } = useOrbitContext();
+  const { invokeAtlasMap, isAtlasMapActive } = useOrbitContext();
   const [messages, setMessages] = useState<Message[]>([]);
   const [interactions, setInteractions] = useState<PropertyInteraction[]>([]);
   const [aiSuggestion, setAiSuggestion] = useState<string | null>(null);
@@ -685,8 +685,13 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
 
   return (
     <div
-      className="fixed inset-0 z-[200] flex justify-end"
-      style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(6px)" }}
+      className="fixed inset-0 flex justify-end transition-all duration-500"
+      style={{ 
+        background: isAtlasMapActive ? "transparent" : "rgba(0,0,0,0.7)", 
+        backdropFilter: isAtlasMapActive ? "none" : "blur(6px)",
+        zIndex: isAtlasMapActive ? 1 : 200,
+        pointerEvents: isAtlasMapActive ? "none" : "auto"
+      }}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
       <motion.div
