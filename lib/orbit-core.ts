@@ -68,6 +68,7 @@ export async function generateEmbedding(text: string): Promise<number[] | null> 
     const response = await openai.embeddings.create({
       model: "text-embedding-3-small",
       input: text,
+      dimensions: 768,
     });
     
     return response.data[0].embedding || null;
@@ -290,9 +291,10 @@ export async function processEventWithCore(
       context: analysis.memory_context?.length || 0,
       events: analysis.memory_events?.length || 0,
     });
+    const VALID_MEMORY_TYPES = ['intent','preference','budget','constraint','pain','event','objection','identity','budget_range','location_preference','property_type','feature_preference','current_search','location_focus','priority','property_sent','visited','discarded','price_objection','proposal_made','visit_scheduled'];
     const memoriesToSave = [
-      ...(analysis.memory_profile || []).map(m => ({ ...m, type: "ai" })),
-      ...(analysis.memory_context || []).map(m => ({ ...m, type: "ai" })),
+      ...(analysis.memory_profile || []).filter(m => VALID_MEMORY_TYPES.includes(m.type)),
+      ...(analysis.memory_context || []).filter(m => VALID_MEMORY_TYPES.includes(m.type)),
       ...(analysis.memory_events || []).map(m => ({ ...m, type: "event" })),
     ];
     for (const mem of memoriesToSave) {
