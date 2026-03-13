@@ -133,7 +133,10 @@ export function useSupabaseLeads() {
 
       const rows = (data || []) as LeadCenterRow[]
 
-      const leadIds = rows.map(r => r.lead_id).filter(Boolean) as string[]
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+      const leadIds = rows
+        .map(r => r.lead_id)
+        .filter(id => id && uuidRegex.test(id)) as string[]
       let orbitDataMap: Record<string, {
         orbit_stage: string | null
         orbit_visual_state: string | null
@@ -155,24 +158,51 @@ export function useSupabaseLeads() {
         const MEMORY_MIN_AGE_DAYS = 45
         const memoryMinAge = new Date(Date.now() - MEMORY_MIN_AGE_DAYS * 24 * 60 * 60 * 1000).toISOString()
 
-        const [leadsRes, cognitiveRes, notesRes] = await Promise.all([
-          supabase
-            .from('leads')
-            .select('id, orbit_stage, orbit_visual_state, action_suggested, cycle_stage, followup_active, followup_remaining, followup_done_today')
-            .in('id', leadIds),
-          supabase
-            .from('lead_cognitive_state')
-            .select('*')
-            .in('lead_id', leadIds),
-          supabase
-            .from('internal_notes')
-            .select('lead_id')
-            .in('lead_id', leadIds)
-            .lt('created_at', memoryMinAge),
-        ])
+        // Break leadIds into smaller chunks (e.g. 5) to avoid 400 Bad Request URI Too Long
+        const chunkSize = 5
+        const idChunks = Array.from({ length: Math.ceil(leadIds.length / chunkSize) }, (_, i) =>
+          leadIds.slice(i * chunkSize, i * chunkSize + chunkSize)
+        )
 
-        if (leadsRes.data) {
-          for (const lead of leadsRes.data as any[]) {
+        // Gather promises for each chunk
+        const chunkPromises = idChunks.map(async (chunk) => {
+          const [leadsRes, cognitiveRes, notesRes] = await Promise.all([
+            supabase
+              .from('leads')
+              .select('id, orbit_stage, orbit_visual_state, action_suggested, cycle_stage')
+              .in('id', chunk),
+            supabase
+              .from('lead_cognitive_state')
+              .select('*')
+              .in('lead_id', chunk),
+            supabase
+              .from('internal_notes')
+              .select('lead_id')
+              .in('lead_id', chunk)
+              .lt('created_at', memoryMinAge),
+          ])
+          
+          return {
+            leadsData: leadsRes.data || [],
+            cognitiveData: cognitiveRes.data || [],
+            notesData: notesRes.data || []
+          }
+        })
+
+        const chunksResults = await Promise.all(chunkPromises)
+        
+        let allLeadsData: any[] = []
+        let allCognitiveData: any[] = []
+        let allNotesData: any[] = []
+        
+        chunksResults.forEach(res => {
+          allLeadsData = allLeadsData.concat(res.leadsData)
+          allCognitiveData = allCognitiveData.concat(res.cognitiveData)
+          allNotesData = allNotesData.concat(res.notesData)
+        })
+
+        if (allLeadsData.length > 0) {
+          for (const lead of allLeadsData) {
             orbitDataMap[lead.id] = {
               ...orbitDataMap[lead.id],
               orbit_stage: lead.orbit_stage || null,
@@ -186,8 +216,8 @@ export function useSupabaseLeads() {
           }
         }
 
-        if (cognitiveRes.data) {
-          for (const state of cognitiveRes.data as any[]) {
+        if (allCognitiveData.length > 0) {
+          for (const state of allCognitiveData) {
             if (state.lead_id) {
               const prev = orbitDataMap[state.lead_id] || {
                 orbit_stage: null,
@@ -211,8 +241,8 @@ export function useSupabaseLeads() {
           }
         }
 
-        if (notesRes.data) {
-          for (const note of notesRes.data as { lead_id: string | null }[]) {
+        if (allNotesData.length > 0) {
+          for (const note of allNotesData as { lead_id: string | null }[]) {
             if (note.lead_id) matureNotesMap[note.lead_id] = true
           }
         }

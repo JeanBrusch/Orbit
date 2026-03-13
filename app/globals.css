@@ -650,7 +650,7 @@
 }
 
 /* Dark mode: verde mais vibrante */
-.dark @keyframes attention-glow {
+@keyframes attention-glow-dark {
   0%, 100% {
     box-shadow: 0 0 16px rgba(74,222,128,0.45),
                 0 0 32px rgba(74,222,128,0.18);
@@ -672,6 +672,10 @@
 /* Verde pulsante — needsAttention (mensagem recebida não respondida) */
 .animate-attention-glow {
   animation: attention-glow 2.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.dark .animate-attention-glow {
+  animation: attention-glow-dark 2.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
 
 /* Transição suave ao trocar de tema nos nós */
