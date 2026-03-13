@@ -290,9 +290,9 @@ export async function processEventWithCore(
       events: analysis.memory_events?.length || 0,
     });
     const memoriesToSave = [
-      ...(analysis.memory_profile || []),
-      ...(analysis.memory_context || []),
-      ...(analysis.memory_events || [])
+      ...(analysis.memory_profile || []).map(m => ({ ...m, type: "ai" })),
+      ...(analysis.memory_context || []).map(m => ({ ...m, type: "ai" })),
+      ...(analysis.memory_events || []).map(m => ({ ...m, type: "event" })),
     ];
     for (const mem of memoriesToSave) {
       console.log(`[ORBIT CORE] Inserindo memória tipo: ${mem.type}`);
