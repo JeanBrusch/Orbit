@@ -272,11 +272,12 @@ export async function processEventWithCore(
 
     // 3. Gravar Insight
     console.log(`[ORBIT CORE] Passo 3 - inserindo insight...`);
+    const urgency1to5 = Math.min(5, Math.max(1, Math.round(analysis.urgency / 20)));
     const r3 = await (getSupabase()?.from("ai_insights") as any).insert({
       lead_id: leadId,
       type: "suggestion",
       content: `${analysis.intention} · Próxima ação: ${analysis.action_suggested}`,
-      urgency: analysis.urgency,
+      urgency: urgency1to5,
     });
     if (r3?.error) {
       console.error(`[ORBIT CORE] Passo 3 ERRO (ai_insights):`, JSON.stringify(r3.error));
