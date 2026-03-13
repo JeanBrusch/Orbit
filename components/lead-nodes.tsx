@@ -310,22 +310,31 @@ function applyGravity(
   daysSinceInteraction: number | undefined,
   extraBoost: number = 0, // e.g. follow-up or recent contacts bonus
 ): { top: string; left: string } {
+  const days = daysSinceInteraction ?? 0
+
   let pullStrength = Math.min(
     0.65,
     getStagePullStrength(cycleStage) + extraBoost,
   );
 
-  if ((daysSinceInteraction ?? 0) > 30) {
-    pullStrength = -0.12; // Empurra para a periferia
+  if (days > 30) {
+    pullStrength = -0.45; // Empurra forte para a periferia (quasi-invisivel)
+  } else if (days > 15) {
+    pullStrength = -0.10; // Empurra suavemente para fora
   }
 
   if (pullStrength === 0) return position;
 
   const top = parseFloat(position.top);
   const left = parseFloat(position.left);
+  // Para push negativo, afasta do centro (50,50) em vez de aproximar
   const newTop = top + (50 - top) * pullStrength;
   const newLeft = left + (50 - left) * pullStrength;
-  return { top: `${newTop}%`, left: `${newLeft}%` };
+
+  // Clamp so nodes stay within the visible canvas
+  const clampedTop = Math.min(92, Math.max(8, newTop));
+  const clampedLeft = Math.min(92, Math.max(8, newLeft));
+  return { top: `${clampedTop}%`, left: `${clampedLeft}%` };
 }
 
 /**
