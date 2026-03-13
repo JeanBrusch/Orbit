@@ -277,7 +277,8 @@ export function useSupabaseLeads() {
           daysSinceInteraction: lead.dias_sem_interacao || undefined,
           orbitStage: orbitData?.orbit_stage,
           orbitVisualState: orbitData?.orbit_visual_state,
-          needsAttention: orbitData?.action_suggested === 'needs_attention',
+          // Verde sinalizar apenas mensagem recebida e não lida (via Webhook WhatsApp)
+          needsAttention: lead.last_event_type === 'received',
           cycleStage: orbitData?.cycle_stage || 'sem_ciclo',
           followupActive: orbitData?.followup_active || false,
           followupRemaining: orbitData?.followup_remaining || 0,

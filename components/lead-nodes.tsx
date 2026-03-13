@@ -631,17 +631,17 @@ function getContactCycleAura(
 ): { ring: string; glow: string } {
   if (needsAttention) {
     // 1. Mensagem Nova (Verde) - Prioridade Máxima
-    return { ring: "border-emerald-400", glow: "shadow-[0_0_24px_rgba(52,211,153,0.8)]" }
+    return { ring: "border-emerald-500 border-[3px]", glow: "shadow-[0_0_24px] shadow-emerald-500/80" }
   }
   
   const d = days ?? 0
   
-  if (d <= 3) return { ring: "border-[#2EC5FF]", glow: "shadow-[0_0_16px_rgba(46,197,255,0.5)]" } // 5. Azul: contato recente
-  if (d <= 7) return { ring: "border-yellow-400", glow: "shadow-[0_0_16px_rgba(250,204,21,0.5)]" } // 4. Amarelo: precisa de atenção
-  if (d <= 15) return { ring: "border-orange-500", glow: "shadow-[0_0_16px_rgba(249,115,22,0.6)]" } // 3. Laranja: esfriando
+  if (d <= 3) return { ring: "border-blue-500", glow: "shadow-[0_0_12px] shadow-blue-500/50" } // 5. Azul: contato recente
+  if (d <= 7) return { ring: "border-yellow-400", glow: "shadow-[0_0_12px] shadow-yellow-400/50" } // 4. Amarelo: precisa de atenção
+  if (d <= 15) return { ring: "border-orange-500", glow: "shadow-[0_0_12px] shadow-orange-500/50" } // 3. Laranja: esfriando
   
   // 2. Vermelho: abandono (>15 dias) - Alerta Claro
-  return { ring: "border-[#FF7A7A]", glow: "shadow-[0_0_20px_rgba(255,122,122,0.7)]" }
+  return { ring: "border-red-600", glow: "shadow-[0_0_12px] shadow-red-600/50" }
 }
 
 // hook leve para detectar o tema atual (lê a classe do <html>)
@@ -749,11 +749,9 @@ const LeadNodeItem = memo(({
     ? "opacity-40 scale-[0.95]"
     : getFadeDepth(node.daysSinceInteraction, !!node.needsAttention);
 
-  const intensityClass = node.needsAttention ? "opacity-100" : "opacity-70";
-
   return (
     <div
-      className={`pointer-events-auto absolute transition-all duration-700 ${intensityClass} ${node.needsAttention ? 'animate-pulse border-emerald-400' : ''} ${isResponding && hasHighlights && !isHighlighted
+      className={`pointer-events-auto absolute transition-all duration-700 ${node.needsAttention ? 'animate-pulse z-40' : ''} ${isResponding && hasHighlights && !isHighlighted
           ? "scale-95 opacity-40"
           : activityOpacity
         } ${!isResponding && !node.isNew ? "animate-node-float" : ""} ${node.cycleStage === "decidindo" || hasFollowUpDue
@@ -788,13 +786,9 @@ const LeadNodeItem = memo(({
             className={`flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border-2 bg-[var(--orbit-glass)] text-xs font-light text-[var(--orbit-text)] backdrop-blur-sm transition-all duration-300 ${
               isHighlighted && isResponding
                 ? "animate-lead-highlight scale-110 border-[var(--orbit-glow)]"
-                : hasFollowUpDue
-                  ? "border-amber-400 shadow-[0_0_16px_rgba(251,191,36,0.5)]"
-                  : node.isNew
-                    ? "border-[var(--orbit-glow)] animate-new-lead-glow"
-                    : !(leadState?.visualState && ["ativo", "aguardando", "em_decisao"].includes(leadState.visualState))
-                      ? "border-zinc-500/50"
-                      : `${getContactCycleAura(node.daysSinceInteraction, !!node.needsAttention, isDark).ring} ${getContactCycleAura(node.daysSinceInteraction, !!node.needsAttention, isDark).glow}`
+                : node.isNew
+                  ? "border-[var(--orbit-glow)] animate-new-lead-glow"
+                  : `${getContactCycleAura(node.daysSinceInteraction, !!node.needsAttention, isDark).ring} ${getContactCycleAura(node.daysSinceInteraction, !!node.needsAttention, isDark).glow}`
             }`}
             style={{
               animationDelay: isHighlighted ? `${highlightDelay}s` : "0s",
