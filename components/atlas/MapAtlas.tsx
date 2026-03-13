@@ -164,6 +164,18 @@ export function MapAtlas({
 
   const validProps = properties.filter(p => p.lat !== null && p.lng !== null)
 
+  const handleMarkerClick = useCallback((p: MapProperty) => {
+    onPropertyClick?.(p)
+  }, [onPropertyClick])
+
+  const handleMarkerMouseEnter = useCallback((p: MapProperty) => {
+    setHoveredProperty(p)
+  }, [])
+
+  const handleMarkerMouseLeave = useCallback(() => {
+    setHoveredProperty(null)
+  }, [])
+
   return (
     <div className={`relative bg-[#050505] h-full w-full overflow-hidden ${className}`}>
       <Map
@@ -188,9 +200,9 @@ export function MapAtlas({
             prop={prop}
             isSelected={selectedPropertyId === prop.id}
             isHovered={hoveredProperty?.id === prop.id}
-            onClick={useCallback((p: MapProperty) => onPropertyClick?.(p), [onPropertyClick])}
-            onMouseEnter={useCallback((p: MapProperty) => setHoveredProperty(p), [])}
-            onMouseLeave={useCallback(() => setHoveredProperty(null), [])}
+            onClick={handleMarkerClick}
+            onMouseEnter={handleMarkerMouseEnter}
+            onMouseLeave={handleMarkerMouseLeave}
           />
         ))}
 

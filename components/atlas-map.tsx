@@ -223,20 +223,20 @@ export function AtlasFocusSurface() {
   const leadName = atlasInvokeContext?.leadName
 
   // ── Hooks extracted from JSX to avoid conditional hook violation ─────────
-  const mapAtlasProperties = useMemo(() => supabaseProperties.map((prop): MapProperty => ({
+  const mapAtlasProperties = useMemo(() => allProperties.map((prop): MapProperty => ({
     id: prop.id,
-    name: prop.title || prop.internal_name || 'Imóvel sem nome',
-    lat: prop.lat,
-    lng: prop.lng,
+    name: prop.name,
+    lat: prop.lat ?? null,
+    lng: prop.lng ?? null,
     value: prop.value,
-    locationText: prop.location_text,
-    coverImage: prop.cover_image,
-    url: prop.source_link,
-  })), [supabaseProperties])
+    locationText: prop.locationText,
+    coverImage: prop.coverImage,
+    url: prop.url,
+  })), [allProperties])
 
   const handleMapPropertyClick = useCallback((mapProp: MapProperty) => {
     const fullProp = allProperties.find(p => p.id === mapProp.id)
-    if (fullProp) setSelectedProperty(fullProp)
+    if (fullProp) setSelectedProperty(fullProp);
   }, [allProperties])
 
   // ── Guard: render nothing until Atlas is active ─────────────────────────

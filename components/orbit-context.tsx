@@ -59,6 +59,9 @@ export interface Property {
   locationAccuracy?: LocationAccuracy
   // Ingestion status for display
   ingestionStatus?: IngestionStatus
+  // Geographic location
+  lat?: number | null
+  lng?: number | null
   // Reference to full ingested property
   ingestedData?: IngestedProperty
 }

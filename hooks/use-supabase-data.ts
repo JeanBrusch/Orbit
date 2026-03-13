@@ -278,7 +278,8 @@ export function useSupabaseLeads() {
           orbitStage: orbitData?.orbit_stage,
           orbitVisualState: orbitData?.orbit_visual_state,
           // Verde sinalizar apenas mensagem recebida e não lida (via Webhook WhatsApp)
-          needsAttention: lead.last_event_type === 'received',
+          // ou quando a IA sugere atenção imediata
+          needsAttention: lead.last_event_type === 'received' || lead.acao_sugerida === 'needs_attention',
           cycleStage: orbitData?.cycle_stage || 'sem_ciclo',
           followupActive: orbitData?.followup_active || false,
           followupRemaining: orbitData?.followup_remaining || 0,
@@ -306,37 +307,33 @@ export function useSupabaseLeads() {
   useEffect(() => {
     fetchLeads()
 
-    const supabase = getSupabase()
+    // Polling a cada 10s — garante atualização mesmo sem Realtime
+    const interval = setInterval(fetchLeads, 10000)
 
-    // ── Supabase Realtime: watch leads_center view changes ──────────────────
-    // leads_center is a view — subscribe to the underlying `leads` table and
-    // `lead_cognitive_state` so any AI-driven update surfaces immediately.
+    // Supabase Realtime — reage imediatamente quando action_suggested
+    // ou qualquer campo de lead muda (ex: needs_attention, state, etc.)
+    const supabase = getSupabase()
     const channel = supabase
-      .channel('orbit-leads-realtime')
+      .channel('leads-orbit-realtime')
       .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'leads' },
-        () => { fetchLeads() }
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'lead_cognitive_state' },
-        () => { fetchLeads() }
-      )
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'messages' },
-        () => { fetchLeads() }
+        'postgres_changes' as any,
+        { event: 'UPDATE', schema: 'public', table: 'leads' },
+        () => {
+          fetchLeads()
+        }
       )
       .subscribe()
 
-    // Refetch when tab regains focus
+    // Refetch quando aba volta ao foco
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') fetchLeads()
+      if (document.visibilityState === 'visible') {
+        fetchLeads()
+      }
     }
     document.addEventListener('visibilitychange', handleVisibilityChange)
 
     return () => {
+      clearInterval(interval)
       supabase.removeChannel(channel)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }

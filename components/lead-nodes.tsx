@@ -1037,7 +1037,7 @@ export function LeadNodes({
             }}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
-            onClick={handleNodeClick}
+            onClick={handleLeadClick}
             isHovered={hoveredLeadId === node.id}
             visualState={getLeadVisualState(node.id)}
             onVisualStateChange={setLeadVisualState}
