@@ -227,15 +227,12 @@ export async function processEventWithCore(
   type: EventType,
   messageId?: string
 ): Promise<void> {
-  // Ignora conteúdos vazios
   if (!content || content.trim() === "") return;
 
   console.log(`[ORBIT CORE] Iniciando análise de 5 camadas: leadId=${leadId}`);
 
   try {
     const context = await getContext(leadId);
-    
-    // Geração de embedding para a mensagem atual
     const currentEmbedding = await generateEmbedding(content);
 
     const analysis = await analyzeContext(leadId, content, type, context);
@@ -251,22 +248,21 @@ export async function processEventWithCore(
     });
 
     // 1. Atualizar Mensagem
+    console.log(`[ORBIT CORE] Passo 1 - atualizando mensagem...`);
     if (messageId) {
-      await (getSupabase()?.from("messages") as any)
-        .update({ 
-          ai_analysis: analysis as any,
-          embedding: currentEmbedding 
-        })
+      const r1 = await (getSupabase()?.from("messages") as any)
+        .update({ ai_analysis: analysis as any, embedding: currentEmbedding })
         .eq("id", messageId);
+      if (r1?.error) console.error(`[ORBIT CORE] Passo 1 ERRO:`, r1.error);
     }
 
-    // 2. Atualizar Estado Cognitivo (Interest & Momentum)
+    // 2. Atualizar Estado Cognitivo
+    console.log(`[ORBIT CORE] Passo 2 - upsert cognitive state...`);
     const cur = context.currentState;
     const newInterest = Math.min(100, Math.max(0, (cur?.interest_score || 50) + analysis.interest_delta));
     const newMomentum = Math.min(100, Math.max(0, (cur?.momentum_score || 50) + analysis.momentum_delta));
     const nextState = analysis.current_cognitive_state;
-
-    await (getSupabase()?.from("lead_cognitive_state") as any).upsert({
+    const r2 = await (getSupabase()?.from("lead_cognitive_state") as any).upsert({
       lead_id: leadId,
       interest_score: newInterest,
       momentum_score: newMomentum,
@@ -275,35 +271,43 @@ export async function processEventWithCore(
       risk_score: cur?.risk_score || 50,
       clarity_level: cur?.clarity_level || 50,
     });
+    if (r2?.error) console.error(`[ORBIT CORE] Passo 2 ERRO:`, r2.error);
 
     // 3. Gravar Insight
-    await (getSupabase()?.from("ai_insights") as any).insert({
+    console.log(`[ORBIT CORE] Passo 3 - inserindo insight...`);
+    const r3 = await (getSupabase()?.from("ai_insights") as any).insert({
       lead_id: leadId,
       type: "cognitive_update",
       content: `${analysis.intention} · Próxima ação: ${analysis.action_suggested}`,
       urgency: analysis.urgency,
     });
+    if (r3?.error) console.error(`[ORBIT CORE] Passo 3 ERRO:`, r3.error);
 
-    // 4. Gravar Memórias Tripartites
+    // 4. Gravar Memórias
+    console.log(`[ORBIT CORE] Passo 4 - gravando memórias...`, {
+      profile: analysis.memory_profile?.length || 0,
+      context: analysis.memory_context?.length || 0,
+      events: analysis.memory_events?.length || 0,
+    });
     const memoriesToSave = [
       ...(analysis.memory_profile || []),
       ...(analysis.memory_context || []),
       ...(analysis.memory_events || [])
     ];
-
     for (const mem of memoriesToSave) {
-      await (getSupabase()?.from("memory_items") as any).insert({
+      console.log(`[ORBIT CORE] Inserindo memória tipo: ${mem.type}`);
+      const rm = await (getSupabase()?.from("memory_items") as any).insert({
         lead_id: leadId,
         type: mem.type as any,
         content: mem.content,
         confidence: Math.round(analysis.urgency),
         source_message_id: messageId || null,
       });
+      if (rm?.error) console.error(`[ORBIT CORE] Memória ERRO (tipo: ${mem.type}):`, rm.error);
     }
 
-    // 5. Cálculo do Lead Vector (Semantic Vector)
-    // lead_vector = 0.4 context + 0.3 profile + 0.2 conversation + 0.1 events
-    
+    // 5. Cálculo do Lead Vector
+    console.log(`[ORBIT CORE] Passo 5 - calculando semantic vector...`);
     const contextString = (analysis.memory_context || []).map(m => m.content).join(" ");
     const profileString = (analysis.memory_profile || []).map(m => m.content).join(" ");
     const conversationString = context.lastMessages;
@@ -317,32 +321,33 @@ export async function processEventWithCore(
     ]);
 
     if (embContext || embProfile || embConv || embEvents) {
-      // Simplificação do cálculo vetorial (média ponderada se disponíveis)
       const vectorSize = embContext?.length || embProfile?.length || embConv?.length || embEvents?.length || 0;
       if (vectorSize > 0) {
         const compositeVector = new Array(vectorSize).fill(0);
         for (let i = 0; i < vectorSize; i++) {
-          compositeVector[i] = 
+          compositeVector[i] =
             ((embContext?.[i] || 0) * 0.4) +
             ((embProfile?.[i] || 0) * 0.3) +
             ((embConv?.[i] || 0) * 0.2) +
             ((embEvents?.[i] || 0) * 0.1);
         }
-
-        await (getSupabase()?.from("leads") as any)
+        const r5 = await (getSupabase()?.from("leads") as any)
           .update({ semantic_vector: compositeVector })
           .eq("id", leadId);
+        if (r5?.error) console.error(`[ORBIT CORE] Passo 5 ERRO:`, r5.error);
       }
     }
 
-    // 6. Atualizar Sugestão Final no Lead
-    await (getSupabase()?.from("leads") as any)
+    // 6. Atualizar Lead
+    console.log(`[ORBIT CORE] Passo 6 - atualizando lead...`);
+    const r6 = await (getSupabase()?.from("leads") as any)
       .update({
         action_suggested: analysis.action_suggested,
         last_evaluated_at: new Date().toISOString(),
         orbit_stage: nextState,
       })
       .eq("id", leadId);
+    if (r6?.error) console.error(`[ORBIT CORE] Passo 6 ERRO:`, r6.error);
 
     console.log(`[ORBIT CORE] Análise concluída: ${nextState} (Interest: ${newInterest}, Momentum: ${newMomentum})`);
   } catch (err) {
