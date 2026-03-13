@@ -380,7 +380,16 @@ export default function LeadTerminalPage({ params }: { params: Promise<{ id: str
       )
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'lead_cognitive_state', filter: `lead_id=eq.${id}` },
-        (payload) => { setCognitive(payload.new as CognitiveState) }
+        async (payload) => {
+          setCognitive(payload.new as CognitiveState)
+          // Refresh memories and insights when cognitive state changes (analysis complete)
+          const [memRes, insRes] = await Promise.all([
+            supabase.from("memory_items").select("id,type,content,confidence,created_at").eq("lead_id", id).order("created_at", { ascending: false }).limit(40),
+            supabase.from("ai_insights").select("id,content,urgency,created_at").eq("lead_id", id).order("created_at", { ascending: false }).limit(5),
+          ])
+          if (memRes.data) setMemories(memRes.data as MemoryItem[])
+          if (insRes.data) setInsights(insRes.data as AiInsight[])
+        }
       )
       .on('postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'ai_insights', filter: `lead_id=eq.${id}` },

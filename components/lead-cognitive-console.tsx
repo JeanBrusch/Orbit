@@ -520,8 +520,20 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
 
     if (leadRes.data) setLead(leadRes.data as Lead);
     if (cogRes.data) setCognitive(cogRes.data as CognitiveState);
-    if (memRes.data) setMemories(memRes.data as MemoryItem[]);
-    if (insRes.data) setInsights(insRes.data as AiInsight[]);
+    
+    if (memRes.data) {
+      console.log(`[COG] Loaded ${memRes.data.length} memories`);
+      setMemories(memRes.data as MemoryItem[]);
+    } else if (memRes.error) {
+      console.error(`[COG] Error loading memories:`, memRes.error);
+    }
+
+    if (insRes.data) {
+      console.log(`[COG] Loaded ${insRes.data.length} insights`);
+      setInsights(insRes.data as AiInsight[]);
+    } else if (insRes.error) {
+      console.error(`[COG] Error loading insights:`, insRes.error);
+    }
 
     if (msgRes.data && msgRes.data.length > 0) {
       setMessages(msgRes.data as Message[]);
@@ -603,6 +615,66 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
       setAiSuggestion(null);
       fetchAll();
     }
+  }, [isOpen, leadId, fetchAll]);
+
+  // Realtime subscription
+  useEffect(() => {
+    if (!isOpen || !leadId) return;
+
+    const supabase = getSupabase();
+    console.log(`[COG] Starting Realtime for lead: ${leadId}`);
+    
+    const channel = supabase
+      .channel(`lead-console-${leadId}`)
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages', filter: `lead_id=eq.${leadId}` },
+        (payload) => {
+          setMessages(prev => {
+            const incoming = payload.new as Message;
+            if (prev.some(m => m.id === incoming.id)) return prev;
+            return [...prev, incoming];
+          });
+        }
+      )
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'lead_cognitive_state', filter: `lead_id=eq.${leadId}` },
+        (payload) => { 
+          console.log("[COG] Cognitive state Realtime update:", payload.new);
+          setCognitive(payload.new as CognitiveState);
+          // Refetch everything when cog state changes (analysis loop finished)
+          fetchAll();
+        }
+      )
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'ai_insights', filter: `lead_id=eq.${leadId}` },
+        (payload) => {
+          console.log("[COG] Insight Realtime insert:", payload.new);
+          setInsights(prev => {
+            const incoming = payload.new as AiInsight;
+            if (prev.some(i => i.id === incoming.id)) return prev;
+            return [incoming, ...prev];
+          });
+        }
+      )
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'memory_items', filter: `lead_id=eq.${leadId}` },
+        (payload) => {
+          console.log("[COG] Memory Realtime insert:", payload.new);
+          setMemories(prev => {
+            const incoming = payload.new as MemoryItem;
+            if (prev.some(m => m.id === incoming.id)) return prev;
+            return [incoming, ...prev];
+          });
+        }
+      )
+      .subscribe((status) => {
+        console.log(`[COG] Realtime status: ${status}`);
+      });
+
+    return () => {
+      console.log(`[COG] Cleaning up Realtime for lead: ${leadId}`);
+      supabase.removeChannel(channel);
+    };
   }, [isOpen, leadId, fetchAll]);
 
   useEffect(() => {
