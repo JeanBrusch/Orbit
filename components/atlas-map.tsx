@@ -142,8 +142,6 @@ export function AtlasFocusSurface() {
     }
   }, [selectedProperty, atlasInvokeContext, closeAtlasMap])
 
-  if (!isAtlasMapActive) return null
-
   const handleDeleteProperty = async () => {
     if (!selectedProperty || !window.confirm(`Deseja realmente excluir "${selectedProperty.name}"?`)) return
     
@@ -223,6 +221,9 @@ export function AtlasFocusSurface() {
 
 
   const leadName = atlasInvokeContext?.leadName
+
+  // ── Guard: render nothing until Atlas is active ─────────────────────────
+  if (!isAtlasMapActive) return null
 
   return (
     <>
