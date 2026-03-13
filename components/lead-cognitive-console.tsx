@@ -353,6 +353,7 @@ const glass = "bg-[rgba(12,12,12,0.85)] backdrop-blur-[16px] border border-white
 // ─── Main Component ────────────────────────────────────────────────────────────
 export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveConsoleProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Data
   const [lead, setLead] = useState<Lead | null>(null);
@@ -369,6 +370,15 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
   const [composerText, setComposerText] = useState("");
   const [sendStatus, setSendStatus] = useState<"idle" | "sending" | "done" | "error">("idle");
   const [isNoteMode, setIsNoteMode] = useState(false);
+
+  // Auto-resize textarea
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'inherit';
+      const scrollHeight = textareaRef.current.scrollHeight;
+      textareaRef.current.style.height = `${Math.min(scrollHeight, 200)}px`;
+    }
+  }, [composerText]);
 
   // Copy to clipboard
   const [copied, setCopied] = useState(false);
@@ -1039,12 +1049,12 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
                   {/* Hidden file input */}
                   <input ref={fileInputRef} type="file" accept="image/*,application/pdf" className="hidden" onChange={handleFileChange} />
 
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-end gap-3 pb-1">
                     {/* File attach */}
                     <button
                       onClick={handleFileAttach}
                       title="Anexar imagem ou arquivo"
-                      className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 hover:text-[#d4af35] hover:border-[#d4af35]/30 transition-all"
+                      className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 hover:text-[#d4af35] hover:border-[#d4af35]/30 transition-all shrink-0 mb-[1px]"
                     >
                       <Paperclip className="w-4 h-4" />
                     </button>
@@ -1053,7 +1063,7 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
                     <button
                       onClick={() => invokeAtlasMap({ leadId: lead?.id, leadName: lead?.name || undefined, onPropertySelected: handleAttachProperty })}
                       title="Anexar imóvel"
-                      className="w-9 h-9 rounded-full border bg-white/5 border-white/10 flex items-center justify-center text-slate-400 hover:text-[#d4af35] hover:border-[#d4af35]/30 transition-all"
+                      className="w-9 h-9 rounded-full border bg-white/5 border-white/10 flex items-center justify-center text-slate-400 hover:text-[#d4af35] hover:border-[#d4af35]/30 transition-all shrink-0 mb-[1px]"
                     >
                       <Building2 className="w-4 h-4" />
                     </button>
@@ -1062,7 +1072,7 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
                     <button
                       onClick={() => setIsNoteMode(!isNoteMode)}
                       title={isNoteMode ? "Mudar para WhatsApp" : "Mudar para Anotação Interna"}
-                      className={`w-9 h-9 rounded-full border flex items-center justify-center transition-all ${
+                      className={`w-9 h-9 rounded-full border flex items-center justify-center transition-all shrink-0 mb-[1px] ${
                         isNoteMode 
                           ? "bg-[#d4af35]/20 border-[#d4af35]/40 text-[#d4af35]" 
                           : "bg-white/5 border-white/10 text-slate-400 hover:text-[#d4af35] hover:border-[#d4af35]/30"
@@ -1073,6 +1083,7 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
 
                     {/* Text input (Using textarea for better native autocorrect support) */}
                     <textarea
+                      ref={textareaRef}
                       name="message"
                       lang="pt-BR"
                       rows={1}
@@ -1080,7 +1091,7 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
                       autoCorrect="on"
                       spellCheck={true}
                       autoCapitalize="sentences"
-                      className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#d4af35]/40 placeholder-slate-600 transition-colors disabled:opacity-50 resize-none min-h-[42px] leading-relaxed"
+                      className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#d4af35]/40 placeholder-slate-600 transition-colors disabled:opacity-50 resize-none min-h-[42px] max-h-[200px] overflow-y-auto leading-relaxed"
                       placeholder={
                         isRecording ? "Gravando áudio…" : 
                         isNoteMode ? "Descreva o que aconteceu (reunião, ligação, etc)…" : 
@@ -1088,26 +1099,21 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
                       }
                       value={composerText}
                       disabled={isRecording}
-                      onChange={e => {
-                        setComposerText(e.target.value);
-                        // Auto-resize hint
-                        e.target.style.height = 'inherit';
-                        e.target.style.height = `${e.target.scrollHeight}px`;
-                      }}
+                      onChange={e => setComposerText(e.target.value)}
                       onKeyDown={e => {
                         if (e.key === "Enter" && !e.shiftKey) {
                           e.preventDefault();
                           handleSend();
-                          e.currentTarget.style.height = 'inherit';
                         }
                       }}
                     />
 
                     {/* Mic — toggles recording */}
+                    {/* Mic — toggles recording */}
                     <button
                       onClick={isRecording ? stopRecording : startRecording}
                       title={isRecording ? "Parar gravação" : "Gravar áudio"}
-                      className={`w-9 h-9 rounded-full border flex items-center justify-center transition-all ${
+                      className={`w-9 h-9 rounded-full border flex items-center justify-center transition-all shrink-0 mb-[2px] ${
                         isRecording
                           ? "bg-red-500 border-red-500 text-white animate-pulse"
                           : "bg-white/5 border-white/10 text-slate-400 hover:text-white hover:border-white/30"
@@ -1120,7 +1126,7 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
                      <button
                        onClick={handleSend}
                       disabled={!composerText.trim() || sendStatus === "sending" || isRecording}
-                      className={`w-9 h-9 rounded-full flex items-center justify-center transition-all ${
+                      className={`w-9 h-9 rounded-full flex items-center justify-center transition-all shrink-0 mb-[2px] ${
                         sendStatus === "done" ? "bg-emerald-500 text-black" :
                         composerText.trim() && !isRecording ? "bg-[#d4af35] text-black shadow-[0_0_14px_rgba(212,175,53,0.3)]" :
                         "bg-white/5 text-white/20"
