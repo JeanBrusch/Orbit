@@ -244,20 +244,23 @@ export function AtlasFocusSurface() {
 
   return (
     <>
+      {/* ── Atlas Map: full-screen background layer under the Orbit nodes ─── */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[240] bg-black/60 backdrop-blur-md"
-        onClick={closeAtlasMap}
-      />
+        className="fixed inset-0 z-[10]"
+      >
+        <MapAtlas
+          properties={mapAtlasProperties}
+          selectedPropertyId={selectedProperty?.id}
+          onPropertyClick={handleMapPropertyClick}
+          className="absolute inset-0"
+        />
+      </motion.div>
 
-      <div className="fixed inset-4 md:inset-8 lg:inset-12 z-[250] flex rounded-2xl border border-white/10 bg-[#050505] shadow-[0_0_50px_rgba(0,0,0,0.8)] overflow-hidden">
-        
-        {/* Lado Esquerdo - Mapa e Filtros */}
-        <div className="flex flex-col flex-1 relative min-w-0">
-          {/* Top Navbar */}
-          <div className="absolute top-4 left-4 right-4 z-10 flex items-center justify-between border border-white/10 bg-black/50 backdrop-blur-xl px-4 py-3 rounded-xl shadow-2xl">
+      {/* ── Top navbar floating over nodes ─────────────────────────────────── */}
+      <div className="fixed top-4 left-16 right-16 z-[35] flex items-center justify-between border border-white/10 bg-black/70 backdrop-blur-xl px-4 py-3 rounded-xl shadow-2xl pointer-events-auto">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">
                 <MapPin className="h-5 w-5" />
@@ -289,32 +292,20 @@ export function AtlasFocusSurface() {
                 onClick={closeAtlasMap}
                 className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-white/10 text-zinc-400 hover:text-white transition-colors"
               >
-                <X className="h-4 w-4" />
               </button>
             </div>
-          </div>
+      </div>
 
-          {/* O MAPA REAL - GL */}
-          <div className="flex-1 bg-zinc-900 overflow-hidden relative">
-            <MapAtlas
-              properties={mapAtlasProperties}
-              selectedPropertyId={selectedProperty?.id}
-              onPropertyClick={handleMapPropertyClick}
-              className="absolute inset-0"
-            />
-          </div>
-        </div>
-
-        {/* Lado Direito - Reactivation Panel (Golden Matches) */}
-        <AnimatePresence>
-          {selectedProperty && (
-            <motion.div 
-              initial={{ width: 0, opacity: 0 }}
-              animate={{ width: 380, opacity: 1 }}
-              exit={{ width: 0, opacity: 0 }}
-              transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              className="border-l border-white/10 bg-[#0a0a0c]/90 backdrop-blur-2xl flex flex-col z-20 overflow-hidden shadow-[-20px_0_50px_rgba(0,0,0,0.5)]"
-            >
+      {/* ── Property Detail Panel: slides in from the right at z-[35] ───────── */}
+      <AnimatePresence>
+        {selectedProperty && (
+          <motion.div 
+            initial={{ x: 380, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: 380, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            className="fixed right-0 top-0 h-full w-[380px] z-[35] border-l border-white/10 bg-[#0a0a0c]/95 backdrop-blur-2xl flex flex-col overflow-hidden shadow-[-20px_0_50px_rgba(0,0,0,0.5)]"
+          >
               <div className="w-[380px] h-full flex flex-col relative">
                 
                 {/* Visual Header do Imóvel Selecionado */}
@@ -436,11 +427,9 @@ export function AtlasFocusSurface() {
                   </div>
                 )}
               </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-      </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   )
 }

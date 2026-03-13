@@ -208,7 +208,7 @@ function OrbitInterfaceContent() {
       />
 
       {/* ── Layer 2: Orbit rings + Core (static, NOT zoomed) ─────────────── */}
-      <div className="absolute inset-0 z-40 pointer-events-none flex items-center justify-center">
+      <div className="absolute inset-0 z-[60] pointer-events-none flex items-center justify-center">
         <div className="pointer-events-auto">
           <OrbitCore
             state={coreState}
@@ -222,15 +222,13 @@ function OrbitInterfaceContent() {
         </div>
       </div>
       
-      {/* Connection lines removed as requested */}
-      <div className="absolute inset-0 z-15 pointer-events-none">
-        <AtlasFocusSurface />
-      </div>
+      {/* Atlas Geographic Layer */}
+      <AtlasFocusSurface />
 
       {/* ── Layer 2: nodesLayer (D3 zoom applied here) ────────────────────── */}
       <div
         ref={nodesContainerRef}
-        className="absolute inset-0 z-20 cursor-grab active:cursor-grabbing outline-none"
+        className="absolute inset-0 z-[50] cursor-grab active:cursor-grabbing outline-none"
         style={{ touchAction: "none" }}
       >
         <div

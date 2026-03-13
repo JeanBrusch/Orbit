@@ -16,6 +16,7 @@ import {
 import { WhatsAppInbox } from "./whatsapp-inbox";
 import { ThemeToggle } from "./theme-toggle";
 import { Button } from "./ui/button";
+import { getSupabase } from "@/lib/supabase";
 import Link from "next/link";
 
 interface TopBarProps {
@@ -29,16 +30,41 @@ export function TopBar({ totalLeads, isDark, onThemeToggle, onLogout }: TopBarPr
   const [pendingCount, setPendingCount] = useState(0);
 
   useEffect(() => {
+    const supabase = getSupabase();
 
-    const fetchPending = async () => {
+    // FIX 1: Supabase Realtime para atualizar badge instantaneamente
+    const fetchCount = async () => {
       try {
-        const res = await fetch("/api/leads/pending-count");
-        const data = await res.json();
-        setPendingCount(data.count || 0);
+        const { count } = await supabase
+          .from("leads")
+          .select("*", { count: "exact", head: true })
+          .eq("state", "pending");
+        setPendingCount(count || 0);
       } catch {}
     };
 
-    fetchPending();
+    fetchCount();
+
+    // Realtime: escuta qualquer mudança em leads
+    const channel = supabase
+      .channel("topbar-pending-count")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "leads" },
+        () => {
+          // Re-conta sempre que qualquer lead mudar
+          fetchCount();
+        }
+      )
+      .subscribe();
+
+    // FIX 2: polling de segurança a cada 30s (fallback caso Realtime falhe)
+    const interval = setInterval(fetchCount, 30_000);
+
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(interval);
+    };
   }, []);
 
   return (
@@ -78,7 +104,7 @@ export function TopBar({ totalLeads, isDark, onThemeToggle, onLogout }: TopBarPr
       {/* RIGHT: Actions Toolset */}
       <div className="flex items-center gap-2 pointer-events-auto">
         <div className="flex items-center gap-1 p-1 rounded-xl bg-[var(--orbit-glass)] border border-[var(--orbit-glass-border)] backdrop-blur-md shadow-2xl">
-          <WhatsAppInbox />
+          <WhatsAppInbox externalCount={pendingCount} />
           
           <div className="w-px h-4 bg-[var(--orbit-glass-border)] mx-1" />
           

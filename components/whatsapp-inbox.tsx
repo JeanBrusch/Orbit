@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Inbox, Check, X, UserPlus, ShieldAlert, MessageSquare, Loader2, Ban } from "lucide-react";
 import { getSupabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
@@ -25,12 +25,18 @@ interface PendingLead {
   created_at: string;
 }
 
-export function WhatsAppInbox() {
+// FIX: aceita badgeCount externo do TopBar (via Realtime) para sincronizar o badge
+interface WhatsAppInboxProps {
+  externalCount?: number;
+}
+
+export function WhatsAppInbox({ externalCount }: WhatsAppInboxProps) {
   const [pendingLeads, setPendingLeads] = useState<PendingLead[]>([]);
+  const [badgeCount, setBadgeCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
 
-  const fetchPending = async () => {
+  const fetchPending = useCallback(async () => {
     setLoading(true);
     try {
       const supabase = getSupabase();
@@ -62,16 +68,74 @@ export function WhatsAppInbox() {
       }));
 
       setPendingLeads(formatted);
+      // FIX: atualiza badge com a contagem real da query
+      setBadgeCount(formatted.length);
     } catch (err) {
       console.error("Error fetching pending leads:", err);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
+  // FIX: busca inicial ao montar (não só ao abrir)
+  useEffect(() => {
+    fetchPending();
+  }, [fetchPending]);
+
+  // FIX: Supabase Realtime — escuta INSERT/UPDATE na tabela leads
+  useEffect(() => {
+    const supabase = getSupabase();
+
+    const channel = supabase
+      .channel("leads-pending-realtime")
+      .on(
+        "postgres_changes",
+        {
+          event: "*", // INSERT e UPDATE
+          schema: "public",
+          table: "leads",
+        },
+        (payload) => {
+          const record = payload.new as any;
+          // Se um lead mudou para pending (novo contato chegou) → recarrega
+          if (record?.state === "pending") {
+            fetchPending();
+          }
+          // Se um lead saiu de pending (aprovado/bloqueado) → recarrega
+          if (payload.eventType === "UPDATE") {
+            const old = payload.old as any;
+            if (old?.state === "pending" && record?.state !== "pending") {
+              fetchPending();
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fetchPending]);
+
+  // FIX: polling de segurança a cada 30s (fallback caso Realtime falhe)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchPending();
+    }, 30_000);
+    return () => clearInterval(interval);
+  }, [fetchPending]);
+
+  // Sincroniza com contagem externa se fornecida (do TopBar)
+  useEffect(() => {
+    if (externalCount !== undefined) {
+      setBadgeCount(externalCount);
+    }
+  }, [externalCount]);
+
+  // Ao abrir, sempre recarrega para garantir dados frescos
   useEffect(() => {
     if (isOpen) fetchPending();
-  }, [isOpen]);
+  }, [isOpen, fetchPending]);
 
   const handleAction = async (leadId: string, newState: 'approved' | 'ignored' | 'blocked') => {
     try {
@@ -107,7 +171,9 @@ export function WhatsAppInbox() {
         fetch(`/api/leads/${leadId}/analyze`, { method: 'POST' }).catch(() => { });
       }
 
+      // Remove da lista local imediatamente (Realtime também vai atualizar)
       setPendingLeads(prev => prev.filter(p => p.id !== leadId));
+      setBadgeCount(prev => Math.max(0, prev - 1));
     } catch (err) {
       toast({
         title: "Erro na ação",
@@ -116,14 +182,16 @@ export function WhatsAppInbox() {
     }
   };
 
+  const displayCount = externalCount !== undefined ? externalCount : badgeCount;
+
   return (
-    <Sheet>
+    <Sheet open={isOpen} onOpenChange={setIsOpen}>
       <SheetTrigger asChild>
         <Button variant="ghost" size="icon" className="relative hover:bg-[var(--orbit-glow)]/10 text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)]">
           <Inbox className="h-5 w-5" />
-          {pendingLeads.length > 0 && (
+          {displayCount > 0 && (
             <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[10px] font-bold text-white shadow-lg animate-pulse">
-              {pendingLeads.length}
+              {displayCount}
             </span>
           )}
         </Button>
