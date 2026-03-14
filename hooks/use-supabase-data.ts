@@ -153,19 +153,16 @@ export function useSupabaseLeads() {
         .filter(id => id && uuidRegex.test(id)) as string[]
 
       let orbitDataMap: Record<string, OrbitDataEntry> = {}
-      let matureNotesMap: Record<string, boolean> = {}
 
       if (leadIds.length > 0) {
-        const MEMORY_MIN_AGE_DAYS = 45
-        const memoryMinAge = new Date(Date.now() - MEMORY_MIN_AGE_DAYS * 24 * 60 * 60 * 1000).toISOString()
-
-        const chunkSize = 5
+        // chunkSize 3 para evitar URI Too Long (400) no Supabase REST
+        const chunkSize = 3
         const idChunks = Array.from({ length: Math.ceil(leadIds.length / chunkSize) }, (_, i) =>
           leadIds.slice(i * chunkSize, i * chunkSize + chunkSize)
         )
 
         const chunkPromises = idChunks.map(async (chunk) => {
-          const [leadsRes, cognitiveRes, notesRes] = await Promise.all([
+          const [leadsRes, cognitiveRes] = await Promise.all([
             supabase
               .from('leads')
               .select('id, orbit_stage, orbit_visual_state, action_suggested, last_event_type, cycle_stage, followup_active, followup_remaining, followup_done_today')
@@ -174,17 +171,11 @@ export function useSupabaseLeads() {
               .from('lead_cognitive_state')
               .select('*')
               .in('lead_id', chunk),
-            supabase
-              .from('internal_notes')
-              .select('lead_id')
-              .in('lead_id', chunk)
-              .lt('created_at', memoryMinAge),
           ])
 
           return {
             leadsData: leadsRes.data || [],
             cognitiveData: cognitiveRes.data || [],
-            notesData: notesRes.data || [],
           }
         })
 
@@ -192,12 +183,10 @@ export function useSupabaseLeads() {
 
         let allLeadsData: any[] = []
         let allCognitiveData: any[] = []
-        let allNotesData: any[] = []
 
         chunksResults.forEach(res => {
           allLeadsData = allLeadsData.concat(res.leadsData)
           allCognitiveData = allCognitiveData.concat(res.cognitiveData)
-          allNotesData = allNotesData.concat(res.notesData)
         })
 
         // Popula orbitDataMap com dados da tabela leads (fonte real, atualizável pela API)
@@ -215,7 +204,7 @@ export function useSupabaseLeads() {
           }
         }
 
-        // Enriquece com dados cognitivos (spread depois para não sobrescrever last_event_type)
+        // Enriquece com dados cognitivos sem sobrescrever last_event_type
         for (const state of allCognitiveData) {
           if (state.lead_id) {
             const existing: OrbitDataEntry = orbitDataMap[state.lead_id] || {
@@ -238,11 +227,6 @@ export function useSupabaseLeads() {
               last_ai_analysis_at: state.last_ai_analysis_at,
             }
           }
-        }
-
-        // Mapa de notas maduras
-        for (const note of allNotesData as { lead_id: string | null }[]) {
-          if (note.lead_id) matureNotesMap[note.lead_id] = true
         }
       }
 
@@ -277,7 +261,7 @@ export function useSupabaseLeads() {
           orbitStage: orbitData?.orbit_stage,
           orbitVisualState: orbitData?.orbit_visual_state,
           // Lê da tabela leads (orbitDataMap), não da view leads_center
-          // A view não é atualizável — a API /api/lead/[id]/read zera leads.last_event_type diretamente
+          // A view não é atualizável — a API /api/lead/[id]/read zera leads.last_event_type
           needsAttention: orbitData?.last_event_type === 'received',
           cycleStage: orbitData?.cycle_stage || 'sem_ciclo',
           followupActive: orbitData?.followup_active || false,
@@ -289,7 +273,7 @@ export function useSupabaseLeads() {
           clarityLevel: orbitData?.clarity_level,
           currentState: orbitData?.current_state as any,
           lastAiAnalysisAt: orbitData?.last_ai_analysis_at,
-          hasMatureNotes: lead.lead_id ? matureNotesMap[lead.lead_id] || false : false,
+          hasMatureNotes: false, // internal_notes não existe — desativado
         }
       })
 
@@ -297,7 +281,7 @@ export function useSupabaseLeads() {
 
       const urgentLeads = mappedLeads.filter(l => l.needsAttention)
       if (urgentLeads.length > 0) {
-        console.log(`[FETCH] Found ${urgentLeads.length} urgent leads:`, urgentLeads.map(l => ({ name: l.name, id: l.id })))
+        console.log(`[FETCH] ${urgentLeads.length} lead(s) com atenção:`, urgentLeads.map(l => ({ name: l.name, id: l.id })))
       }
 
       setError(null)
