@@ -647,6 +647,11 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
       setInteractions([]);
       setAiSuggestion(null);
       fetchAll();
+
+      // Mark as read
+      fetch(`/api/lead/${leadId}/read`, { method: "POST" }).catch(err => 
+        console.error("Error marking lead as read:", err)
+      );
     }
   }, [isOpen, leadId, fetchAll]);
 

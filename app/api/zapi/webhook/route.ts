@@ -295,13 +295,23 @@ async function saveMessage(
     const { data: lead } = await supabase.from('leads').select('state').eq('id', leadId).single()
     
     if (lead?.state !== 'pending' && lead?.state !== 'blocked' && lead?.state !== 'ignored') {
-      await supabase
-        .from('leads')
-        .update({
-          action_suggested: 'needs_attention',
-          last_interaction_at: new Date().toISOString(),
-        } as any)
-        .eq('id', leadId)
+      await Promise.all([
+        supabase
+          .from('leads')
+          .update({
+            action_suggested: 'needs_attention',
+            last_event_type: 'received',
+            last_interaction_at: new Date().toISOString(),
+          } as any)
+          .eq('id', leadId),
+        supabase
+          .from('leads_center')
+          .update({
+            last_event_type: 'received',
+            ultima_interacao_at: new Date().toISOString()
+          } as any)
+          .eq('lead_id', leadId)
+      ])
       
       // Acionar Orbit Core com o ID da nova mensagem
       console.log(`[WEBHOOK] Disparando Orbit Core para lead=${leadId}`);
@@ -310,12 +320,22 @@ async function saveMessage(
       })
     } else {
       console.log('[WEBHOOK] Skipping Orbit Core for pending/blocked lead')
-      await supabase
-        .from('leads')
-        .update({
-          last_interaction_at: new Date().toISOString(),
-        } as any)
-        .eq('id', leadId)
+      await Promise.all([
+        supabase
+          .from('leads')
+          .update({
+            last_interaction_at: new Date().toISOString(),
+            last_event_type: 'received'
+          } as any)
+          .eq('id', leadId),
+        supabase
+          .from('leads_center')
+          .update({
+            last_event_type: 'received',
+            ultima_interacao_at: new Date().toISOString()
+          } as any)
+          .eq('lead_id', leadId)
+      ])
     }
   } else {
     const { error: updateError } = await supabase

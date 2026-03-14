@@ -316,7 +316,14 @@ export function useSupabaseLeads() {
       .channel('leads-orbit-realtime')
       .on(
         'postgres_changes' as any,
-        { event: 'UPDATE', schema: 'public', table: 'leads' },
+        { event: '*', schema: 'public', table: 'leads' },
+        () => {
+          fetchLeads()
+        }
+      )
+      .on(
+        'postgres_changes' as any,
+        { event: '*', schema: 'public', table: 'leads_center' },
         () => {
           fetchLeads()
         }
