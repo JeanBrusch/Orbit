@@ -312,23 +312,29 @@ export function useSupabaseLeads() {
     // Supabase Realtime — reage imediatamente quando action_suggested
     // ou qualquer campo de lead muda (ex: needs_attention, state, etc.)
     const supabase = getSupabase()
+    console.log('[REALTIME] Initializing leads-orbit-realtime channel...');
+    
     const channel = supabase
       .channel('leads-orbit-realtime')
       .on(
         'postgres_changes' as any,
         { event: '*', schema: 'public', table: 'leads_center' },
-        () => {
+        (payload) => {
+          console.log('[REALTIME] Update from leads_center:', payload);
           fetchLeads()
         }
       )
       .on(
         'postgres_changes' as any,
         { event: '*', schema: 'public', table: 'leads' },
-        () => {
+        (payload) => {
+          console.log('[REALTIME] Update from leads:', payload);
           fetchLeads()
         }
       )
-      .subscribe()
+      .subscribe((status) => {
+        console.log('[REALTIME] Subscription status:', status);
+      })
 
     // Refetch quando aba volta ao foco
     const handleVisibilityChange = () => {

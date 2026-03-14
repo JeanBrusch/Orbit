@@ -13,33 +13,28 @@ export async function POST(
 
     const supabase = getSupabaseServer()
     
-    // Clear last_event_type in both tables
-    const { error: rpcError } = await supabase.rpc('mark_lead_as_read_v1', { p_lead_id: leadId })
+    // Perform manual updates to both tables to ensure bypass of RLS and consistent state
+    const [r1, r2] = await Promise.all([
+      supabase
+        .from('leads')
+        .update({ last_event_type: null })
+        .eq('id', leadId),
+      supabase
+        .from('leads_center')
+        .update({ last_event_type: null })
+        .eq('lead_id', leadId)
+    ])
+    
+    console.log(`[READ API] Direct update for lead ${leadId}:`, {
+      leads: r1.error ? `FAILED: ${r1.error.message}` : 'OK',
+      leads_center: r2.error ? `FAILED: ${r2.error.message}` : 'OK'
+    });
 
-    if (rpcError) {
-      console.log(`[READ API] RPC mark_lead_as_read_v1 not found or failed for lead ${leadId}:`, rpcError.message);
-      
-      const [r1, r2] = await Promise.all([
-        supabase
-          .from('leads')
-          .update({ last_event_type: null })
-          .eq('id', leadId),
-        supabase
-          .from('leads_center')
-          .update({ last_event_type: null })
-          .eq('lead_id', leadId)
-      ])
-      
-      console.log(`[READ API] Manual update attempt for lead ${leadId}:`, {
-        leads: r1.error ? 'FAILED' : 'OK',
-        leads_center: r2.error ? 'FAILED' : 'OK'
-      });
-
-      if (r1.error || r2.error) {
-        return NextResponse.json({ error: 'Failed' }, { status: 500 })
-      }
-    } else {
-      console.log(`[READ API] RPC mark_lead_as_read_v1 success for lead ${leadId}`);
+    if (r1.error || r2.error) {
+      return NextResponse.json({ 
+        error: 'Failed to update database',
+        details: { leads: r1.error?.message, leads_center: r2.error?.message }
+      }, { status: 500 })
     }
 
     return NextResponse.json({ success: true })
