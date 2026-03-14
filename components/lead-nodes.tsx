@@ -495,7 +495,7 @@ function ActivityIndicators({
       )}
       {hasPropertiesSent && (
         <span
-          className="h-1 w-1 rounded-full bg-emerald-400/70"
+          className="h-1 w-1 rounded-full bg-sky-400/70"
           title="Propriedades enviadas"
         />
       )}
@@ -513,7 +513,7 @@ const visualStateStyles: Record<
   LeadVisualState,
   { dot: string; label: string }
 > = {
-  ativo: { dot: "bg-emerald-500", label: "text-emerald-400" },
+  ativo: { dot: "bg-sky-500", label: "text-sky-400" },
   aguardando: { dot: "bg-amber-500", label: "text-amber-400" },
   em_decisao: { dot: "bg-blue-500", label: "text-blue-400" },
   pausado: { dot: "bg-zinc-500", label: "text-zinc-400" },
@@ -645,12 +645,12 @@ function getContactCycleAura(
   
   const d = days ?? 0
   
-  if (d <= 3) return { ring: "border-blue-500", glow: "shadow-[0_0_12px] shadow-blue-500/50" } // 5. Azul: contato recente
-  if (d <= 7) return { ring: "border-yellow-400", glow: "shadow-[0_0_12px] shadow-yellow-400/50" } // 4. Amarelo: precisa de atenção
-  if (d <= 15) return { ring: "border-orange-500", glow: "shadow-[0_0_12px] shadow-orange-500/50" } // 3. Laranja: esfriando
+  if (d <= 3) return { ring: "border-blue-500/30", glow: "" } // 5. Azul: contato recente (suavizado)
+  if (d <= 7) return { ring: "border-zinc-500/20", glow: "" } // 4. Mudo: precisa de atenção
+  if (d <= 15) return { ring: "border-zinc-500/20", glow: "" } // 3. Mudo: esfriando
   
-  // 2. Vermelho: abandono (>15 dias) - Alerta Claro
-  return { ring: "border-red-600", glow: "shadow-[0_0_12px] shadow-red-600/50" }
+  // 2. Vermelho: abandono (>15 dias) - Alerta Claro (Mantido pois é crítico)
+  return { ring: "border-red-600/40", glow: "" }
 }
 
 // hook leve para detectar o tema atual (lê a classe do <html>)

@@ -278,10 +278,7 @@ export function useSupabaseLeads() {
           orbitStage: orbitData?.orbit_stage,
           orbitVisualState: orbitData?.orbit_visual_state,
           // Verde sinalizar apenas mensagem recebida e não lida (via Webhook WhatsApp)
-          // ou se o Core Orbit detectou uma ação que exige atenção imediata
-          needsAttention: lead.last_event_type === 'received' || 
-                         orbitData?.action_suggested === 'needs_attention' ||
-                         lead.acao_sugerida === 'needs_attention',
+          needsAttention: lead.last_event_type === 'received',
           cycleStage: orbitData?.cycle_stage || 'sem_ciclo',
           followupActive: orbitData?.followup_active || false,
           followupRemaining: orbitData?.followup_remaining || 0,
