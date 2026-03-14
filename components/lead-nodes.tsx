@@ -932,33 +932,41 @@ export function LeadNodes({
 
   // ── Supabase leads ───────────────────────────────────────────────────────
   const supabaseLeadNodes: LeadNode[] = useMemo(() => {
-    return supabaseLeads.map((lead: OrbitLead) => ({
-      id: lead.id,
-      name: lead.name,
-      avatar: lead.avatar,
-      photoUrl: lead.photoUrl,
-      priority: mapEmotionalStateToPriority(lead.emotionalState),
-      position: lead.position,
-      badge: lead.badge
-        ? ({
+    return supabaseLeads.map((lead: OrbitLead): LeadNode => {
+      const priority = mapEmotionalStateToPriority(lead.emotionalState);
+      const emotionalAura = mapEmotionalStateToAura(lead.emotionalState);
+      
+      let mappedBadge: LeadNode["badge"] = undefined;
+      if (lead.badge) {
+        mappedBadge = {
           type: lead.badge === "hot" ? "urgent" : lead.badge === "campaign" ? "campaign" : "messages",
-        } as LeadNode["badge"])
-        : undefined,
-      delay: lead.delay,
-      emotionalAura: mapEmotionalStateToAura(lead.emotionalState),
-      hasRecentActivity: lead.hasCapsuleActive,
-      hasNotification: lead.emotionalState === "engaged",
-      needsAttention: clearedAttentionLeads.includes(lead.id) ? false : lead.needsAttention,
-      cycleStage: (lead.cycleStage as CycleStage) || "sem_ciclo" as CycleStage,
-      daysSinceInteraction: lead.daysSinceInteraction,
-      hasMatureNotes: lead.hasMatureNotes,
-      followupActive: lead.followupActive,
-      followupRemaining: lead.followupRemaining,
-      followupDoneToday: lead.followupDoneToday,
-      interestScore: lead.interestScore,
-      riskScore: lead.riskScore,
-      currentState: lead.currentState,
-    }));
+        };
+      }
+
+      return {
+        id: lead.id,
+        name: lead.name,
+        avatar: lead.avatar,
+        photoUrl: lead.photoUrl,
+        priority,
+        needsAttention: clearedAttentionLeads.includes(lead.id) ? false : !!lead.needsAttention,
+        position: lead.position,
+        badge: mappedBadge,
+        delay: lead.delay,
+        emotionalAura,
+        hasRecentActivity: lead.hasCapsuleActive,
+        hasNotification: lead.emotionalState === "engaged",
+        cycleStage: (lead.cycleStage as CycleStage) || ("sem_ciclo" as CycleStage),
+        daysSinceInteraction: lead.daysSinceInteraction,
+        hasMatureNotes: lead.hasMatureNotes,
+        followupActive: lead.followupActive,
+        followupRemaining: lead.followupRemaining,
+        followupDoneToday: lead.followupDoneToday,
+        interestScore: lead.interestScore,
+        riskScore: lead.riskScore,
+        currentState: lead.currentState,
+      };
+    });
   }, [supabaseLeads, clearedAttentionLeads]);
 
   // ── Day-load factor ──────────────────────────────────────────────────────

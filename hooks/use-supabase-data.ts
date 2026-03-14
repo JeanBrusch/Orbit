@@ -278,7 +278,10 @@ export function useSupabaseLeads() {
           orbitStage: orbitData?.orbit_stage,
           orbitVisualState: orbitData?.orbit_visual_state,
           // Verde sinalizar apenas mensagem recebida e não lida (via Webhook WhatsApp)
-          needsAttention: lead.last_event_type === 'received',
+          // ou se o Core Orbit detectou uma ação que exige atenção imediata
+          needsAttention: lead.last_event_type === 'received' || 
+                         orbitData?.action_suggested === 'needs_attention' ||
+                         lead.acao_sugerida === 'needs_attention',
           cycleStage: orbitData?.cycle_stage || 'sem_ciclo',
           followupActive: orbitData?.followup_active || false,
           followupRemaining: orbitData?.followup_remaining || 0,
@@ -316,14 +319,14 @@ export function useSupabaseLeads() {
       .channel('leads-orbit-realtime')
       .on(
         'postgres_changes' as any,
-        { event: '*', schema: 'public', table: 'leads' },
+        { event: '*', schema: 'public', table: 'leads_center' },
         () => {
           fetchLeads()
         }
       )
       .on(
         'postgres_changes' as any,
-        { event: '*', schema: 'public', table: 'leads_center' },
+        { event: '*', schema: 'public', table: 'leads' },
         () => {
           fetchLeads()
         }

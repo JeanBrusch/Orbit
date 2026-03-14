@@ -14,33 +14,32 @@ export async function POST(
     const supabase = getSupabaseServer()
     
     // Clear last_event_type in both tables
-    const { error } = await supabase.rpc('mark_lead_as_read_v1', { p_lead_id: leadId })
+    const { error: rpcError } = await supabase.rpc('mark_lead_as_read_v1', { p_lead_id: leadId })
 
-    // Fallback if RPC doesn't exist yet, or just use direct updates
-    if (error) {
-      console.log('RPC mark_lead_as_read_v1 not found, using direct updates');
+    if (rpcError) {
+      console.log(`[READ API] RPC mark_lead_as_read_v1 not found or failed for lead ${leadId}:`, rpcError.message);
+      
       const [r1, r2] = await Promise.all([
         supabase
           .from('leads')
           .update({ last_event_type: null })
-          .eq('id', leadId)
-          .eq('last_event_type', 'received'),
+          .eq('id', leadId),
         supabase
           .from('leads_center')
           .update({ last_event_type: null })
           .eq('lead_id', leadId)
-          .eq('last_event_type', 'received')
       ])
       
+      console.log(`[READ API] Manual update attempt for lead ${leadId}:`, {
+        leads: r1.error ? 'FAILED' : 'OK',
+        leads_center: r2.error ? 'FAILED' : 'OK'
+      });
+
       if (r1.error || r2.error) {
-        console.error('Error marking lead as read (direct):', r1.error || r2.error)
         return NextResponse.json({ error: 'Failed' }, { status: 500 })
       }
-    }
-
-    if (error) {
-      console.error('Error marking lead as read:', error)
-      return NextResponse.json({ error: 'Failed to mark lead as read' }, { status: 500 })
+    } else {
+      console.log(`[READ API] RPC mark_lead_as_read_v1 success for lead ${leadId}`);
     }
 
     return NextResponse.json({ success: true })
