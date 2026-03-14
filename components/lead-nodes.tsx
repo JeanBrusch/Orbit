@@ -1013,11 +1013,19 @@ export function LeadNodes({
     return resolveCollisions(withGravity);
   }, [supabaseLeadNodes, adminLeadNodes, leadStates, orbitViewLeadScores, orbitView.active, dayLoadFactor]);
 
-  const handleLeadClick = (leadId: string) => {
-    setClearedAttentionLeads(prev => prev.includes(leadId) ? prev : [...prev, leadId]);
-    onLeadClick?.(leadId)
-  };
-
+  const handleLeadClick = useCallback((leadId: string) => {
+    // Apaga a luz imediatamente na UI (otimista)
+    setClearedAttentionLeads(prev =>
+      prev.includes(leadId) ? prev : [...prev, leadId]
+    );
+  
+    // Persiste no banco — sobrevive ao reload
+    fetch(`/api/lead/${leadId}/read`, { method: 'POST' }).catch((err) =>
+      console.error('[LeadNodes] Erro ao marcar lead como lido:', err)
+    );
+  
+    onLeadClick?.(leadId);
+  }, [onLeadClick]);
   const handleMouseEnter = useCallback((id: string) => setHoveredLeadId(id), []);
   const handleMouseLeave = useCallback(() => setHoveredLeadId(null), []);
   const handleNodeClick = useCallback((id: string) => onLeadClick?.(id), [onLeadClick]);
