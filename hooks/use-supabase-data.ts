@@ -26,7 +26,6 @@ export interface OrbitLead {
   orbitStage?: string | null
   orbitVisualState?: string | null
   needsAttention?: boolean
-  // Cognitive State Layer
   interestScore?: number
   momentumScore?: number
   riskScore?: number
@@ -108,11 +107,27 @@ interface LeadCenterRow {
   created_at: string | null
 }
 
+interface OrbitDataEntry {
+  orbit_stage: string | null
+  orbit_visual_state: string | null
+  action_suggested: string | null
+  last_event_type: string | null
+  cycle_stage?: string | null
+  followup_active?: boolean | null
+  followup_remaining?: number | null
+  followup_done_today?: boolean | null
+  interest_score?: number
+  momentum_score?: number
+  risk_score?: number
+  clarity_level?: number
+  current_state?: string
+  last_ai_analysis_at?: string | null
+}
+
 export function useSupabaseLeads() {
   const [leads, setLeads] = useState<OrbitLead[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
-  // Keep a stable ref to the latest leads so Realtime handlers can diff without stale closures
   const leadsRef = useRef<OrbitLead[]>([])
   leadsRef.current = leads
 
@@ -122,7 +137,6 @@ export function useSupabaseLeads() {
 
       const supabase = getSupabase()
 
-      // Single round-trip: leads_center JOIN leads + cognitive state via Promise.all
       const { data, error: fetchError } = await supabase
         .from('leads_center')
         .select('*')
@@ -137,39 +151,24 @@ export function useSupabaseLeads() {
       const leadIds = rows
         .map(r => r.lead_id)
         .filter(id => id && uuidRegex.test(id)) as string[]
-      let orbitDataMap: Record<string, {
-        orbit_stage: string | null
-        orbit_visual_state: string | null
-        action_suggested: string | null
-        cycle_stage?: string | null
-        followup_active?: boolean | null
-        followup_remaining?: number | null
-        followup_done_today?: boolean | null
-        interest_score?: number
-        momentum_score?: number
-        risk_score?: number
-        clarity_level?: number
-        current_state?: string
-        last_ai_analysis_at?: string | null
-      }> = {}
+
+      let orbitDataMap: Record<string, OrbitDataEntry> = {}
       let matureNotesMap: Record<string, boolean> = {}
 
       if (leadIds.length > 0) {
         const MEMORY_MIN_AGE_DAYS = 45
         const memoryMinAge = new Date(Date.now() - MEMORY_MIN_AGE_DAYS * 24 * 60 * 60 * 1000).toISOString()
 
-        // Break leadIds into smaller chunks (e.g. 5) to avoid 400 Bad Request URI Too Long
         const chunkSize = 5
         const idChunks = Array.from({ length: Math.ceil(leadIds.length / chunkSize) }, (_, i) =>
           leadIds.slice(i * chunkSize, i * chunkSize + chunkSize)
         )
 
-        // Gather promises for each chunk
         const chunkPromises = idChunks.map(async (chunk) => {
           const [leadsRes, cognitiveRes, notesRes] = await Promise.all([
             supabase
               .from('leads')
-              .select('id, orbit_stage, orbit_visual_state, action_suggested, cycle_stage')
+              .select('id, orbit_stage, orbit_visual_state, action_suggested, last_event_type, cycle_stage, followup_active, followup_remaining, followup_done_today')
               .in('id', chunk),
             supabase
               .from('lead_cognitive_state')
@@ -181,76 +180,76 @@ export function useSupabaseLeads() {
               .in('lead_id', chunk)
               .lt('created_at', memoryMinAge),
           ])
-          
+
           return {
             leadsData: leadsRes.data || [],
             cognitiveData: cognitiveRes.data || [],
-            notesData: notesRes.data || []
+            notesData: notesRes.data || [],
           }
         })
 
         const chunksResults = await Promise.all(chunkPromises)
-        
+
         let allLeadsData: any[] = []
         let allCognitiveData: any[] = []
         let allNotesData: any[] = []
-        
+
         chunksResults.forEach(res => {
           allLeadsData = allLeadsData.concat(res.leadsData)
           allCognitiveData = allCognitiveData.concat(res.cognitiveData)
           allNotesData = allNotesData.concat(res.notesData)
         })
 
-        if (allLeadsData.length > 0) {
-          for (const lead of allLeadsData) {
-            orbitDataMap[lead.id] = {
-              ...orbitDataMap[lead.id],
-              orbit_stage: lead.orbit_stage || null,
-              orbit_visual_state: lead.orbit_visual_state || null,
-              action_suggested: lead.action_suggested || null,
-              cycle_stage: lead.cycle_stage || null,
-              followup_active: lead.followup_active ?? false,
-              followup_remaining: lead.followup_remaining ?? 0,
-              followup_done_today: lead.followup_done_today ?? false,
+        // Popula orbitDataMap com dados da tabela leads (fonte real, atualizável pela API)
+        for (const lead of allLeadsData) {
+          orbitDataMap[lead.id] = {
+            ...orbitDataMap[lead.id],
+            orbit_stage: lead.orbit_stage || null,
+            orbit_visual_state: lead.orbit_visual_state || null,
+            action_suggested: lead.action_suggested || null,
+            last_event_type: lead.last_event_type || null, // controla a luz verde
+            cycle_stage: lead.cycle_stage || null,
+            followup_active: lead.followup_active ?? false,
+            followup_remaining: lead.followup_remaining ?? 0,
+            followup_done_today: lead.followup_done_today ?? false,
+          }
+        }
+
+        // Enriquece com dados cognitivos (spread depois para não sobrescrever last_event_type)
+        for (const state of allCognitiveData) {
+          if (state.lead_id) {
+            const existing: OrbitDataEntry = orbitDataMap[state.lead_id] || {
+              orbit_stage: null,
+              orbit_visual_state: null,
+              action_suggested: null,
+              last_event_type: null,
+              cycle_stage: null,
+              followup_active: false,
+              followup_remaining: 0,
+              followup_done_today: false,
+            }
+            orbitDataMap[state.lead_id] = {
+              ...existing,
+              interest_score: state.interest_score,
+              momentum_score: state.momentum_score,
+              risk_score: state.risk_score,
+              clarity_level: state.clarity_level,
+              current_state: state.current_state,
+              last_ai_analysis_at: state.last_ai_analysis_at,
             }
           }
         }
 
-        if (allCognitiveData.length > 0) {
-          for (const state of allCognitiveData) {
-            if (state.lead_id) {
-              const prev = orbitDataMap[state.lead_id] || {
-                orbit_stage: null,
-                orbit_visual_state: null,
-                action_suggested: null,
-                cycle_stage: null,
-                followup_active: false,
-                followup_remaining: 0,
-                followup_done_today: false,
-              }
-              orbitDataMap[state.lead_id] = {
-                ...prev,
-                interest_score: state.interest_score,
-                momentum_score: state.momentum_score,
-                risk_score: state.risk_score,
-                clarity_level: state.clarity_level,
-                current_state: state.current_state,
-                last_ai_analysis_at: state.last_ai_analysis_at,
-              }
-            }
-          }
-        }
-
-        if (allNotesData.length > 0) {
-          for (const note of allNotesData as { lead_id: string | null }[]) {
-            if (note.lead_id) matureNotesMap[note.lead_id] = true
-          }
+        // Mapa de notas maduras
+        for (const note of allNotesData as { lead_id: string | null }[]) {
+          if (note.lead_id) matureNotesMap[note.lead_id] = true
         }
       }
 
       const mappedLeads: OrbitLead[] = rows.map((lead, index) => {
         const badgeInfo = mapStateToBadge(lead.estado_atual, lead.acao_sugerida)
         const orbitData = lead.lead_id ? orbitDataMap[lead.lead_id] : undefined
+
         return {
           id: lead.lead_id || `lead-${index}`,
           name: lead.name || 'Sem nome',
@@ -277,8 +276,9 @@ export function useSupabaseLeads() {
           daysSinceInteraction: lead.dias_sem_interacao || undefined,
           orbitStage: orbitData?.orbit_stage,
           orbitVisualState: orbitData?.orbit_visual_state,
-          // Verde sinalizar apenas mensagem recebida e não lida (via Webhook WhatsApp)
-          needsAttention: lead.last_event_type === 'received',
+          // Lê da tabela leads (orbitDataMap), não da view leads_center
+          // A view não é atualizável — a API /api/lead/[id]/read zera leads.last_event_type diretamente
+          needsAttention: orbitData?.last_event_type === 'received',
           cycleStage: orbitData?.cycle_stage || 'sem_ciclo',
           followupActive: orbitData?.followup_active || false,
           followupRemaining: orbitData?.followup_remaining || 0,
@@ -294,11 +294,12 @@ export function useSupabaseLeads() {
       })
 
       setLeads(mappedLeads)
-      
+
       const urgentLeads = mappedLeads.filter(l => l.needsAttention)
       if (urgentLeads.length > 0) {
-        console.log(`[FETCH] Found ${urgentLeads.length} urgent leads:`, urgentLeads.map(l => ({ name: l.name, id: l.id, type: l.lastEventType })))
+        console.log(`[FETCH] Found ${urgentLeads.length} urgent leads:`, urgentLeads.map(l => ({ name: l.name, id: l.id })))
       }
+
       setError(null)
     } catch (err) {
       console.error('Error fetching leads:', err)
@@ -311,21 +312,18 @@ export function useSupabaseLeads() {
   useEffect(() => {
     fetchLeads()
 
-    // Polling a cada 10s — garante atualização mesmo sem Realtime
     const interval = setInterval(fetchLeads, 10000)
 
-    // Supabase Realtime — reage imediatamente quando action_suggested
-    // ou qualquer campo de lead muda (ex: needs_attention, state, etc.)
     const supabase = getSupabase()
-    console.log('[REALTIME] Initializing leads-orbit-realtime channel...');
-    
+    console.log('[REALTIME] Initializing leads-orbit-realtime channel...')
+
     const channel = supabase
       .channel('leads-orbit-realtime')
       .on(
         'postgres_changes' as any,
         { event: '*', schema: 'public', table: 'leads_center' },
         (payload) => {
-          console.log('[REALTIME] Update from leads_center:', payload);
+          console.log('[REALTIME] Update from leads_center:', payload)
           fetchLeads()
         }
       )
@@ -333,15 +331,14 @@ export function useSupabaseLeads() {
         'postgres_changes' as any,
         { event: '*', schema: 'public', table: 'leads' },
         (payload) => {
-          console.log('[REALTIME] Update from leads:', payload);
+          console.log('[REALTIME] Update from leads:', payload)
           fetchLeads()
         }
       )
       .subscribe((status) => {
-        console.log('[REALTIME] Subscription status:', status);
+        console.log('[REALTIME] Subscription status:', status)
       })
 
-    // Refetch quando aba volta ao foco
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         fetchLeads()
@@ -516,7 +513,6 @@ export function useLeadDetails(leadId: string | null) {
 
       const propIntRows = (propIntRes.data || []) as PropertyInteractionRow[]
 
-      // Enrich property_interactions with property details in one batch
       if (propIntRows.length > 0) {
         const propertyIds = [...new Set(propIntRows.map(i => i.property_id).filter(Boolean))] as string[]
         const { data: propsData } = await supabase
@@ -551,14 +547,12 @@ export function useLeadDetails(leadId: string | null) {
 
     const supabase = getSupabase()
 
-    // ── Realtime: subscribe to all tables relevant for this lead ────────────
     const channel = supabase
       .channel(`lead-details-${leadId}`)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'messages', filter: `lead_id=eq.${leadId}` },
         (payload) => {
-          // Append new message instantly without re-fetching the whole list
           setMessages(prev => {
             const exists = prev.some(m => m.id === (payload.new as MessageRow).id)
             if (exists) return prev
@@ -599,7 +593,6 @@ export function useLeadDetails(leadId: string | null) {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'property_interactions', filter: `lead_id=eq.${leadId}` },
         () => {
-          // Refetch interactions (needs property enrichment, so full fetch)
           fetchDetails()
         }
       )
@@ -610,3 +603,4 @@ export function useLeadDetails(leadId: string | null) {
 
   return { propertyInteractions, messages, memories, insights, cognitiveState, loading, refetch: fetchDetails }
 }
+
