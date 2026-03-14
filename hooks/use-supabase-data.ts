@@ -294,6 +294,11 @@ export function useSupabaseLeads() {
       })
 
       setLeads(mappedLeads)
+      
+      const urgentLeads = mappedLeads.filter(l => l.needsAttention)
+      if (urgentLeads.length > 0) {
+        console.log(`[FETCH] Found ${urgentLeads.length} urgent leads:`, urgentLeads.map(l => ({ name: l.name, id: l.id, type: l.lastEventType })))
+      }
       setError(null)
     } catch (err) {
       console.error('Error fetching leads:', err)

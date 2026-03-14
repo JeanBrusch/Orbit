@@ -495,7 +495,7 @@ function ActivityIndicators({
       )}
       {hasPropertiesSent && (
         <span
-          className="h-1 w-1 rounded-full bg-emerald-400/70"
+          className="h-1 w-1 rounded-full bg-sky-400/80"
           title="Propriedades enviadas"
         />
       )}
@@ -513,7 +513,7 @@ const visualStateStyles: Record<
   LeadVisualState,
   { dot: string; label: string }
 > = {
-  ativo: { dot: "bg-emerald-500", label: "text-emerald-400" },
+  ativo: { dot: "bg-sky-500", label: "text-sky-400" },
   aguardando: { dot: "bg-amber-500", label: "text-amber-400" },
   em_decisao: { dot: "bg-blue-500", label: "text-blue-400" },
   pausado: { dot: "bg-zinc-500", label: "text-zinc-400" },
