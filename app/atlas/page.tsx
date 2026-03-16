@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { useSupabaseProperties, useSupabaseLeads } from "@/hooks/use-supabase-data"
 import { useAuth } from "@/hooks/use-auth"
+import ClientSpacesManager from "@/components/atlas/ClientSpacesManager"
 import { motion, AnimatePresence } from "framer-motion"
 import { 
   Search, Filter, Plus, Map as MapIcon, 
@@ -160,6 +161,10 @@ function AtlasManagerContent() {
     if (lId) {
       setSelectedLeadId(lId)
       setLeadSearch("") // Clear search if lead is pre-selected
+    }
+    // Automatically open selections if tab is requested
+    if (tab === 'selections') {
+      setActiveTab('selections')
     }
     if (tab && (tab === 'curadoria' || tab === 'acervo' || tab === 'selections')) {
       setActiveTab(tab as any)
@@ -845,6 +850,7 @@ function AtlasManagerContent() {
 function SelectionsHistory() {
   const [capsules, setCapsules] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [managingLeadId, setManagingLeadId] = useState<string | null>(null)
   const supabase = getSupabase()
 
   async function fetchCapsules() {
@@ -923,7 +929,11 @@ function SelectionsHistory() {
               >
                 <ExternalLink size={16} />
               </a>
-              <Button variant="ghost" className="text-[10px] font-mono uppercase tracking-widest gap-2 hover:bg-[#a07828]/5 text-[#a07828] h-10 px-4">
+              <Button 
+                variant="ghost" 
+                onClick={() => setManagingLeadId(cap.lead_id)}
+                className="text-[10px] font-mono uppercase tracking-widest gap-2 hover:bg-[#a07828]/5 text-[#a07828] h-10 px-4"
+              >
                 <Settings size={14} />
                 Gerenciar
               </Button>
@@ -931,6 +941,27 @@ function SelectionsHistory() {
           </div>
         ))}
       </div>
+
+      <AnimatePresence>
+        {managingLeadId && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm">
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="w-full max-w-xl h-[80vh] bg-white border border-[rgba(28,24,18,0.1)] rounded-3xl shadow-2xl overflow-hidden flex flex-col"
+            >
+               <ClientSpacesManager 
+                 leadId={managingLeadId} 
+                 onClose={() => {
+                   setManagingLeadId(null);
+                   fetchCapsules();
+                 }} 
+               />
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
