@@ -869,8 +869,13 @@ function SelectionsHistory() {
     setLoading(true)
     const { data, error } = await (supabase
       .from('client_spaces') as any)
-      .select('*, leads(name), capsule_items:capsule_items(count)')
+      .select('*, leads(name, capsule_items(count))')
       .order('created_at', { ascending: false })
+    
+    if (error) {
+      console.error("[ATLAS] Selections history error:", error)
+      toast.error("Erro ao carregar histórico: " + error.message)
+    }
     
     if (data) setCapsules(data)
     setLoading(false)
@@ -916,7 +921,7 @@ function SelectionsHistory() {
                 <h4 className="font-serif text-lg leading-none">{cap.leads?.name || 'Lead s/ nome'}</h4>
                 <div className="flex items-center gap-3 mt-2">
                   <span className="text-[9px] font-mono uppercase tracking-widest text-[#a07828] bg-[#a07828]/5 px-2 py-0.5 rounded">
-                    {cap.capsule_items?.[0]?.count || 0} Imóveis
+                    {cap.leads?.capsule_items?.[0]?.count || 0} Imóveis
                   </span>
                   <span className="text-[10px] text-[#8a7f70] font-mono">
                     {new Date(cap.created_at).toLocaleDateString('pt-BR')}
