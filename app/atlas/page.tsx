@@ -277,18 +277,21 @@ function AtlasManagerContent() {
     const supabase = getSupabase()
 
     try {
+      console.log("[ATLAS] Starting send process", { selectedLeadId, propCount: selectedPropertyIds.size })
       const propertyIds = Array.from(selectedPropertyIds)
       const lead = leads?.find(l => l.id === selectedLeadId)
       
       if (!lead) throw new Error("Lead não encontrado")
-      if (!lead.phone) {
-        toast.error("Lead sem telefone cadastrado!")
+      if (!lead.phone && !lead.lid) {
+        toast.error("Lead sem telefone ou identificador (LID) cadastrado!")
         setIsSending(false)
         return
       }
 
       // 1. Create or get Client Space (Selection Portal)
       const slug = `${lead.name.toLowerCase().replace(/\s+/g, '-')}-${Math.random().toString(36).substring(7)}`
+      console.log("[ATLAS] Creating space with slug:", slug)
+      
       const { data: space, error: spaceError } = await (supabase
         .from('client_spaces') as any)
         .insert([{
@@ -300,7 +303,12 @@ function AtlasManagerContent() {
         .select()
         .single()
 
-      if (spaceError) throw spaceError
+      if (spaceError) {
+        console.error("[ATLAS] Space creation error:", spaceError)
+        throw new Error(`Erro ao criar portal: ${spaceError.message}`)
+      }
+
+      console.log("[ATLAS] Space created:", space.id)
 
       // 2. Insert items into capsule_items
       const inserts = propertyIds.map(pid => ({
@@ -313,7 +321,10 @@ function AtlasManagerContent() {
         .from('capsule_items') as any)
         .upsert(inserts, { onConflict: 'lead_id, property_id' })
 
-      if (itemsError) throw itemsError
+      if (itemsError) {
+        console.error("[ATLAS] Capsule items error:", itemsError)
+        throw new Error(`Erro ao registrar imóveis: ${itemsError.message}`)
+      }
 
       // 3. Trigger WhatsApp via API
       const portalUrl = `${window.location.origin}/selection/${slug}`
@@ -321,6 +332,7 @@ function AtlasManagerContent() {
 
       // Prioritize LID for sending if available
       const sendTo = (lead.lid ? (lead.lid.includes('@lid') ? lead.lid : `${lead.lid}@lid`) : null) || lead.phone
+      console.log("[ATLAS] Sending message to:", sendTo)
 
       const response = await fetch('/api/whatsapp/send', {
         method: 'POST',
@@ -332,14 +344,19 @@ function AtlasManagerContent() {
         })
       })
 
-      if (!response.ok) throw new Error("Falha ao disparar WhatsApp")
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        console.error("[ATLAS] WhatsApp API error:", errorData)
+        throw new Error(errorData.error || "Falha ao disparar WhatsApp")
+      }
 
       toast.success(`${propertyIds.length} imóveis enviados e portal gerado!`)
       setSelectedPropertyIds(new Set())
       setSelectedLeadId(null)
       setLeadSearch("")
     } catch (err: any) {
-      toast.error(`Erro ao processar: ${err.message}`)
+      console.error("[ATLAS] Fatal error in handleSendToLead:", err)
+      toast.error(`Falha no processo: ${err.message}`)
     } finally {
       setIsSending(false)
     }
