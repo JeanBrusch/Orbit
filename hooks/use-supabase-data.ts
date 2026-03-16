@@ -15,6 +15,7 @@ export interface OrbitLead {
   emotionalState: "engaged" | "warm" | "neutral" | "cooling"
   keywords: string[]
   phone?: string
+  lid?: string
   photoUrl?: string
   origin?: string
   state?: string
@@ -95,6 +96,7 @@ interface LeadCenterRow {
   lead_id: string | null
   name: string | null
   phone: string | null
+  lid: string | null
   photo_url: string | null
   origin: string | null
   estado_atual: string | null
@@ -257,6 +259,7 @@ export function useSupabaseLeads(options: Options = {}) {
             lead.last_event_type || '',
           ].filter(Boolean),
           phone: lead.phone || undefined,
+          lid: lead.lid || undefined,
           photoUrl: lead.photo_url || undefined,
           origin: lead.origin || undefined,
           state: lead.estado_atual || undefined,

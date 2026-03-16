@@ -146,9 +146,9 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
                       <Sparkles />
                     </div>
                     <div className="flex-1">
-                      <h4 className="text-[13px] font-bold text-[var(--selection-text)] mb-3 flex items-center gap-2">
-                        O que aprendi sobre o que você busca
-                        <Zap className="w-3.5 h-3.5 text-[var(--gold2)]" />
+                      <h4 className="text-[10px] uppercase tracking-[0.2em] font-bold text-[var(--gold)] mb-3 flex items-center gap-2 opacity-80">
+                        Insights de Perfil
+                        <Zap className="w-3 h-3 text-[var(--gold2)]" />
                       </h4>
                       <div className="flex flex-wrap gap-2">
                         {preferences.preferred_property_type && <span className="px-3 py-1 rounded-full bg-[var(--gold-bg)] border border-[var(--gold-bd)] text-[var(--gold)] text-[11px] font-medium">{preferences.preferred_property_type}</span>}

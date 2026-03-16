@@ -1,888 +1,906 @@
 "use client"
 
-import { useState, useCallback, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import dynamic from "next/dynamic"
-import type { MapProperty } from "@/components/atlas/MapAtlas"
-import { useSupabaseProperties } from "@/hooks/use-supabase-data"
+import { useState, useMemo, useEffect, Suspense } from "react"
+import { useSearchParams } from "next/navigation"
+import { useSupabaseProperties, useSupabaseLeads } from "@/hooks/use-supabase-data"
 import { useAuth } from "@/hooks/use-auth"
 import { motion, AnimatePresence } from "framer-motion"
-// We'll use next-themes for safe hook checks, and lucide-react for consistent UI.
-import { useTheme } from "next-themes"
 import { 
-  Compass, Search as SearchIcon, Filter, LayoutGrid, Clock, Bell, 
-  MoreHorizontal, Heart, Share2, BrainCircuit, TrendingUp, X, MapPin, Sparkles, ArrowRight, Loader2, Plus, Link as LinkIcon, Trash2
+  Search, Filter, Plus, Map as MapIcon, 
+  LayoutGrid, List, Sparkles, Share2, 
+  MoreHorizontal, ChevronRight, Building2,
+  Mic, Loader2, Users, ShoppingCart, Send,
+  X, Check, ExternalLink, Link2, Compass, Settings
 } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { getSupabase } from "@/lib/supabase"
 import { toast } from "sonner"
+import dynamic from "next/dynamic"
 
-// ── Dynamic Mapbox (client-only) ─────────────────────────────────────────────
-const MapAtlas = dynamic(
-  () => import("@/components/atlas/MapAtlas").then((m) => m.MapAtlas),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="absolute inset-0 flex items-center justify-center bg-[#0a0907]">
-        <div className="flex flex-col items-center gap-3">
-          <div className="h-8 w-8 rounded-full border-2 border-[#d4af35]/60 border-t-[#d4af35] animate-spin" />
-          <span className="text-[11px] text-[#d4af35]/60 tracking-widest uppercase font-bold">ATLAS ENGINE</span>
+const VoiceIngestion = dynamic(() => import("@/components/atlas/VoiceIngestion"), { ssr: false })
+const MapModal = dynamic(() => import("@/components/atlas/MapModal"), { ssr: false })
+
+// ── Aesthetics & Tokens ──────────────────────────────────────────────────────
+const paper = {
+  bg: "#f5f1eb",
+  bgSecondary: "#ede8df",
+  border: "rgba(28, 24, 18, 0.08)",
+  ink: "#1c1812",
+  inkMuted: "#8a7f70",
+  gold: "#a07828",
+  goldBg: "rgba(160, 120, 40, 0.07)",
+}
+
+// ── Components ───────────────────────────────────────────────────────────────
+
+function PropertyCard({ 
+  property, 
+  isSelected, 
+  onToggleSelect 
+}: { 
+  property: any, 
+  isSelected: boolean, 
+  onToggleSelect: (p: any) => void 
+}) {
+  return (
+    <motion.div 
+      layout
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className={`group relative bg-white border ${isSelected ? 'border-[#a07828] ring-1 ring-[#a07828]/20' : 'border-[rgba(28,24,18,0.07)]'} rounded-xl overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer`}
+      onClick={() => onToggleSelect(property)}
+    >
+      <div className="aspect-[16/10] overflow-hidden bg-[#ede8df]">
+        {property.cover_image ? (
+          <img 
+            src={property.cover_image} 
+            alt={property.title} 
+            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-[#8a7f70]">
+            <Building2 className="h-8 w-8 opacity-20" />
+          </div>
+        )}
+        
+        <div className="absolute top-3 left-3 px-2 py-1 rounded-full bg-white/90 backdrop-blur-sm border border-black/5 text-[9px] font-mono uppercase tracking-wider text-[#a07828]">
+          Curadoria Orbit
+        </div>
+
+        {isSelected && (
+          <div className="absolute inset-0 bg-[#a07828]/10 flex items-center justify-center">
+            <div className="bg-[#a07828] text-white p-2 rounded-full shadow-lg">
+              <Check className="h-4 w-4" />
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="p-4">
+        <div className="flex justify-between items-start mb-1">
+          <h3 className="font-serif text-lg text-[#1c1812] leading-tight group-hover:text-[#a07828] transition-colors">
+            {property.title || property.internal_name || "Sem título"}
+          </h3>
+          <span className="text-sm font-serif font-medium text-[#1c1812]">
+            {property.value ? `R$ ${(property.value / 1000000).toFixed(1)}M` : "Sob consulta"}
+          </span>
+        </div>
+        
+        <p className="text-[11px] text-[#8a7f70] mb-2 flex items-center gap-1">
+          <MapIcon className="h-3 w-3" />
+          {property.location_text || "Localização não informada"}
+        </p>
+
+        {property.payment_conditions && (
+          <div className="mb-3 px-2 py-1 bg-[#a07828]/5 border border-[#a07828]/10 rounded text-[9px] text-[#a07828] font-mono italic">
+            {typeof property.payment_conditions === 'object' 
+              ? (property.payment_conditions.custom || JSON.stringify(property.payment_conditions))
+              : property.payment_conditions
+            }
+          </div>
+        )}
+
+        <div className="flex items-center gap-2 mt-4 pt-4 border-t border-[rgba(28,24,18,0.05)]">
+          <Button variant="ghost" size="sm" className="h-8 text-[10px] uppercase tracking-widest font-mono text-[#8a7f70] hover:text-[#1c1812]">
+            Ver Detalhes
+          </Button>
+          <div className="ml-auto flex gap-1">
+            <Button 
+              size="icon" 
+              variant="ghost" 
+              className={`h-8 w-8 rounded-full border border-black/5 ${isSelected ? 'bg-[#a07828] text-white hover:bg-[#a07828]/90' : ''}`}
+            >
+              {isSelected ? <Check className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+            </Button>
+          </div>
         </div>
       </div>
-    ),
-  }
-)
-
-// ── Helpers ──────────────────────────────────────────────────────────────────
-function formatValue(value: number | null): string {
-  if (!value) return "N/A"
-  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(2)}M`
-  if (value >= 1_000) return `$${(value / 1_000).toFixed(0)}k`
-  return `$${value}`
+    </motion.div>
+  )
 }
 
-// ── Types ────────────────────────────────────────────────────────────────────
-interface SupabaseProperty {
-  id: string
-  title: string | null
-  internal_name: string | null
-  cover_image: string | null
-  value: number | null
-  location_text: string | null
-  lat: number | null
-  lng: number | null
-  source_link: string | null
-  features?: string[]
-  payment_conditions?: Record<string, any>
-  area_privativa?: number
-}
-
-interface MatchResult {
-  id: string
-  name: string
-  photo_url?: string
-  orbit_stage?: string
-  similarity: number
-}
-
-// ── Classes base do Stitch ───────────────────────────────────────────────────
-const glass = "bg-[#14120c]/70 backdrop-blur-md border border-[#d4af35]/15"
-const glassDarker = "bg-[#0a0907]/85 backdrop-blur-xl border border-[#d4af35]/10"
-
-// Helper calculation for signal strength heuristic
-function calculateSignalStrength(prop: SupabaseProperty): number {
-  let score = 50 // Base score for existing
-  if (prop.lat && prop.lng) score += 15
-  if (prop.cover_image) score += 10
-  if (prop.value && prop.value > 0) score += 15
-  if (prop.features && prop.features.length > 0) score += 10
-  return Math.min(score, 98) // Max 98% for realism
-}
-
-export default function AtlasPage() {
-  const router = useRouter()
-  const { isLoading: authLoading, isAuthenticated } = useAuth()
+function AtlasManagerContent() {
   const { properties, loading: propsLoading, refetch } = useSupabaseProperties()
-
-  // State
-  const [searchQuery, setSearchQuery] = useState("")
-  const [selectedProperty, setSelectedProperty] = useState<SupabaseProperty | null>(null)
+  const { leads, loading: leadsLoading } = useSupabaseLeads()
+  const searchParams = useSearchParams()
   
-  // Placement State
-  const [placingPropertyId, setPlacingPropertyId] = useState<string | null>(null)
-  const [pendingCoords, setPendingCoords] = useState<{ lat: number; lng: number } | null>(null)
-  const [isSaving, setIsSaving] = useState(false)
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
-
-  // Matches State & Cache
-  const [matches, setMatches] = useState<MatchResult[]>([])
-  const [isMatching, setIsMatching] = useState(false)
-  const [matchCache, setMatchCache] = useState<Record<string, MatchResult[]>>({})
-
-  // Ingestion State
+  const [activeTab, setActiveTab] = useState<"curadoria" | "acervo" | "selections">("curadoria")
+  const [search, setSearch] = useState("")
+  const [naturalSearch, setNaturalSearch] = useState("")
+  const [isSearchingNatural, setIsSearchingNatural] = useState(false)
+  const [filteredIds, setFilteredIds] = useState<string[] | null>(null)
+  const [leadSearch, setLeadSearch] = useState("")
+  const [isVoiceModalOpen, setIsVoiceModalOpen] = useState(false)
+  const [isMapModalOpen, setIsMapModalOpen] = useState(false)
   const [isIngestModalOpen, setIsIngestModalOpen] = useState(false)
-  const [ingestUrl, setIngestUrl] = useState("")
-  const [ingestStatus, setIngestStatus] = useState<"idle" | "processing" | "complete" | "failed">("idle")
-  const [ingestStep, setIngestStep] = useState<"url" | "review">("url")
-  const [scrapedData, setScrapedData] = useState<{title: string, image: string, value: string, condo_name: string, payment: string}>({
+  
+  const [scrapedData, setScrapedData] = useState<any>({
     title: "", image: "", value: "", condo_name: "", payment: ""
   })
+  const [ingestStatus, setIngestStatus] = useState<"idle" | "processing" | "complete" | "failed">("idle")
 
-  // Filter State
-  const [valueRange, setValueRange] = useState<{min: number, max: number}>({ min: 0, max: 20000000 })
+  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null)
+  const [selectedPropertyIds, setSelectedPropertyIds] = useState<Set<string>>(new Set())
+  const [isSending, setIsSending] = useState(false)
 
-  // Auth check
+  const { refetch: refetchProps } = useSupabaseProperties()
+
+  // ── Search Params Logic ───────────────────────────────────────────────────
   useEffect(() => {
-    if (!authLoading && !isAuthenticated) router.push("/login")
-  }, [authLoading, isAuthenticated, router])
+    const propId = searchParams.get('id')
+    const lId = searchParams.get('leadId')
+    const tab = searchParams.get('tab')
 
-  // Golden Matches Fetcher (With Caching)
-  useEffect(() => {
-    if (!selectedProperty?.id) { setMatches([]); return }
-    
-    // Check Cache First
-    if (matchCache[selectedProperty.id]) {
-      setMatches(matchCache[selectedProperty.id])
-      return
+    if (propId) {
+      setSearch(propId) // Simple way to filter for now, or we can use setFilteredIds
+      setFilteredIds([propId])
+      setActiveTab('curadoria')
     }
-
-    setIsMatching(true)
-    fetch(`/api/match/property?propertyId=${selectedProperty.id}&limit=3`)
-      .then(r => r.ok ? r.json() : { matches: [] })
-      .then(data => {
-        const results = data.matches || []
-        setMatchCache(prev => ({ ...prev, [selectedProperty.id]: results }))
-        setTimeout(() => { setMatches(results); setIsMatching(false) }, 400) // slight delay for UX
-      })
-      .catch((e) => {
-        console.error("Match fetch failed", e)
-        setIsMatching(false)
-      })
-  }, [selectedProperty?.id, matchCache])
-  
-  const handleDeleteProperty = useCallback(async (id: string) => {
-    if (confirmDeleteId !== id) {
-      setConfirmDeleteId(id);
-      return;
+    if (lId) {
+      setSelectedLeadId(lId)
     }
-
-    console.log('[Atlas] Attempting to delete property:', id);
-    
-    try {
-      toast.loading("Excluindo imóvel...", { id: "delete-prop" });
-      const res = await fetch(`/api/properties/${id}`, { method: "DELETE" });
-      
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || "Delete failed");
-      }
-      
-      toast.success("Imóvel excluído com sucesso", { id: "delete-prop" });
-      setSelectedProperty(null);
-      setConfirmDeleteId(null);
-      await refetch();
-    } catch (err: any) {
-      console.error('[Atlas] Delete error:', err);
-      toast.error(`Erro ao excluir: ${err.message}`, { id: "delete-prop" });
-      setConfirmDeleteId(null);
+    if (tab && (tab === 'curadoria' || tab === 'acervo' || tab === 'selections')) {
+      setActiveTab(tab as any)
     }
-  }, [confirmDeleteId, refetch]);
+  }, [searchParams])
 
-  // Map Click (for placing property coordinates)
-  const handleMapClick = useCallback((coords: { lat: number; lng: number }) => {
-    if (!placingPropertyId) return
-    setPendingCoords(coords)
-  }, [placingPropertyId])
-
-  const confirmPlace = useCallback(async () => {
-    if (!placingPropertyId || !pendingCoords) return
-    setIsSaving(true)
-    try {
-      await fetch(`/api/properties/${placingPropertyId}/location`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(pendingCoords),
-      })
-      await refetch()
-    } finally {
-      setIsSaving(false)
-      setPendingCoords(null)
-      setPlacingPropertyId(null)
-    }
-  }, [placingPropertyId, pendingCoords, refetch])
-
-  // List filtering
-  const filtered = properties.filter((p) => {
-    // 1. Text Search
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase()
-      const matchesText = p.title?.toLowerCase().includes(q) ||
-        p.internal_name?.toLowerCase().includes(q) ||
-        p.location_text?.toLowerCase().includes(q)
-      if (!matchesText) return false
-    }
-    
-    // 2. Value Range
-    const propVal = p.value || 0
-    if (propVal < valueRange.min || propVal > valueRange.max) return false
-
-    return true
-  })
-
-  // Map markers mapping — derived from `filtered` so pins react to search + value range
-  const mapProperties: MapProperty[] = filtered
-    .filter((p) => p.lat !== null && p.lng !== null)
-    .map((p) => ({
-      id: p.id,
-      name: p.title || p.internal_name || "Imóvel",
-      lat: p.lat,
-      lng: p.lng,
-      value: p.value,
-      locationText: p.location_text,
-      coverImage: p.cover_image,
-      url: p.source_link,
-      features: p.features,
-      payment_conditions: p.payment_conditions,
-      area_privativa: p.area_privativa,
-    }))
-
-  const positionedCount = mapProperties.length
-
-  const handleIngestSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!ingestUrl) return
-    setIngestStatus("processing")
-    
-    try {
-      // 1. Fetch metadata from external link
-      const previewRes = await fetch("/api/link-preview", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: ingestUrl })
-      })
-      const previewData = previewRes.ok ? await previewRes.json() : {}
-
-      // Move to review Step
-      setScrapedData({
-        title: previewData.title || "Imóvel Extraído por IA",
-        image: previewData.image || "",
-        value: previewData.price ? previewData.price.toString() : "",
-        condo_name: "",
-        payment: ""
-      })
-      
-      setIngestStatus("idle")
-      setIngestStep("review")
-
-    } catch(err) {
-      setIngestStatus("failed")
-      toast.error("Falha na Ingestão", { description: "Ocorreu um erro ao raspar a URL." })
-    }
-  }
+  // ── Ingestion Logic ────────────────────────────────────────────────────────
 
   const handleConfirmIngest = async (e: React.FormEvent) => {
     e.preventDefault()
     setIngestStatus("processing")
+    const supabase = getSupabase()
     
     try {
       const payload = { 
-        sourceLink: ingestUrl, 
         title: scrapedData.title,
-        coverImage: scrapedData.image || null,
+        cover_image: scrapedData.image || null,
         value: parseFloat(scrapedData.value) || null,
-        location_text: scrapedData.condo_name || null,
+        neighborhood: scrapedData.neighborhood || null,
+        city: scrapedData.city || null,
+        area_privativa: scrapedData.area_privativa || null,
+        bedrooms: scrapedData.bedrooms || null,
+        suites: scrapedData.suites || null,
+        parking_spots: scrapedData.parking_spots || null,
+        condo_fee: scrapedData.condo_fee || null,
+        iptu: scrapedData.iptu || null,
+        features: scrapedData.features || [],
         payment_conditions: scrapedData.payment ? { custom: scrapedData.payment } : null
       }
 
-      const res = await fetch("/api/property", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      })
-      
-      if (!res.ok) throw new Error("Ingestion Failed")
+      const { data, error } = await (supabase.from("properties") as any).insert([payload]).select().single()
+      if (error) throw error
       
       setIngestStatus("complete")
-      toast.success("Ativo Inserido", { description: "Propriedade validada corporativamente e inserida no Vector DB." })
+      toast.success("Imóvel cadastrado com sucesso!")
       await refetch()
       setTimeout(() => {
         setIsIngestModalOpen(false)
-        setIngestUrl("")
         setIngestStatus("idle")
-        setIngestStep("url")
         setScrapedData({ title: "", image: "", value: "", condo_name: "", payment: "" })
       }, 1500)
-    } catch(err) {
+    } catch(err: any) {
       setIngestStatus("failed")
-      toast.error("Falha ao Salvar", { description: "Ocorreu um erro ao inserir no banco." })
+      toast.error(`Erro ao salvar: ${err.message}`)
     }
   }
 
-  if (authLoading || propsLoading) {
+  // ── Grain Texture Overlay ──
+  const grainStyle = {
+    backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)' opacity='.025'/%3E%3C/svg%3E")`,
+    opacity: 0.4,
+    pointerEvents: "none" as const,
+  }
+
+  const filteredProperties = useMemo(() => {
+    let base = properties || []
+    if (filteredIds) {
+      base = base.filter(p => filteredIds.includes(p.id))
+    }
+    return base.filter(p => 
+      p.title?.toLowerCase().includes(search.toLowerCase()) || 
+      p.location_text?.toLowerCase().includes(search.toLowerCase()) ||
+      p.internal_name?.toLowerCase().includes(search.toLowerCase())
+    )
+  }, [properties, search, filteredIds])
+
+  const handleNaturalSearch = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!naturalSearch.trim()) {
+      setFilteredIds(null)
+      return
+    }
+
+    setIsSearchingNatural(true)
+    try {
+      const response = await fetch('/api/atlas/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: naturalSearch })
+      })
+      const data = await response.json()
+      if (data.matchingIds) {
+        setFilteredIds(data.matchingIds)
+        if (data.matchingIds.length === 0) {
+          toast.info("Nenhum imóvel encontrado para esta busca.")
+        } else {
+          toast.success(`${data.matchingIds.length} imóveis encontrados!`)
+        }
+      }
+    } catch (err) {
+      toast.error("Erro na busca semântica")
+    } finally {
+      setIsSearchingNatural(false)
+    }
+  }
+
+  const filteredLeads = useMemo(() => {
+    return leads?.filter(l => 
+      l.name.toLowerCase().includes(leadSearch.toLowerCase())
+    ).slice(0, 5) || []
+  }, [leads, leadSearch])
+
+  const togglePropertySelection = (prop: any) => {
+    const next = new Set(selectedPropertyIds)
+    if (next.has(prop.id)) {
+      next.delete(prop.id)
+    } else {
+      next.add(prop.id)
+    }
+    setSelectedPropertyIds(next)
+  }
+
+  const handleSendToLead = async () => {
+    if (!selectedLeadId || selectedPropertyIds.size === 0) return
+    setIsSending(true)
+    const supabase = getSupabase()
+
+    try {
+      const propertyIds = Array.from(selectedPropertyIds)
+      const lead = leads?.find(l => l.id === selectedLeadId)
+      
+      if (!lead) throw new Error("Lead não encontrado")
+      if (!lead.phone) {
+        toast.error("Lead sem telefone cadastrado!")
+        setIsSending(false)
+        return
+      }
+
+      // 1. Create or get Client Space (Selection Portal)
+      const slug = `${lead.name.toLowerCase().replace(/\s+/g, '-')}-${Math.random().toString(36).substring(7)}`
+      const { data: space, error: spaceError } = await (supabase
+        .from('client_spaces') as any)
+        .insert([{
+          lead_id: selectedLeadId,
+          slug,
+          theme_config: { mode: 'light', variant: 'paper' },
+          title: `Seleção Orbit - ${lead.name}`
+        }])
+        .select()
+        .single()
+
+      if (spaceError) throw spaceError
+
+      // 2. Insert items into capsule_items
+      const inserts = propertyIds.map(pid => ({
+        lead_id: selectedLeadId,
+        property_id: pid,
+        state: 'sent',
+      }))
+
+      const { error: itemsError } = await (supabase
+        .from('capsule_items') as any)
+        .upsert(inserts, { onConflict: 'lead_id, property_id' })
+
+      if (itemsError) throw itemsError
+
+      // 3. Trigger WhatsApp via API
+      const portalUrl = `${window.location.origin}/selection/${slug}`
+      const message = `Olá ${lead.name.split(' ')[0]}! Selecionei alguns imóveis que fazem sentido para seu perfil. Você pode conferir aqui no seu portal exclusivo: ${portalUrl}`
+
+      // Prioritize LID for sending if available
+      const sendTo = (lead.lid ? (lead.lid.includes('@lid') ? lead.lid : `${lead.lid}@lid`) : null) || lead.phone
+
+      const response = await fetch('/api/whatsapp/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: sendTo,
+          message,
+          leadId: selectedLeadId
+        })
+      })
+
+      if (!response.ok) throw new Error("Falha ao disparar WhatsApp")
+
+      toast.success(`${propertyIds.length} imóveis enviados e portal gerado!`)
+      setSelectedPropertyIds(new Set())
+      setSelectedLeadId(null)
+      setLeadSearch("")
+    } catch (err: any) {
+      toast.error(`Erro ao processar: ${err.message}`)
+    } finally {
+      setIsSending(false)
+    }
+  }
+
+  if (propsLoading || leadsLoading) {
     return (
-      <div className="flex h-screen w-screen items-center justify-center bg-[#0a0907]">
+      <div className="min-h-screen bg-[#f5f1eb] flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
-          <div className="relative h-16 w-16">
-            <div className="absolute inset-0 rounded-full border border-[#d4af35]/20 animate-ping" />
-            <div className="absolute inset-4 rounded-full bg-[#d4af35]/20 border border-[#d4af35]" />
-          </div>
-          <span className="text-xs text-[#d4af35]/60 tracking-[0.3em] uppercase font-bold">ATLAS INIT</span>
+          <Loader2 className="h-8 w-8 animate-spin text-[#a07828]" />
+          <span className="font-mono text-[10px] uppercase tracking-widest text-[#8a7f70]">Carregando Acervo...</span>
         </div>
       </div>
     )
   }
 
-  if (!isAuthenticated) return null
-
   return (
-    <div className="relative h-screen w-screen overflow-hidden bg-[#0a0907] text-[#f1f5f9]" style={{ cursor: placingPropertyId ? "crosshair" : "default", fontFamily: "'Inter', sans-serif" }}>
+    <div className="min-h-screen bg-[#f5f1eb] text-[#1c1812] relative overflow-hidden font-sans selection:bg-[#a07828]/20 flex flex-col h-screen">
+      {/* Grain */}
+      <div className="fixed inset-0 z-50 pointer-events-none" style={grainStyle} />
 
-      {/* ── MAPA MAPBOX BASE ──────────────────────────────────────────────────────── */}
-      <div className="absolute inset-0 grayscale-[0.3]">
-        <MapAtlas
-          properties={mapProperties}
-          selectedPropertyId={selectedProperty?.id ?? null}
-          onPropertyClick={(prop) => {
-            if (placingPropertyId) return
-            const full = properties.find((p) => p.id === prop.id) ?? null
-            setSelectedProperty(full)
-          }}
-          className="absolute inset-0 opacity-80"
-          initialCenter={[-50.0333, -29.8]}
-          initialZoom={13}
-          previewMarker={pendingCoords ?? null}
-          isPlacing={!!placingPropertyId}
-          onMapClick={(lat, lng) => {
-            if (placingPropertyId) {
-              setPendingCoords({ lat, lng })
-            }
-          }}
-        />
-        {/* Subtle dark gradient overlay as in Stitch design, hidden in Light mode */}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#0a0907] via-transparent to-[#0a0907]/60 pointer-events-none z-0 dark:block hidden" />
-      </div>
-
-      {/* ── 1. TOP CONTEXT BAR ─────────────────────────────────────────────────────── */}
-      <header className={`fixed top-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-4 px-6 py-2 ${glass} rounded-full w-fit max-w-[95%] shadow-[0_20px_40px_rgba(0,0,0,0.5)]`}>
-        <div className="flex items-center gap-3 border-r border-[#d4af35]/20 pr-4 cursor-pointer" onClick={() => router.push('/')}>
-          <Compass className="w-5 h-5 text-[#d4af35]" />
-          <span className="font-bold tracking-tight text-[#d4af35]">ATLAS</span>
-          <span className="bg-[#d4af35]/20 text-[#d4af35] text-[10px] px-2 py-0.5 rounded-full font-bold">LIVE</span>
-        </div>
-        
-        <div className="hidden md:flex items-center gap-2 px-2">
-          <span className="text-xs text-[#d4af35]/60 font-medium uppercase tracking-widest">Global</span>
-          <span className="text-sm font-semibold">{positionedCount} Imóveis</span>
-        </div>
-        
-        <div className="hidden md:block h-6 w-[1px] bg-[#d4af35]/20"></div>
-        
-        <div className="flex items-center gap-4">
-          <div className="relative hidden sm:flex items-center">
-            <SearchIcon className="absolute left-3 w-3.5 h-3.5 text-[#d4af35]/60" />
-            <input 
-              className="bg-transparent border-none focus:ring-0 text-sm pl-9 pr-4 w-40 md:w-32 placeholder:text-[#d4af35]/30 focus:outline-none" 
-              placeholder="Buscar Ativo..." 
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              type="text"
-            />
+      {/* Modern Unified Header */}
+      <header className="h-20 border-b border-[rgba(28,24,18,0.05)] bg-[#f5f1eb]/80 backdrop-blur-md flex items-center px-10 gap-8 sticky top-0 z-30 shrink-0">
+        <div className="flex items-center gap-3 pr-8 border-r border-[rgba(28,24,18,0.1)]">
+          <div className="w-10 h-10 rounded-xl bg-[#1c1812] flex items-center justify-center text-[#f5f1eb] shadow-lg shadow-black/10">
+            <Compass className="h-5 w-5" />
           </div>
-
-          {/* Value Filter Segment */}
-          <div className="hidden lg:flex items-center gap-2 bg-[#0a0907]/60 px-3 py-1.5 rounded-xl border border-[#d4af35]/20 shadow-inner">
-             <span className="text-[9px] font-bold text-[#d4af35] uppercase tracking-wider mr-1">R$</span>
-             <input 
-               type="number" 
-               placeholder="Min" 
-               value={valueRange.min === 0 ? "" : valueRange.min}
-               onChange={(e) => setValueRange({ ...valueRange, min: e.target.value ? Number(e.target.value) : 0 })}
-               className="w-20 bg-transparent border-none p-0 text-xs font-semibold text-white placeholder-slate-600 focus:ring-0 text-right" 
-             />
-             <span className="text-slate-500 font-bold px-1 text-xs">-</span>
-             <input 
-               type="number" 
-               placeholder="Max" 
-               value={valueRange.max === 20000000 ? "" : valueRange.max}
-               onChange={(e) => setValueRange({ ...valueRange, max: e.target.value ? Number(e.target.value) : 20000000 })}
-               className="w-20 bg-transparent border-none p-0 text-xs font-semibold text-white placeholder-slate-600 focus:ring-0 text-left" 
-             />
+          <div>
+            <h1 className="font-serif text-xl tracking-tight">Atlas Manager</h1>
+            <p className="font-mono text-[9px] uppercase tracking-widest text-[#a07828]">Intelligence Hub</p>
           </div>
+        </div>
 
-          <button 
-            onClick={() => setIsIngestModalOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#d4af35] text-[#0a0907] rounded-lg text-xs font-bold hover:brightness-110 transition-all shadow-[0_0_15px_rgba(212,175,53,0.3)] shrink-0"
+        <nav className="flex items-center gap-1 p-1 bg-[#ede8df] rounded-lg border border-[rgba(28,24,18,0.05)]">
+          {[
+            { id: 'curadoria', label: 'Curadoria', icon: Sparkles },
+            { id: 'acervo', label: 'Acervo', icon: Building2 },
+            { id: 'selections', label: 'Selections', icon: Link2 },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-[11px] font-mono uppercase tracking-wider transition-all ${activeTab === tab.id ? 'bg-white text-[#1c1812] shadow-sm border border-[rgba(28,24,18,0.08)]' : 'text-[#8a7f70] hover:text-[#1c1812]'}`}
+            >
+              <tab.icon className="h-3.5 w-3.5" />
+              {tab.label}
+            </button>
+          ))}
+        </nav>
+
+        <div className="flex-1 max-w-xl relative group">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8a7f70] transition-colors group-focus-within:text-[#a07828]" />
+          <form onSubmit={handleNaturalSearch}>
+            <div className="relative">
+              <Input 
+                value={naturalSearch}
+                onChange={(e) => {
+                  setNaturalSearch(e.target.value)
+                  if (!e.target.value) setFilteredIds(null)
+                }}
+                placeholder="Busca Natural: 'Apartamento 3 dorms no centro com piscina'..."
+                className="w-full pl-12 h-11 bg-[#ede8df] border-none rounded-2xl text-sm placeholder:text-[#8a7f70]/60 focus:ring-2 focus:ring-[#a07828]/20 transition-all font-serif italic"
+              />
+              {isSearchingNatural && (
+                <div className="absolute right-12 top-1/2 -translate-y-1/2">
+                  <Loader2 className="h-4 w-4 animate-spin text-[#a07828]" />
+                </div>
+              )}
+            </div>
+          </form>
+          {naturalSearch && (
+            <button 
+              onClick={() => setNaturalSearch("")}
+              className="absolute right-4 top-1/2 -translate-y-1/2 p-1 hover:bg-black/5 rounded-full"
+            >
+              <X className="h-3 w-3 text-[#8a7f70]" />
+            </button>
+          )}
+        </div>
+
+        <div className="flex items-center gap-4 ml-auto">
+          <Button 
+            onClick={() => setIsVoiceModalOpen(true)}
+            className="h-10 px-5 bg-[#a07828] hover:bg-[#8a651e] text-white rounded-xl flex items-center gap-2 shadow-lg shadow-[#a07828]/20 transition-all group"
           >
-            <Plus className="w-3.5 h-3.5" />
-            <span className="hidden md:inline">Novo Ativo</span>
-          </button>
-        </div>
-
-        <div className="h-6 w-[1px] bg-[#d4af35]/20"></div>
-        
-        <div className="flex items-center gap-3 pl-2">
-          <div className="size-8 rounded-full bg-[#d4af35]/10 border border-[#d4af35]/20 flex items-center justify-center cursor-pointer hover:bg-[#d4af35]/20 transition-colors">
-            <Bell className="w-4 h-4 text-[#d4af35]" />
-          </div>
-          <div className="size-8 rounded-full overflow-hidden border border-[#d4af35]/30 cursor-pointer">
-            <div className="w-full h-full bg-[#d4af35] flex items-center justify-center text-xs text-[#0a0907] font-bold">ME</div>
-          </div>
+            <Mic className="h-4 w-4 group-hover:scale-110 transition-transform" />
+            <span className="text-[10px] font-mono uppercase tracking-widest font-bold">Cadastro por Voz</span>
+          </Button>
         </div>
       </header>
 
-      {/* ── INGESTION MODAL ──────────────────────────────────────────────────────── */}
-      <AnimatePresence>
-        {isIngestModalOpen && (
-          <motion.div 
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm"
-          >
-            <motion.div 
-              initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
-              className={`w-full max-w-md ${glassDarker} dark:bg-[#0a0907] bg-white rounded-2xl p-6 shadow-2xl overflow-hidden relative border border-[#d4af35]/30`}
-            >
-              {(ingestStatus === "processing" || ingestStatus === "complete") && (
-                <div className="absolute top-0 left-0 right-0 h-1 bg-[#d4af35]/20">
-                  <motion.div 
-                    initial={{ width: 0 }}
-                    animate={{ width: ingestStatus === "complete" ? "100%" : "85%" }}
-                    transition={{ duration: ingestStatus === "complete" ? 0.3 : 10, ease: "circOut" }}
-                    className="h-full bg-[#d4af35]"
-                  />
+      <div className="flex-1 flex overflow-hidden">
+        {/* Main Side View */}
+        <main className="flex-1 overflow-y-auto p-10 custom-scrollbar bg-white/30">
+          <AnimatePresence mode="wait">
+            {activeTab === 'curadoria' && (
+              <motion.div 
+                key="curadoria"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="max-w-7xl mx-auto space-y-8"
+              >
+                <div className="flex items-center justify-between border-b border-[rgba(28,24,18,0.05)] pb-6">
+                  <div>
+                    <h2 className="font-serif text-3xl">Curadoria Inteligente</h2>
+                    <p className="text-sm text-[#8a7f70] mt-1 font-serif italic">Ativos recomendados para leads estratégicos.</p>
+                  </div>
+                  
+                  <div className="flex items-center gap-3">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#8a7f70]" />
+                      <Input 
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        placeholder="Filtrar por texto..."
+                        className="pl-9 h-9 w-48 text-xs bg-white border border-[rgba(28,24,18,0.1)] rounded-lg shadow-sm"
+                      />
+                    </div>
+                    <Button variant="outline" size="sm" className="h-9 px-4 gap-2 text-xs border-[rgba(28,24,18,0.1)] hover:bg-[#ede8df]">
+                      <Filter className="h-3.5 w-3.5" />
+                      Filtros
+                    </Button>
+                    <div className="w-px h-8 bg-[rgba(28,24,18,0.1)] mx-2" />
+                    <Button 
+                      onClick={() => setIsMapModalOpen(true)}
+                      variant="outline" 
+                      size="sm" 
+                      className="h-9 px-4 gap-2 bg-white border border-[#a07828]/20 text-[10px] font-mono uppercase tracking-wider text-[#a07828] hover:bg-[#a07828]/5"
+                    >
+                      <MapIcon className="h-3.5 w-3.5" />
+                      Mapa
+                    </Button>
+                  </div>
                 </div>
-              )}
 
-              <div className="flex justify-between items-center mb-5">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="w-5 h-5 text-[#d4af35]" />
-                  <h3 className="font-bold text-lg dark:text-white text-zinc-900 tracking-tight">Ingerir Ativo</h3>
+                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8">
+                  {filteredProperties.map((prop) => (
+                    <PropertyCard 
+                      key={prop.id} 
+                      property={prop} 
+                      isSelected={selectedPropertyIds.has(prop.id)}
+                      onToggleSelect={togglePropertySelection}
+                    />
+                  ))}
                 </div>
+              </motion.div>
+            )}
+
+            {activeTab === 'acervo' && (
+              <motion.div 
+                key="acervo"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="max-w-7xl mx-auto space-y-8"
+              >
+                 <div className="flex items-center justify-between border-b border-[rgba(28,24,18,0.05)] pb-6">
+                  <div>
+                    <h2 className="font-serif text-3xl">Acervo Completo</h2>
+                    <p className="text-sm text-[#8a7f70] mt-1 font-serif italic">{properties.length} registros no sistema.</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {properties.map(prop => (
+                    <div key={prop.id} className="p-3 bg-white rounded-xl border border-[rgba(28,24,18,0.05)] shadow-sm hover:shadow-md transition-shadow group">
+                      <div className="aspect-square rounded-lg bg-[#f5f1eb] overflow-hidden mb-3 relative">
+                        {prop.cover_image && <img src={prop.cover_image} className="w-full h-full object-cover" />}
+                        <button 
+                          onClick={() => togglePropertySelection(prop)}
+                          className={`absolute bottom-2 right-2 p-1.5 rounded-lg border shadow-sm transition-all ${selectedPropertyIds.has(prop.id) ? 'bg-[#a07828] text-white border-[#a07828]' : 'bg-white/90 text-[#8a7f70] border-black/5 hover:bg-white'}`}
+                        >
+                          {selectedPropertyIds.has(prop.id) ? <Check size={14} /> : <Plus size={14} />}
+                        </button>
+                      </div>
+                      <p className="font-serif text-sm truncate leading-tight">{prop.title || prop.internal_name}</p>
+                      <p className="text-[10px] text-[#a07828] font-bold mt-1 uppercase tracking-tighter">
+                        {prop.value ? `R$ ${(prop.value / 1000).toFixed(0)}k` : 'Sob consulta'}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+
+            {activeTab === 'selections' && (
+              <motion.div 
+                key="selections"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="max-w-2xl mx-auto h-full"
+              >
+                <SelectionsHistory />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </main>
+
+        {/* Orbit Selection Sidebar */}
+        <aside className="w-80 bg-white border-l border-[rgba(28,24,18,0.08)] flex flex-col relative z-20 shadow-[-10px_0_40px_rgba(0,0,0,0.03)] selection:bg-[#a07828]/10 shrink-0">
+          <div className="p-6 border-b border-[rgba(28,24,18,0.05)] bg-[#fdfaf5]">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-[#a07828]/10 text-[#a07828]">
+                  <ShoppingCart className="h-4 w-4" />
+                </div>
+                <h2 className="font-serif text-lg tracking-tight">Orbit Selection</h2>
+              </div>
+              {selectedPropertyIds.size > 0 && (
                 <button 
-                  onClick={() => { 
-                    setIsIngestModalOpen(false); 
-                    setIngestStatus("idle"); 
-                    setIngestUrl(""); 
-                    setIngestStep("url"); 
-                  }} 
-                  disabled={ingestStatus === "processing"}
-                  className="text-slate-400 hover:text-slate-200 transition-colors disabled:opacity-50"
+                  onClick={() => setSelectedPropertyIds(new Set())}
+                  className="text-[9px] font-mono uppercase tracking-widest text-red-400 hover:text-red-500"
                 >
-                  <X className="w-5 h-5" />
+                  Limpar
+                </button>
+              )}
+            </div>
+            
+            <div className="p-4 bg-white/50 rounded-xl border border-[#a07828]/10 shadow-[inner_0_2px_4px_rgba(0,0,0,0.02)]">
+              <div className="flex justify-between items-baseline mb-1">
+                <span className="font-mono text-[9px] uppercase tracking-wider text-[#8a7f70]">Carrinho Ativo</span>
+                <span className="font-serif text-2xl text-[#a07828]">{selectedPropertyIds.size}</span>
+              </div>
+              <p className="text-[10px] text-[#8a7f70] font-serif italic">Imóveis prontos para curadoria</p>
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-6 space-y-8 custom-scrollbar">
+            {/* Target Lead Selection */}
+            <div className="space-y-4">
+              <label className="font-mono text-[9px] uppercase tracking-[0.2em] text-[#8a7f70] flex items-center gap-2">
+                <Users size={10} /> 1. Lead Destinatário
+              </label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#8a7f70]" />
+                <Input 
+                  value={leadSearch}
+                  onChange={(e) => setLeadSearch(e.target.value)}
+                  placeholder="Buscar lead para envio..."
+                  className="pl-9 h-10 text-xs border-[rgba(28,24,18,0.1)] focus:border-[#a07828]/30 rounded-xl bg-[#fdfaf5]"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                {filteredLeads.map(lead => (
+                  <button
+                    key={lead.id}
+                    onClick={() => setSelectedLeadId(lead.id)}
+                    className={`w-full flex items-center gap-3 p-2.5 rounded-xl border transition-all ${selectedLeadId === lead.id ? 'bg-[#a07828]/5 border-[#a07828]/30 shadow-sm' : 'border-transparent hover:bg-[#ede8df]/30'}`}
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-[#ede8df] flex items-center justify-center border border-black/5 text-[10px] font-bold text-[#1c1812]">
+                      {lead.name[0]}
+                    </div>
+                    <div className="flex-1 text-left min-w-0">
+                      <p className="text-[11px] font-medium leading-none truncate">{lead.name}</p>
+                      <p className="text-[9px] text-[#8a7f70] mt-1 uppercase font-mono tracking-tighter">{lead.orbitStage || 'Exploração'}</p>
+                    </div>
+                    {selectedLeadId === lead.id && <Check className="h-3 w-3 text-[#a07828]" />}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Selection Preview */}
+            {selectedPropertyIds.size > 0 && (
+              <div className="space-y-4">
+                <label className="font-mono text-[9px] uppercase tracking-[0.2em] text-[#8a7f70]">
+                  2. Itens da Curadoria
+                </label>
+                <div className="space-y-2">
+                  {properties.filter(p => selectedPropertyIds.has(p.id)).map(p => (
+                    <div key={p.id} className="flex items-center gap-3 p-2.5 bg-[#fdfaf5]/50 rounded-xl border border-[rgba(28,24,18,0.05)] hover:bg-[#fdfaf5] transition-colors group">
+                      <div className="w-10 h-10 rounded-lg bg-[#ede8df] overflow-hidden shrink-0 border border-black/5">
+                        {p.cover_image && <img src={p.cover_image} className="w-full h-full object-cover" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[10px] font-medium truncate font-serif">{p.title || p.internal_name}</p>
+                        <p className="text-[9px] text-[#a07828] font-bold mt-0.5">
+                          {p.value ? `R$ ${(p.value / 1000000).toFixed(1)}M` : 'Sob consulta'}
+                        </p>
+                      </div>
+                      <button 
+                        onClick={() => togglePropertySelection(p)}
+                        className="p-1.5 opacity-0 group-hover:opacity-100 hover:text-red-500 transition-all"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Action Footer */}
+          <div className="p-6 border-t border-[rgba(28,24,18,0.08)] bg-[#fdfaf5]">
+            <Button
+              disabled={!selectedLeadId || selectedPropertyIds.size === 0 || isSending}
+              onClick={handleSendToLead}
+              className="w-full bg-[#1c1812] hover:bg-black h-12 text-xs gap-3 rounded-xl shadow-xl shadow-black/10 transition-all font-mono uppercase tracking-widest font-bold"
+            >
+              {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              {isSending ? 'Enviando...' : `Disparar para ${selectedLeadId ? (leads?.find(l => l.id === selectedLeadId)?.name.split(' ')[0] || 'Lead') : 'Lead'}`}
+            </Button>
+            <p className="text-[9px] text-[#8a7f70] text-center mt-3 font-mono leading-relaxed opacity-60">
+              O link da curadoria será gerado e enviado via WhatsApp Lead Controller.
+            </p>
+          </div>
+        </aside>
+      </div>
+
+      {/* Modals & Overlays */}
+      <AnimatePresence>
+        {isVoiceModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+            <VoiceIngestion 
+              onClose={() => setIsVoiceModalOpen(false)}
+              onDataExtracted={(data) => {
+                setScrapedData({
+                  title: data.title || "",
+                  image: "",
+                  value: data.value ? data.value.toString() : "",
+                  neighborhood: data.neighborhood,
+                  city: data.city,
+                  area_privativa: data.area_privativa,
+                  bedrooms: data.bedrooms,
+                  suites: data.suites,
+                  parking_spots: data.parking_spots,
+                  condo_fee: data.condo_fee,
+                  iptu: data.iptu,
+                  features: data.features,
+                  payment: data.payment || ""
+                })
+                setIsVoiceModalOpen(false)
+                setIsIngestModalOpen(true)
+              }}
+            />
+          </div>
+        )}
+
+        {isIngestModalOpen && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="bg-white border border-[rgba(28,24,18,0.1)] rounded-2xl shadow-2xl w-full max-w-xl overflow-hidden flex flex-col max-h-[90vh]"
+            >
+              <div className="p-6 border-b border-[rgba(28,24,18,0.05)] flex items-center justify-between bg-[#f5f1eb]">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-[#a07828]/10 text-[#a07828]">
+                    <Sparkles size={20} />
+                  </div>
+                  <div>
+                    <h3 className="font-serif text-xl">Revisão de Cadastro</h3>
+                    <p className="text-[10px] font-mono uppercase tracking-widest text-[#8a7f70]">IA Extraction Quality Control</p>
+                  </div>
+                </div>
+                <button onClick={() => setIsIngestModalOpen(false)} className="p-2 hover:bg-black/5 rounded-full text-[#8a7f70]">
+                  <X size={20} />
                 </button>
               </div>
 
-              {ingestStep === "url" ? (
-                <>
-                  <p className="text-sm dark:text-slate-400 text-slate-600 mb-6 font-medium">
-                    Cole o link de um imóvel de qualquer portal (ZAP, VivaReal, etc). O Orbit Engine extrairá dados e fotos para validação antes da indexação.
-                  </p>
-
-              <form onSubmit={handleIngestSubmit} className="space-y-4">
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <LinkIcon className="h-4 w-4 dark:text-slate-500 text-slate-400" />
-                  </div>
-                  <input
-                    type="url"
-                    required
-                    value={ingestUrl}
-                    onChange={(e) => setIngestUrl(e.target.value)}
-                    disabled={ingestStatus !== "idle" && ingestStatus !== "failed"}
-                    className="block w-full pl-10 pr-3 py-3 border dark:border-zinc-800 border-zinc-200 rounded-xl leading-5 dark:bg-zinc-900/50 bg-zinc-50 dark:text-slate-200 text-zinc-900 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-[#d4af35] focus:border-[#d4af35] sm:text-sm transition-all shadow-inner focus:shadow-[0_0_15px_rgba(212,175,53,0.15)] disabled:opacity-50"
-                    placeholder="https://imobiliaria.com.br/imovel/123"
-                  />
-                </div>
-
-                <div className="pt-2">
-                  <button
-                    type="submit"
-                    disabled={ingestStatus === "processing" || !ingestUrl || ingestStatus === "complete"}
-                    className="w-full flex justify-center py-3 px-4 rounded-xl shadow-lg border border-transparent text-sm font-bold text-[#0a0907] bg-[#d4af35] hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#d4af35] focus:ring-offset-[#0a0907] disabled:opacity-50 transition-all"
-                  >
-                    {ingestStatus === "processing" ? (
-                      <span className="flex items-center gap-2 pt-0.5"><Loader2 className="w-4 h-4 animate-spin"/> Extraindo Metadados...</span>
-                    ) : ingestStatus === "failed" ? (
-                      "Tentar Novamente"
-                    ) : (
-                      "Buscar Dados Primários"
-                    )}
-                  </button>
-                </div>
-              </form>
-              </>
-              ) : (
-              <form onSubmit={handleConfirmIngest} className="space-y-4 animate-in fade-in zoom-in duration-300">
-                <div className="flex gap-4 items-center p-3 rounded-lg bg-zinc-900/40 border border-[#d4af35]/10">
-                  <div className="w-16 h-16 rounded bg-zinc-800 bg-cover bg-center shrink-0 border border-white/5" style={{ backgroundImage: scrapedData.image ? `url(${scrapedData.image})` : 'none' }}></div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-0.5">Scraped Title</p>
-                    <input 
-                      type="text" 
+              <form onSubmit={handleConfirmIngest} className="p-8 overflow-y-auto space-y-6 custom-scrollbar">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="md:col-span-2 space-y-2">
+                    <label className="text-[10px] font-mono uppercase tracking-widest text-[#8a7f70]">Título do Patrimônio</label>
+                    <Input 
                       value={scrapedData.title}
                       onChange={(e) => setScrapedData({...scrapedData, title: e.target.value})}
-                      className="w-full bg-transparent border-none p-0 text-sm font-semibold focus:ring-0" 
-                      placeholder="Título extraído..." 
+                      className="border-[rgba(28,24,18,0.1)] h-11 rounded-xl bg-[#fdfaf5]"
                     />
                   </div>
-                </div>
 
-                <div className="grid grid-cols-2 gap-3 mb-2">
-                  <div>
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Valor do Imóvel (R$)</label>
-                    <input
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-mono uppercase tracking-widest text-[#8a7f70]">Valor (R$)</label>
+                    <Input 
                       type="number"
                       value={scrapedData.value}
                       onChange={(e) => setScrapedData({...scrapedData, value: e.target.value})}
-                      className="w-full px-3 py-2 border dark:border-zinc-800 border-zinc-200 rounded-lg dark:bg-zinc-900/50 bg-zinc-50 dark:text-slate-200 text-sm focus:outline-none focus:ring-1 focus:ring-[#d4af35]"
-                      placeholder="Ex: 1500000"
+                      className="border-[rgba(28,24,18,0.1)] h-11 rounded-xl bg-[#fdfaf5]"
                     />
                   </div>
-                  <div>
-                     <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Nome do Condomínio</label>
-                    <input
-                      type="text"
-                      value={scrapedData.condo_name}
-                      onChange={(e) => setScrapedData({...scrapedData, condo_name: e.target.value})}
-                      className="w-full px-3 py-2 border dark:border-zinc-800 border-zinc-200 rounded-lg dark:bg-zinc-900/50 bg-zinc-50 dark:text-slate-200 text-sm focus:outline-none focus:ring-1 focus:ring-[#d4af35]"
-                      placeholder="Cond. Enseada"
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-mono uppercase tracking-widest text-[#8a7f70]">URL da Imagem</label>
+                    <Input 
+                      value={scrapedData.image}
+                      onChange={(e) => setScrapedData({...scrapedData, image: e.target.value})}
+                      placeholder="https://..."
+                      className="border-[rgba(28,24,18,0.1)] h-11 rounded-xl bg-[#fdfaf5]"
                     />
                   </div>
-                </div>
-                
-                <div className="mb-2">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Condições de Pagamento</label>
-                    <input
-                      type="text"
+
+                  <div className="md:col-span-2 space-y-2">
+                    <label className="text-[10px] font-mono uppercase tracking-widest text-[#8a7f70]">Condições de Pagamento</label>
+                    <Input 
                       value={scrapedData.payment}
                       onChange={(e) => setScrapedData({...scrapedData, payment: e.target.value})}
-                      className="w-full px-3 py-2 border dark:border-zinc-800 border-zinc-200 rounded-lg dark:bg-zinc-900/50 bg-zinc-50 dark:text-slate-200 text-sm focus:outline-none focus:ring-1 focus:ring-[#d4af35]"
-                      placeholder="Ex: Aceita 30% e saldo em 36x"
+                      placeholder="Ex: Aceita permuta, 30% entrada..."
+                      className="border-[rgba(28,24,18,0.1)] h-11 rounded-xl bg-[#fdfaf5]"
                     />
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-3 md:col-span-2">
+                    <div className="p-3 bg-[#f5f1eb] rounded-xl border border-[rgba(28,24,18,0.05)] text-center">
+                      <span className="text-[8px] font-mono uppercase text-[#8a7f70]">Dorms</span>
+                      <p className="text-sm font-bold">{scrapedData.bedrooms || '-'}</p>
+                    </div>
+                    <div className="p-3 bg-[#f5f1eb] rounded-xl border border-[rgba(28,24,18,0.05)] text-center">
+                      <span className="text-[8px] font-mono uppercase text-[#8a7f70]">Suítes</span>
+                      <p className="text-sm font-bold">{scrapedData.suites || '-'}</p>
+                    </div>
+                    <div className="p-3 bg-[#f5f1eb] rounded-xl border border-[rgba(28,24,18,0.05)] text-center">
+                      <span className="text-[8px] font-mono uppercase text-[#8a7f70]">Área</span>
+                      <p className="text-sm font-bold">{scrapedData.area_privativa ? `${scrapedData.area_privativa}m²` : '-'}</p>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="pt-4 flex gap-2">
-                   <button
-                    type="button"
-                    onClick={() => { setIngestStep("url"); setIngestStatus("idle") }}
+                <div className="pt-6 border-t border-[rgba(28,24,18,0.05)] flex gap-3">
+                  <Button 
+                    type="button" 
+                    variant="ghost" 
+                    onClick={() => setIsIngestModalOpen(false)}
+                    className="flex-1 h-12 text-xs font-mono uppercase tracking-widest rounded-xl"
+                  >
+                    Cancelar
+                  </Button>
+                  <Button 
+                    type="submit" 
                     disabled={ingestStatus === "processing"}
-                    className="px-4 py-2.5 rounded-xl border border-zinc-700 text-xs font-bold text-slate-300 hover:bg-zinc-800 disabled:opacity-50 transition-all"
+                    className="flex-[2] h-12 bg-[#1c1812] hover:bg-black text-white gap-2 font-bold uppercase tracking-widest text-[10px] rounded-xl shadow-lg"
                   >
-                    Voltar
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={ingestStatus === "processing" || ingestStatus === "complete"}
-                    className="flex-1 flex justify-center py-2.5 px-4 rounded-xl shadow-lg text-sm font-bold text-[#0a0907] bg-[#d4af35] hover:brightness-110 focus:outline-none disabled:opacity-50 transition-all"
-                  >
-                    {ingestStatus === "processing" ? (
-                      <span className="flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin"/> Gerando Embeddings DB...</span>
-                    ) : ingestStatus === "complete" ? (
-                      <span className="flex items-center gap-2 pt-0.5"><Sparkles className="w-4 h-4"/> Rastreamento Iniciado</span>
-                    ) : (
-                       "Confirmar Validação Inteligente"
-                    )}
-                  </button>
+                    {ingestStatus === "processing" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                    Validar e Inserir no Acervo
+                  </Button>
                 </div>
               </form>
-              )}
             </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* ── PLACING MODE OVERLAY ───────────────────────────────────────────────────── */}
-      <AnimatePresence>
-        {placingPropertyId && (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }} className="absolute bottom-24 left-1/2 z-50 -translate-x-1/2">
-            <div className={`flex items-center gap-3 rounded-2xl ${glass} px-5 py-3 shadow-2xl`}>
-              <MapPin className="h-4 w-4 text-[#d4af35] animate-bounce shrink-0" />
-              <span className="text-sm text-[#d4af35]/80 font-medium">Clique no mapa para posicionar</span>
-              <button onClick={() => { setPlacingPropertyId(null); setPendingCoords(null) }} className="ml-2 text-white/50 hover:text-white">
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {pendingCoords && placingPropertyId && (
-          <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="absolute bottom-40 left-1/2 -translate-x-1/2 z-50">
-            <div className={`flex items-center gap-3 rounded-xl ${glassDarker} px-4 py-2.5 shadow-2xl`}>
-              <span className="text-xs text-[#d4af35]/60 font-mono">{pendingCoords.lat.toFixed(4)}, {pendingCoords.lng.toFixed(4)}</span>
-              <button onClick={confirmPlace} disabled={isSaving} className="flex items-center gap-1.5 rounded-lg bg-[#d4af35] px-3 py-1 text-xs font-bold text-[#0a0907] hover:brightness-110 transition-all disabled:opacity-50">
-                {isSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : null} Confirmar
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-
-      {/* ── 2. OPPORTUNITY STREAM (Left Panel) ────────────────────────────────────── */}
-      <aside className="fixed left-6 top-24 bottom-24 w-80 z-40 flex flex-col gap-4 pointer-events-none">
-        <div className="flex items-center justify-between px-2 pointer-events-auto">
-          <h3 className="text-xs font-bold tracking-widest text-[#d4af35]/80 uppercase">Fluxo de Oportunidades</h3>
-          <MoreHorizontal className="w-4 h-4 text-[#d4af35]/60" />
-        </div>
-        
-        <div className="flex-1 overflow-y-auto pr-2 space-y-3 custom-scrollbar pointer-events-auto">
-          {filtered.map((prop, idx) => {
-            const hasCoords = prop.lat !== null && prop.lng !== null
-            const isSelected = selectedProperty?.id === prop.id
-            const isPlacing = placingPropertyId === prop.id
-
-            // Randomize Badges for mockup/visual richness based on id hash logic
-            const badgeType = prop.value ? (prop.value > 2000000 ? 'NOVO' : 'OPORTUNIDADE') : 'QUEDA DE PREÇO'
-            const badgeColor = badgeType === 'OPORTUNIDADE' ? 'text-[#d4af35] bg-[#d4af35]/10 border-[#d4af35]' : badgeType === 'QUEDA DE PREÇO' ? 'text-blue-400 bg-blue-400/10 border-blue-400' : 'text-slate-300 bg-slate-700 border-slate-500'
-
-            return (
-              <div 
-                key={prop.id} 
-                onClick={() => setSelectedProperty(prop)}
-                className={`${glassDarker} p-3 rounded-xl border-l-[3px] ${
-                  isSelected ? 'border-l-[#d4af35] bg-[#d4af35]/10' : 
-                  !hasCoords ? 'border-l-slate-700/50' : 
-                  badgeType === 'QUEDA DE PREÇO' ? 'border-l-blue-400 hover:bg-blue-400/5' : 'border-l-[#d4af35] hover:bg-[#d4af35]/5'
-                } cursor-pointer transition-all group`}
-              >
-                <div className="flex gap-3 mb-2.5">
-                  <div className="w-16 h-16 rounded-lg bg-cover bg-center bg-zinc-800 shrink-0" style={{ backgroundImage: prop.cover_image ? `url(${prop.cover_image})` : 'none' }}>
-                    {!prop.cover_image && <div className="w-full h-full flex items-center justify-center text-[#d4af35]/30"><Compass className="w-6 h-6"/></div>}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${badgeColor}`}>{badgeType}</span>
-                      <span className="text-[9px] text-slate-500">Ativo</span>
-                    </div>
-                    <p className={`text-sm font-bold mt-1 truncate ${badgeType === 'QUEDA DE PREÇO' ? 'text-blue-400' : 'text-slate-100'}`}>
-                      {formatValue(prop.value)}
-                    </p>
-                    <p className="text-[10px] text-slate-400 truncate">{prop.location_text || prop.title || "Sem Localização"}</p>
-                  </div>
-                </div>
-                
-                <div className="flex items-center justify-between border-t border-[#d4af35]/10 pt-2">
-                  <div className="flex flex-col">
-                    <span className="text-[9px] text-slate-500 uppercase font-semibold">Qualidade de Dados</span>
-                    <span className="text-xs font-bold text-emerald-400">{calculateSignalStrength(prop)}%</span>
-                  </div>
-                  
-                  {/* Action button if no coords */}
-                  {!hasCoords ? (
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); setPlacingPropertyId(isPlacing ? null : prop.id) }} 
-                      className={`px-3 py-1 rounded text-[10px] font-bold uppercase transition-colors ${isPlacing ? 'bg-[#d4af35] text-[#0a0907]' : 'bg-[#d4af35]/10 text-[#d4af35] hover:bg-[#d4af35]/20'}`}
-                    >
-                      {isPlacing ? 'Cancelar' : 'Definir Local'}
-                    </button>
-                  ) : (
-                    <div className="w-20 h-6 opacity-60">
-                      <svg className="w-full h-full" viewBox="0 0 100 30">
-                        <path className="opacity-80 drop-shadow-[0_0_5px_#d4af35]" d="M0 25 Q 25 25, 40 10 T 70 20 T 100 5" fill="none" stroke={badgeType==='QUEDA DE PREÇO'?'#60a5fa':'#d4af35'} strokeWidth="2"></path>
-                      </svg>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </aside>
-
-      {/* ── 3. PROPERTY INTELLIGENCE (Right Panel) ───────────────────────────────── */}
-      <AnimatePresence>
-        {selectedProperty && (
-          <motion.aside 
-            initial={{ x: 400, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: 400, opacity: 0 }}
-            transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            className={`fixed right-6 top-24 bottom-24 w-96 z-40 ${glassDarker} rounded-2xl flex flex-col overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.8)]`}
-          >
-            {/* Hero Image */}
-            <div className="relative h-48 shrink-0">
-              <img 
-                className="w-full h-full object-cover" 
-                src={selectedProperty.cover_image || 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&q=80'} 
-                alt=""
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#0a0907] to-transparent"></div>
-              
-              <button onClick={() => setSelectedProperty(null)} className="absolute top-4 left-4 size-8 bg-black/40 backdrop-blur-md rounded-full flex items-center justify-center text-white/70 hover:text-white border border-white/10 transition-all z-10">
-                <X className="w-4 h-4" />
-              </button>
-
-              <div className="absolute top-4 right-4 flex items-center gap-2 z-10">
-                {confirmDeleteId === selectedProperty.id ? (
-                  <motion.div 
-                    initial={{ scale: 0.9, opacity: 0 }} 
-                    animate={{ scale: 1, opacity: 1 }}
-                    className="flex items-center gap-1 bg-red-600 rounded-full px-2 py-1 shadow-lg border border-red-400/30"
-                  >
-                    <span className="text-[9px] font-bold text-white px-1">Excluir?</span>
-                    <button 
-                      onClick={() => handleDeleteProperty(selectedProperty.id)}
-                      className="size-6 bg-white/20 rounded-full flex items-center justify-center text-white hover:bg-white/40 transition-all"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                    <button 
-                      onClick={() => setConfirmDeleteId(null)}
-                      className="size-6 bg-black/20 rounded-full flex items-center justify-center text-white hover:bg-black/40 transition-all"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </motion.div>
-                ) : (
-                  <button 
-                    onClick={() => handleDeleteProperty(selectedProperty.id)}
-                    className="size-8 bg-red-500/20 backdrop-blur-md rounded-full flex items-center justify-center text-red-400 border border-red-500/30 hover:bg-red-500/40 transition-all"
-                    title="Excluir Imóvel"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                )}
-                <button className="size-8 bg-black/40 backdrop-blur-md rounded-full flex items-center justify-center text-white border border-[#d4af35]/30 hover:bg-[#d4af35]/20 transition-all">
-                  <Heart className="w-4 h-4" />
-                </button>
-              </div>
-
-              <div className="absolute bottom-4 left-5 right-5">
-                <h2 className="text-lg font-bold leading-tight">{selectedProperty.title || selectedProperty.internal_name}</h2>
-                <p className="text-[11px] text-slate-300 mt-1">{selectedProperty.location_text}</p>
-              </div>
-            </div>
-
-            {/* Details & Intelligence */}
-            <div className="p-5 flex-1 overflow-y-auto space-y-6 custom-scrollbar">
-              <div className="flex items-end justify-between">
-                <div>
-                  <span className="text-[9px] uppercase tracking-widest text-[#d4af35] font-bold">Valor Atual</span>
-                  <p className="text-3xl font-bold tracking-tight text-white">{formatValue(selectedProperty.value)}</p>
-                </div>
-                <div className="text-right">
-                  <span className="text-xs text-emerald-400 flex items-center justify-end font-bold">
-                    <TrendingUp className="w-3.5 h-3.5 mr-1" /> 4.2%
-                  </span>
-                  <p className="text-[10px] text-slate-500 italic mt-0.5">vs média da região</p>
-                </div>
-              </div>
-
-              {/* Real Property Data */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className={`${glass} p-3 rounded-lg flex flex-col items-center bg-[#14120c]/40 dark:bg-[#14120c]/40 bg-white/40`}>
-                  <span className="text-[8px] uppercase text-slate-500 font-bold mb-1.5 tracking-wider">Área Privativa</span>
-                  <div className="flex items-center justify-center">
-                    <span className="text-[14px] font-bold dark:text-white text-zinc-900">{selectedProperty.area_privativa ? `${selectedProperty.area_privativa} m²` : 'N/A'}</span>
-                  </div>
-                </div>
-                <div className={`${glass} p-3 rounded-lg flex flex-col items-center bg-[#14120c]/40 dark:bg-[#14120c]/40 bg-white/40`}>
-                  <span className="text-[8px] uppercase text-slate-500 font-bold mb-1.5 tracking-wider">Condições</span>
-                  <div className="flex flex-col items-center justify-center gap-1">
-                     {selectedProperty.payment_conditions?.financing && <span className="text-[10px] font-bold text-emerald-500">Aceita Financiamento</span>}
-                     {selectedProperty.payment_conditions?.exchange && <span className="text-[10px] font-bold text-blue-400">Estuda Permuta</span>}
-                     {!selectedProperty.payment_conditions?.financing && !selectedProperty.payment_conditions?.exchange && <span className="text-[10px] font-bold text-slate-400">Padrão</span>}
-                  </div>
-                </div>
-              </div>
-              
-              {selectedProperty.features && selectedProperty.features.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mt-2">
-                  {selectedProperty.features.slice(0, 6).map((f, i) => (
-                    <span key={i} className="text-[9px] px-2 py-1 rounded bg-[#d4af35]/10 text-[#d4af35] border border-[#d4af35]/20 font-medium">
-                      {f}
-                    </span>
-                  ))}
-                  {selectedProperty.features.length > 6 && (
-                    <span className="text-[9px] px-2 py-1 rounded bg-zinc-800/50 text-zinc-400 border border-zinc-700/50 font-medium">
-                      +{selectedProperty.features.length - 6}
-                    </span>
-                  )}
-                </div>
-              )}
-
-              {/* Orbit AI Predictive Matches (replaces the text block from Stitch for real functionality) */}
-              <div className="bg-[#d4af35]/5 border border-[#d4af35]/20 rounded-xl p-4 relative overflow-hidden">
-                {/* Decorative background glow */}
-                <div className="absolute -top-10 -right-10 w-24 h-24 bg-[#d4af35]/20 blur-2xl rounded-full pointer-events-none"></div>
-                
-                <div className="flex items-center gap-2 mb-3">
-                  <BrainCircuit className="w-4 h-4 text-[#d4af35]" />
-                  <span className="text-[11px] font-bold text-[#d4af35] uppercase tracking-wider">Leads Preditos (Match Semântico)</span>
-                </div>
-
-                {isMatching ? (
-                  <div className="space-y-3">
-                    {[1, 2].map(i => <div key={i} className="h-10 rounded bg-[#d4af35]/10 animate-pulse border border-[#d4af35]/5" />)}
-                  </div>
-                ) : matches.length > 0 ? (
-                  <div className="space-y-2">
-                    {matches.map(m => (
-                      <div key={m.id} className="flex items-center gap-3 bg-[#0a0907]/60 border border-[#d4af35]/10 p-2 rounded-lg group hover:border-[#d4af35]/40 transition-colors cursor-pointer">
-                        <div className="w-8 h-8 rounded border border-white/10 bg-zinc-800 overflow-hidden shrink-0">
-                           {m.photo_url ? <img src={m.photo_url} className="w-full h-full object-cover" alt="" /> : <span className="text-[9px] uppercase w-full h-full flex items-center justify-center font-bold text-zinc-600">{m.name.substring(0,2)}</span>}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[11px] font-bold text-slate-200 truncate">{m.name}</p>
-                          <p className="text-[9px] text-[#d4af35] flex items-center gap-1">Afinidade {(m.similarity * 100).toFixed(0)}%</p>
-                        </div>
-                        <button className="w-6 h-6 rounded bg-[#d4af35]/20 text-[#d4af35] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                          <ArrowRight className="w-3 h-3" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-[11px] leading-relaxed text-slate-400 border-l-2 border-[#d4af35] pl-3 py-1 bg-black/20">
-                    Nenhum lead latente com alta afinidade encontrado no vector database para este ativo.
-                  </p>
-                )}
-              </div>
-
-              {/* Removed Static History Chart */}
-            </div>
-
-            {/* Actions */}
-            <div className="p-4 bg-[#14120c] dark:bg-[#14120c] bg-white border-t border-[#d4af35]/20 flex gap-2">
-              <button 
-                onClick={() => toast.success("Offer Engine Started", { description: "IA está formulando uma abordagem de venda..." })}
-                className="flex-1 py-2.5 bg-[#d4af35] text-[#0a0907] font-bold text-xs uppercase tracking-wider rounded-lg hover:brightness-110 shadow-[0_0_20px_rgba(212,175,53,0.3)] transition-all"
-              >
-                Generate Offer
-              </button>
-              <button 
-                onClick={() => {
-                   navigator.clipboard.writeText(selectedProperty.source_link || "")
-                   toast.info("Link Copied")
-                }}
-                className={`px-4 py-2 ${glass} rounded-lg flex items-center justify-center hover:bg-[#d4af35]/20 transition-colors`}
-              >
-                <Share2 className="w-4 h-4 text-[#d4af35]" />
-              </button>
-            </div>
-          </motion.aside>
-        )}
-      </AnimatePresence>
-
-      {/* ── 4. OPPORTUNITY RADAR (Bottom Center) ─────────────────────────────────── */}
-      <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-40 flex flex-col items-center gap-2 pointer-events-none">
-        <div className={`relative size-28 ${glass} rounded-full flex items-center justify-center border-2 border-[#d4af35]/30 shadow-[0_0_30px_rgba(212,175,53,0.1)]`}>
-          {/* Radar Sweep */}
-          <div className="absolute inset-0 rounded-full bg-gradient-to-r from-[#d4af35]/20 to-transparent animate-spin" style={{ animationDuration: '4s' }}></div>
-          {/* Circles */}
-          <div className="absolute size-20 border border-[#d4af35]/10 rounded-full"></div>
-          <div className="absolute size-10 border border-[#d4af35]/10 rounded-full"></div>
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 size-1 bg-[#d4af35] shadow-[0_0_10px_#d4af35] rounded-full"></div>
-          
-          <div className="z-10 text-center mt-0.5">
-            <p className="text-[7px] font-bold text-[#d4af35]/60 uppercase tracking-widest drop-shadow-md">Pulse</p>
-            <p className="text-[9px] font-bold text-white drop-shadow-md tracking-wider">LIVE</p>
           </div>
-        </div>
-      </div>
+        )}
+      </AnimatePresence>
 
-      {/* ── 5. MAP SIGNAL LEGEND (Bottom Left) ───────────────────────────────────── */}
-      <div className={`fixed bottom-8 left-6 z-40 ${glass} p-3 px-4 rounded-xl flex items-center gap-5 shadow-2xl`}>
-        <div className="flex items-center gap-2">
-          <div className="size-2 bg-[#d4af35] rounded-full shadow-[0_0_8px_#d4af35]"></div>
-          <span className="text-[9px] font-bold uppercase tracking-wider text-slate-300">Undervalued</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="size-2 bg-blue-400 rounded-full shadow-[0_0_8px_#60a5fa]"></div>
-          <span className="text-[9px] font-bold uppercase tracking-wider text-slate-300">Price Drop</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="size-2 bg-slate-400 rounded-full"></div>
-          <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Neutral</span>
-        </div>
-      </div>
+      <MapModal 
+        isOpen={isMapModalOpen}
+        onClose={() => setIsMapModalOpen(false)}
+        selectedIds={selectedPropertyIds}
+        onToggleSelect={togglePropertySelection}
+      />
 
-      {/* Custom scrollbar for local panels */}
       <style jsx global>{`
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(212,175,53,0.15); border-radius: 99px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(212,175,53,0.3); }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(160, 120, 40, 0.1); border-radius: 99px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(160, 120, 40, 0.2); }
       `}</style>
     </div>
+  )
+}
+
+function SelectionsHistory() {
+  const [capsules, setCapsules] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const supabase = getSupabase()
+
+  async function fetchCapsules() {
+    setLoading(true)
+    const { data, error } = await (supabase
+      .from('client_spaces') as any)
+      .select('*, leads(name), capsule_items:capsule_items(count)')
+      .order('created_at', { ascending: false })
+    
+    if (data) setCapsules(data)
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    fetchCapsules()
+  }, [])
+
+  const handleCopyLink = (slug: string) => {
+    const url = `${window.location.origin}/selection/${slug}`
+    navigator.clipboard.writeText(url)
+    toast.success("Link copiado para o clipboard!")
+  }
+
+  if (loading) return <div className="flex justify-center p-20"><Loader2 className="animate-spin text-[#a07828]" /></div>
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between border-b border-[rgba(28,24,18,0.05)] pb-6">
+        <div>
+          <h2 className="font-serif text-3xl">Histórico de Selections</h2>
+          <p className="text-sm text-[#8a7f70] mt-1 font-serif italic">Administre os portais curados enviados para seus leads.</p>
+        </div>
+        <Button variant="ghost" onClick={fetchCapsules} className="h-8 w-8 p-0">
+          <Loader2 className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4">
+        {capsules.length === 0 ? (
+          <div className="text-center p-20 border-2 border-dashed border-[rgba(28,24,18,0.05)] rounded-2xl">
+            <Link2 className="h-10 w-10 text-[#8a7f70]/20 mx-auto mb-4" />
+            <p className="text-[#8a7f70] font-serif italic">Nenhuma seleção enviada ainda.</p>
+          </div>
+        ) : capsules.map(cap => (
+          <div key={cap.id} className="p-6 bg-white rounded-2xl border border-[rgba(28,24,18,0.05)] shadow-sm flex items-center justify-between hover:border-[#a07828]/20 transition-all group">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-[#fdfaf5] border border-[#a07828]/10 flex items-center justify-center text-[#a07828]">
+                <Users size={20} />
+              </div>
+              <div>
+                <h4 className="font-serif text-lg leading-none">{cap.leads?.name || 'Lead s/ nome'}</h4>
+                <div className="flex items-center gap-3 mt-2">
+                  <span className="text-[9px] font-mono uppercase tracking-widest text-[#a07828] bg-[#a07828]/5 px-2 py-0.5 rounded">
+                    {cap.capsule_items?.[0]?.count || 0} Imóveis
+                  </span>
+                  <span className="text-[10px] text-[#8a7f70] font-mono">
+                    {new Date(cap.created_at).toLocaleDateString('pt-BR')}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={() => handleCopyLink(cap.slug)}
+                className="p-2.5 rounded-xl bg-[#f5f1eb] text-[#8a7f70] hover:text-[#a07828] transition-colors"
+                title="Copiar Link"
+              >
+                <Link2 size={16} />
+              </button>
+              <a 
+                href={`/selection/${cap.slug}`} 
+                target="_blank"
+                className="p-2.5 rounded-xl bg-[#f5f1eb] text-[#8a7f70] hover:text-[#1c1812] transition-colors"
+                title="Visualizar Portal"
+              >
+                <ExternalLink size={16} />
+              </a>
+              <Button variant="ghost" className="text-[10px] font-mono uppercase tracking-widest gap-2 hover:bg-[#a07828]/5 text-[#a07828] h-10 px-4">
+                <Settings size={14} />
+                Gerenciar
+              </Button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+export default function AtlasManager() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#f5f1eb] flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-[#a07828]" />
+      </div>
+    }>
+      <AtlasManagerContent />
+    </Suspense>
   )
 }

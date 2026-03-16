@@ -10,7 +10,6 @@ import { LeadFocusPanel } from "@/components/lead-focus-panel"
 import { OrbitProvider, useOrbitContext } from "@/components/orbit-context"
 import { AdminTrigger } from "@/components/admin/admin-trigger"
 import { OrbitStatusBar } from "@/components/orbit-status-bar"
-import { AtlasFocusSurface } from "@/components/atlas-map"
 
 export interface Lead {
   id: string
@@ -209,8 +208,6 @@ function OrbitInterfaceContent() {
       {/* Admin Trigger - Discreet backstage access */}
       <AdminTrigger />
 
-      {/* Atlas Focus Surface - Global overlay for property system */}
-      <AtlasFocusSurface />
     </div>
   )
 }

@@ -8,7 +8,6 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { LeadCognitiveConsole } from "@/components/lead-cognitive-console";
 import { OrbitProvider, useOrbitContext } from "@/components/orbit-context";
 import { AdminTrigger } from "@/components/admin/admin-trigger";
-import { AtlasFocusSurface } from "@/components/atlas-map";
 import { useSupabaseLeads, type OrbitLead } from "@/hooks/use-supabase-data";
 import { useAuth } from "@/hooks/use-auth";
 import { TopBar } from "@/components/top-bar";
@@ -218,15 +217,10 @@ function OrbitInterfaceContent() {
             onActivate={handleCoreActivate}
             onQuerySubmit={handleQuerySubmit}
             onCancel={handleCoreCancel}
-            onLeadSelect={openLeadPanel}
           />
         </div>
       </div>
       
-      {/* Atlas Geographic Layer */}
-      <div className="absolute inset-0 z-[150] pointer-events-none">
-        <AtlasFocusSurface />
-      </div>
 
       {/* ── Layer 2: nodesLayer (D3 zoom applied here) ────────────────────── */}
       <div
@@ -234,8 +228,8 @@ function OrbitInterfaceContent() {
         className="absolute inset-0 z-[50] cursor-grab active:cursor-grabbing outline-none transition-opacity duration-500"
         style={{ 
           touchAction: "none",
-          opacity: isAtlasMapActive ? 0 : 1,
-          pointerEvents: isAtlasMapActive ? "none" : "auto",
+          opacity: 1,
+          pointerEvents: "auto",
         }}
       >
         <div

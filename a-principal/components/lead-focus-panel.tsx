@@ -297,14 +297,8 @@ export function LeadFocusPanel({
   
   const handleSelectPropertyOnMap = useCallback(() => {
     // Invoke the global Atlas Focus Surface with callback to receive the selected property
-    invokeAtlasMap({
-      leadId: leadId || undefined,
-      leadName: lead?.name,
-      onPropertySelected: (property: Property) => {
-        setLinkedProperty(property)
-      }
-    })
-  }, [invokeAtlasMap, leadId, lead?.name])
+    window.open(`/atlas?leadId=${leadId}&tab=acervo`, "_blank")
+  }, [leadId])
 
 // Send property to lead - this triggers the Capsule evolution
   const handleSendProperty = useCallback(() => {

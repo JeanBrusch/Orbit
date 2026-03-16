@@ -328,7 +328,14 @@ const PropertyCard = memo(function PropertyCard({ interaction }: { interaction: 
           }
         </div>
         <div>
-          <p className="text-xs font-medium text-slate-200 truncate max-w-[130px]">{prop.title || "Imóvel"}</p>
+          <a 
+            href={`/atlas?id=${prop.id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs font-medium text-slate-200 hover:text-[#d4af35] transition-colors truncate max-w-[130px] block"
+          >
+            {prop.title || "Imóvel"}
+          </a>
           <p className="text-[10px] text-[#d4af35]/70">{formatValue(prop.value)}</p>
         </div>
       </div>
@@ -736,7 +743,7 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
     // Optimistic UI update
     const optimistic: Message = {
       id: `opt-${Date.now()}`,
-      source: isNoteMode ? "internal" : "operator",
+      source: interactionMode === "note" ? "internal" : "operator",
       content: text,
       timestamp: new Date().toISOString(),
       ai_analysis: null,
@@ -1101,7 +1108,10 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
 
                     {/* Attach property */}
                     <button
-                      onClick={() => invokeAtlasMap({ leadId: lead?.id, leadName: lead?.name || undefined, onPropertySelected: handleAttachProperty })}
+                      onClick={() => {
+                        const url = `/atlas?leadId=${lead?.id}&tab=acervo`;
+                        window.open(url, "_blank");
+                      }}
                       title="Anexar imóvel"
                       className="w-9 h-9 rounded-full border bg-white/5 border-white/10 flex items-center justify-center text-slate-400 hover:text-[#d4af35] hover:border-[#d4af35]/30 transition-all shrink-0 mb-[1px]"
                     >

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo, memo, useCallback } from "react"
 import Map, { Marker, Popup, NavigationControl } from "react-map-gl/mapbox"
+import 'mapbox-gl/dist/mapbox-gl.css'
 import type { ViewState } from "react-map-gl/mapbox"
 import { motion, AnimatePresence } from "framer-motion"
 import { Building2, X } from "lucide-react"

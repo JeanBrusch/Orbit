@@ -16,6 +16,8 @@ import {
   Building2,
   Heart,
   Eye,
+  Sparkles,
+  ExternalLink,
   XCircle,
   ChevronDown,
   ChevronUp,
@@ -607,15 +609,9 @@ export function LeadFocusPanel({
   };
 
   const handleSelectPropertyOnMap = useCallback(() => {
-    // Invoke the global Atlas Focus Surface with callback to receive the selected property
-    invokeAtlasMap({
-      leadId: leadId || undefined,
-      leadName: lead?.name,
-      onPropertySelected: (property: Property) => {
-        setLinkedProperty(property);
-      },
-    });
-  }, [invokeAtlasMap, leadId, lead?.name]);
+    // Navigate to the new portal with leadId context
+    window.open(`/atlas?leadId=${leadId}`, '_blank');
+  }, [leadId]);
 
 
   // Send property to lead - this triggers the Property Interaction evolution
@@ -656,6 +652,21 @@ export function LeadFocusPanel({
       setSentProperties((prev) => [...prev, newSentProperty]);
       setLinkedProperty(null);
       refetchDetails();
+
+      // 3. Notify lead via WhatsApp
+      const sendTo = (lead.lid ? (lead.lid.includes('@lid') ? lead.lid : `${lead.lid}@lid`) : null) || lead.phone;
+      if (sendTo) {
+        const message = `Olá ${lead.name.split(' ')[0]}! Veja esse imóvel que acabei de encontrar para você: ${linkedProperty.url || 'Link do imóvel'}`;
+        await fetch("/api/whatsapp/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            phone: sendTo,
+            message,
+            leadId,
+          }),
+        }).catch(err => console.error("Error sending property WhatsApp:", err));
+      }
     } catch (error) {
       console.error("Error sending property:", error);
       setSendError("Erro na integração de envio");
@@ -1203,12 +1214,15 @@ export function LeadFocusPanel({
                           </span>
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p
-                            className="truncate text-sm font-medium"
+                          <a 
+                            href={`/atlas?id=${sp.property.id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="truncate text-sm font-medium hover:text-[var(--orbit-glow)] transition-colors"
                             style={{ color: "oklch(0.88 0.01 250)" }}
                           >
                             {sp.property.name}
-                          </p>
+                          </a>
                           {sp.property.value && (
                             <span
                               className="text-[10px] font-medium"
@@ -1224,6 +1238,12 @@ export function LeadFocusPanel({
                           {stateConfig.label}
                         </span>
                       </div>
+
+                      {Boolean(sp.property.ingestedData?.rawExtractedData?.payment_conditions) && (
+                         <p className="mt-2 text-[10px] italic text-[var(--orbit-glow)] opacity-80 border-l border-[var(--orbit-glow)]/30 pl-2">
+                            {String(sp.property.ingestedData?.rawExtractedData?.payment_conditions)}
+                         </p>
+                      )}
                       <div className="mt-3 flex gap-1.5">
                         {[
                           {
@@ -1728,9 +1748,14 @@ export function LeadFocusPanel({
                   <p className="text-[10px] font-mono tracking-widest uppercase text-[var(--orbit-glow)]">
                     Em Foco
                   </p>
-                  <p className="truncate text-sm font-medium text-white/90">
+                  <a 
+                    href={`/atlas?id=${linkedProperty.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="truncate text-sm font-medium text-white/90 hover:text-[var(--orbit-glow)] transition-colors"
+                  >
                     {linkedProperty.name}
-                  </p>
+                  </a>
                   {linkedProperty.value && (
                     <p className="text-xs font-mono text-emerald-400">
                       {formatValue(linkedProperty.value)}
@@ -1754,13 +1779,24 @@ export function LeadFocusPanel({
               </button>
             </div>
           ) : (
-            <button
-              onClick={handleSelectPropertyOnMap}
-              className="mb-3 flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-xs font-mono tracking-widest uppercase transition-all hover:bg-[var(--orbit-glow)]/20 active:scale-[0.98] border border-[var(--orbit-glow)]/30 text-[var(--orbit-glow)]"
-            >
-              <MapPin className="h-3.5 w-3.5" />
-              Anexar do Atlas
-            </button>
+            <div className="flex gap-2 mb-3">
+              <button
+                onClick={handleSelectPropertyOnMap}
+                className="flex-1 flex items-center justify-center gap-2 rounded-xl py-2.5 text-xs font-mono tracking-widest uppercase transition-all hover:bg-[var(--orbit-glow)]/20 active:scale-[0.98] border border-[var(--orbit-glow)]/30 text-[var(--orbit-glow)]"
+              >
+                <MapPin className="h-3.5 w-3.5" />
+                Vincular
+              </button>
+              <a 
+                href={`/atlas?leadId=${leadId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-mono tracking-widest uppercase transition-all bg-white/5 hover:bg-white/10 border border-white/10 text-white/70"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                Atlas
+              </a>
+            </div>
           )}
 
 
