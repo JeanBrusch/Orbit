@@ -254,7 +254,7 @@ interface OrbitContextValue {
     /** @deprecated Use results.leads */
     leads: Array<{ id: string; name: string; stage: string; lastInteraction: string; intent?: string; relevanceScore?: number; snippet?: string; matchReason?: string }>
   }
-  activateOrbitView: (query: string, sourceLeadId?: string) => Promise<void>
+  activateOrbitView: (query: string, sourceLeadId?: string) => Promise<number>
   deactivateOrbitView: () => void
 }
 
@@ -535,19 +535,23 @@ export function OrbitProvider({ children }: { children: ReactNode }) {
       }
       
       const data = await response.json()
+      const leads = data.results || []
       
       setOrbitViewState({
         active: true,
         query: query.trim(),
         results: {
-          leads: data.results || [], // Assuming backend returns some structure
+          leads, // Assuming backend returns some structure
           properties: [], // For now, properties might come from a different logic
           intentions: [],
         },
         sourceLeadId,
       })
+      
+      return leads.length
     } catch (err) {
       console.error('Error activating ORBIT VIEW:', err)
+      return 0
     }
   }, [])
 

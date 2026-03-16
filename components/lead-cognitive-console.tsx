@@ -657,9 +657,17 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
       fetchAll();
 
       // Mark as read
-      fetch(`/api/lead/${leadId}/read`, { method: "POST" }).catch(err => 
-        console.error("Error marking lead as read:", err)
-      );
+      fetch(`/api/lead/${leadId}/read`, { method: "POST" })
+        .then(() => {
+          // Trigger a global refresh to clear urgency lights
+          // Since we don't have a direct refetch here, the realtime 
+          // subscription on 'leads' table in useSupabaseLeads should handle it,
+          // but we can also broadcast a custom event or rely on the next fetchLeads().
+          console.log(`[COG] Lead ${leadId} marked as read`);
+        })
+        .catch(err => 
+          console.error("Error marking lead as read:", err)
+        );
     }
   }, [isOpen, leadId, fetchAll]);
 

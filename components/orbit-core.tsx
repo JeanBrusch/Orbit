@@ -73,22 +73,12 @@ export function OrbitCore({ state, message, activeCount, onActivate, onQuerySubm
 
   return (
     <div
-      className="absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2"
-      role="button"
-      tabIndex={0}
-      aria-label="Centro de comando ORBIT, clique para interagir"
-      title="Clique para consultar leads"
-      onClick={state === "idle" ? onActivate : undefined}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" && state === "idle") {
-          onActivate()
-        }
-        handleKeyDown(e)
-      }}
+      className="absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
+      role="presentation"
     >
       {/* Outermost ring */}
       <div
-        className={`absolute left-1/2 top-1/2 h-[480px] w-[480px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-[var(--orbit-line)] ${
+        className={`absolute left-1/2 top-1/2 h-[480px] w-[480px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-[var(--orbit-line)] pointer-events-none ${
           state === "listening" || state === "processing" ? "opacity-70" : "opacity-40"
         } ${getOuterRingClass()}`}
         style={{ transformOrigin: "center center" }}
@@ -96,7 +86,7 @@ export function OrbitCore({ state, message, activeCount, onActivate, onQuerySubm
 
       {/* Third ring */}
       <div
-        className={`absolute left-1/2 top-1/2 h-[400px] w-[400px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-[var(--orbit-line)] ${
+        className={`absolute left-1/2 top-1/2 h-[400px] w-[400px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-[var(--orbit-line)] pointer-events-none ${
           state === "listening" || state === "processing" ? "opacity-80" : "opacity-50"
         } ${getInnerRingClass()}`}
         style={{ transformOrigin: "center center" }}
@@ -107,7 +97,7 @@ export function OrbitCore({ state, message, activeCount, onActivate, onQuerySubm
 
       {/* Second ring */}
       <div
-        className={`absolute left-1/2 top-1/2 h-[320px] w-[320px] -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-[var(--orbit-glow)]/30 ${getOuterRingClass()}`}
+        className={`absolute left-1/2 top-1/2 h-[320px] w-[320px] -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-[var(--orbit-glow)]/30 pointer-events-none ${getOuterRingClass()}`}
         style={{ transformOrigin: "center center" }}
       >
         <div className="absolute -left-1 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full bg-[var(--orbit-glow)]" />
@@ -116,30 +106,43 @@ export function OrbitCore({ state, message, activeCount, onActivate, onQuerySubm
 
       {/* Inner ring */}
       <div
-        className={`absolute left-1/2 top-1/2 h-[240px] w-[240px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-[var(--orbit-glow)]/40 ${getInnerRingClass()}`}
+        className={`absolute left-1/2 top-1/2 h-[240px] w-[240px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-[var(--orbit-glow)]/40 pointer-events-none ${getInnerRingClass()}`}
         style={{ transformOrigin: "center center" }}
       />
 
       {/* Processing ripple rings */}
       {state === "processing" && (
         <>
-          <div className="absolute left-1/2 top-1/2 h-[180px] w-[180px] -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-[var(--orbit-glow)] animate-processing-ripple" />
+          <div className="absolute left-1/2 top-1/2 h-[180px] w-[180px] -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-[var(--orbit-glow)] animate-processing-ripple pointer-events-none" />
           <div
-            className="absolute left-1/2 top-1/2 h-[180px] w-[180px] -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-[var(--orbit-glow)] animate-processing-ripple"
+            className="absolute left-1/2 top-1/2 h-[180px] w-[180px] -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-[var(--orbit-glow)] animate-processing-ripple pointer-events-none"
             style={{ animationDelay: "0.5s" }}
           />
           <div
-            className="absolute left-1/2 top-1/2 h-[180px] w-[180px] -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-[var(--orbit-glow)] animate-processing-ripple"
+            className="absolute left-1/2 top-1/2 h-[180px] w-[180px] -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-[var(--orbit-glow)] animate-processing-ripple pointer-events-none"
             style={{ animationDelay: "1s" }}
           />
         </>
       )}
 
       {/* Central core */}
-      <div className={getCoreClasses()}>
+      <div 
+        className={`${getCoreClasses()} pointer-events-auto`}
+        onClick={state === "idle" ? onActivate : undefined}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && state === "idle") {
+            onActivate()
+          }
+          handleKeyDown(e)
+        }}
+        tabIndex={0}
+        role="button"
+        aria-label="Centro de comando ORBIT, clique para interagir"
+        title="Clique para consultar leads"
+      >
         {/* Inner glow */}
         <div
-          className={`absolute inset-2 rounded-full bg-gradient-to-br from-[var(--orbit-glow)]/10 to-transparent transition-opacity duration-300 ${
+          className={`absolute inset-2 rounded-full bg-gradient-to-br from-[var(--orbit-glow)]/10 to-transparent transition-opacity duration-300 pointer-events-none ${
             state === "listening" || state === "processing" ? "opacity-100 from-[var(--orbit-glow)]/20" : ""
           }`}
         />

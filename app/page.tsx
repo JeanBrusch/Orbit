@@ -51,7 +51,8 @@ function OrbitInterfaceContent() {
     openLeadPanel,
     closeLeadPanel,
     initializeLeadStates,
-    isAtlasMapActive,
+    activateOrbitView,
+    deactivateOrbitView,
   } = useOrbitContext();
 
   useEffect(() => {
@@ -113,26 +114,6 @@ function OrbitInterfaceContent() {
     document.documentElement.classList.toggle("dark");
   };
 
-  const processQuery = useCallback(
-    (query: string) => {
-      const normalizedQuery = query
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "");
-
-      const matchingLeads = supabaseLeads.filter((lead: OrbitLead) =>
-        lead.keywords.some((keyword: string) =>
-          normalizedQuery.includes(
-            keyword.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""),
-          ),
-        ),
-      );
-
-      return matchingLeads.map((lead: OrbitLead) => lead.id);
-    },
-    [supabaseLeads],
-  );
-
   const handleCoreActivate = useCallback(() => {
     if (coreState === "idle") {
       setCoreState("listening");
@@ -141,18 +122,17 @@ function OrbitInterfaceContent() {
   }, [coreState]);
 
   const handleQuerySubmit = useCallback(
-    (query: string) => {
+    async (query: string) => {
       setCoreState("processing");
       setCoreMessage("Analisando...");
 
-      setTimeout(() => {
-        const matchedIds = processQuery(query);
-        setHighlightedLeads(matchedIds);
+      try {
+        const resultsCount = await activateOrbitView(query);
         setCoreState("responding");
 
-        if (matchedIds.length > 0) {
+        if (resultsCount > 0) {
           setCoreMessage(
-            `${matchedIds.length} lead${matchedIds.length > 1 ? "s" : ""} encontrado${matchedIds.length > 1 ? "s" : ""}`,
+            `${resultsCount} lead${resultsCount > 1 ? "s" : ""} encontrado${resultsCount > 1 ? "s" : ""}`,
           );
         } else {
           setCoreMessage("Nenhum lead encontrado");
@@ -160,12 +140,15 @@ function OrbitInterfaceContent() {
 
         setTimeout(() => {
           setCoreState("idle");
-          setHighlightedLeads([]);
           setCoreMessage("Campo Cognitivo Ativo");
-        }, 4000);
-      }, 1200);
+        }, 5000);
+      } catch (err) {
+        console.error("Cognitive search error:", err);
+        setCoreState("idle");
+        setCoreMessage("Erro na busca cognitiva");
+      }
     },
-    [processQuery],
+    [activateOrbitView],
   );
 
   const [isMounted, setIsMounted] = useState(false);
