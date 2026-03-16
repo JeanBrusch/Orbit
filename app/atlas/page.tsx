@@ -293,14 +293,20 @@ function AtlasManagerContent() {
       const slug = `${lead.name.toLowerCase().replace(/\s+/g, '-')}-${Math.random().toString(36).substring(7)}`
       console.log("[ATLAS] Creating space with slug:", slug)
       
+      const spacePayload: any = {
+        lead_id: selectedLeadId,
+        slug,
+        theme: 'paper'
+      }
+
+      // Add columns only if they might exist (or rely on the SQL fix being applied)
+      // If the user hasn't run the SQL, these will fail, but we catch it below.
+      spacePayload.theme_config = { mode: 'light', variant: 'paper' }
+      spacePayload.title = `Seleção Orbit - ${lead.name}`
+      
       const { data: space, error: spaceError } = await (supabase
         .from('client_spaces') as any)
-        .insert([{
-          lead_id: selectedLeadId,
-          slug,
-          theme_config: { mode: 'light', variant: 'paper' },
-          title: `Seleção Orbit - ${lead.name}`
-        }])
+        .insert([spacePayload])
         .select()
         .single()
 
@@ -603,22 +609,39 @@ function AtlasManagerContent() {
               </div>
 
               <div className="space-y-1.5">
-                {filteredLeads.map(lead => (
-                  <button
-                    key={lead.id}
-                    onClick={() => setSelectedLeadId(lead.id)}
-                    className={`w-full flex items-center gap-3 p-2.5 rounded-xl border transition-all ${selectedLeadId === lead.id ? 'bg-[#a07828]/5 border-[#a07828]/30 shadow-sm' : 'border-transparent hover:bg-[#ede8df]/30'}`}
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-[#ede8df] flex items-center justify-center border border-black/5 text-[10px] font-bold text-[#1c1812]">
-                      {lead.name[0]}
+                {selectedLeadId && searchParams.get('leadId') === selectedLeadId ? (
+                  // Locked version when coming from specific lead panel
+                  <div className="w-full flex items-center gap-3 p-3 rounded-xl border border-[#a07828]/40 bg-[#a07828]/5 shadow-sm">
+                    <div className="w-9 h-9 rounded-lg bg-[#ede8df] flex items-center justify-center border border-black/5 text-[11px] font-bold text-[#1c1812]">
+                      {leads?.find(l => l.id === selectedLeadId)?.name[0] || 'L'}
                     </div>
                     <div className="flex-1 text-left min-w-0">
-                      <p className="text-[11px] font-medium leading-none truncate">{lead.name}</p>
-                      <p className="text-[9px] text-[#8a7f70] mt-1 uppercase font-mono tracking-tighter">{lead.orbitStage || 'Exploração'}</p>
+                      <p className="text-[12px] font-semibold leading-none truncate text-[#1c1812]">
+                        {leads?.find(l => l.id === selectedLeadId)?.name || 'Lead Selecionado'}
+                      </p>
+                      <p className="text-[9px] text-[#a07828] mt-1 uppercase font-mono tracking-widest font-bold">Lid Ativo</p>
                     </div>
-                    {selectedLeadId === lead.id && <Check className="h-3 w-3 text-[#a07828]" />}
-                  </button>
-                ))}
+                    <Check className="h-4 w-4 text-[#a07828]" />
+                  </div>
+                ) : (
+                  // Search results version
+                  filteredLeads.map(lead => (
+                    <button
+                      key={lead.id}
+                      onClick={() => setSelectedLeadId(lead.id)}
+                      className={`w-full flex items-center gap-3 p-2.5 rounded-xl border transition-all ${selectedLeadId === lead.id ? 'bg-[#a07828]/5 border-[#a07828]/30 shadow-sm' : 'border-transparent hover:bg-[#ede8df]/30'}`}
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-[#ede8df] flex items-center justify-center border border-black/5 text-[10px] font-bold text-[#1c1812]">
+                        {lead.name[0]}
+                      </div>
+                      <div className="flex-1 text-left min-w-0">
+                        <p className="text-[11px] font-medium leading-none truncate">{lead.name}</p>
+                        <p className="text-[9px] text-[#8a7f70] mt-1 uppercase font-mono tracking-tighter">{lead.orbitStage || 'Exploração'}</p>
+                      </div>
+                      {selectedLeadId === lead.id && <Check className="h-3 w-3 text-[#a07828]" />}
+                    </button>
+                  ))
+                )}
               </div>
             </div>
 
