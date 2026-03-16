@@ -369,7 +369,8 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
   // Composer
   const [composerText, setComposerText] = useState("");
   const [sendStatus, setSendStatus] = useState<"idle" | "sending" | "done" | "error">("idle");
-  const [isNoteMode, setIsNoteMode] = useState(false);
+  const [interactionMode, setInteractionMode] = useState<"whatsapp" | "note" | "call">("whatsapp");
+  const [callStatus, setCallStatus] = useState<"attended" | "missed">("attended");
 
   // Auto-resize textarea
   useEffect(() => {
@@ -744,7 +745,7 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
     setComposerText("");
 
     try {
-      if (isNoteMode) {
+      if (interactionMode === "note") {
         // Send as Internal Note
         const noteRes = await fetch(`/api/lead/${leadId}/note`, {
           method: "POST",
@@ -755,8 +756,42 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
         if (!noteRes.ok) {
           throw new Error("Falha ao salvar nota");
         }
-      } else {
-        // Prefer LID over phone for WhatsApp routing
+      } else if (interactionMode === "call") {
+        // Send as Manual Call Interaction
+        const callSummary = `[Ligação ${callStatus === "attended" ? "Atendida" : "Não Atendida"}] ${text}`;
+        
+        // 1. Save to messages table for timeline and AI
+        // Using common source 'operator' but metadata content
+        const callObj = { 
+          type: "call", 
+          status: callStatus, 
+          summary: text,
+          timestamp: new Date().toISOString()
+        };
+
+        const { data: newMessage, error: insertError } = await (supabase
+          .from("messages") as any)
+          .insert({
+            lead_id: leadId,
+            source: "operator",
+            content: JSON.stringify(callObj),
+            timestamp: new Date().toISOString(),
+          })
+          .select("id")
+          .single();
+
+        if (insertError) throw insertError;
+
+        // 2. Trigger AI analysis for attended calls
+        if (callStatus === "attended") {
+          fetch(`/api/lead/${leadId}/note`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ content: callSummary, skipHistory: true }),
+          }).catch(e => console.error("Error triggering AI for call:", e));
+        }
+
+        // WhatsApp Mode
         const sendTo =
           (lead?.lid ? (lead.lid.includes("@lid") ? lead.lid : `${lead.lid}@lid`) : null) ||
           lead?.phone;
@@ -1073,45 +1108,110 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
                       <Building2 className="w-4 h-4" />
                     </button>
 
-                    {/* Toggle Mode: Chat vs Note */}
-                    <button
-                      onClick={() => setIsNoteMode(!isNoteMode)}
-                      title={isNoteMode ? "Mudar para WhatsApp" : "Mudar para Anotação Interna"}
-                      className={`w-9 h-9 rounded-full border flex items-center justify-center transition-all shrink-0 mb-[1px] ${
-                        isNoteMode 
-                          ? "bg-[#d4af35]/20 border-[#d4af35]/40 text-[#d4af35]" 
-                          : "bg-white/5 border-white/10 text-slate-400 hover:text-[#d4af35] hover:border-[#d4af35]/30"
-                      }`}
-                    >
-                      {isNoteMode ? <FileText className="w-4 h-4" /> : <User className="w-4 h-4" />}
-                    </button>
+                    {/* Main Interaction UI - Refactored for Modes */}
+                    <div className="flex-1 flex flex-col gap-3">
+                      {/* Tabs */}
+                      <div className="flex items-center gap-1 p-1 bg-white/5 border border-white/10 rounded-xl w-fit">
+                        <button
+                          onClick={() => setInteractionMode("whatsapp")}
+                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all ${
+                            interactionMode === "whatsapp" 
+                              ? "bg-[#2ec5ff] text-black shadow-[0_0_12px_rgba(46,197,255,0.4)]" 
+                              : "text-slate-400 hover:text-white"
+                          }`}
+                        >
+                          <Zap className="w-3 h-3" /> WhatsApp
+                        </button>
+                        <button
+                          onClick={() => setInteractionMode("note")}
+                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all ${
+                            interactionMode === "note" 
+                              ? "bg-[#d4af35] text-black shadow-[0_0_12px_rgba(212,175,53,0.4)]" 
+                              : "text-slate-400 hover:text-white"
+                          }`}
+                        >
+                          <Star className="w-3 h-3" /> Anotação
+                        </button>
+                        <button
+                          onClick={() => setInteractionMode("call")}
+                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all ${
+                            interactionMode === "call" 
+                              ? "bg-emerald-500 text-black shadow-[0_0_12px_rgba(16,185,129,0.4)]" 
+                              : "text-slate-400 hover:text-white"
+                          }`}
+                        >
+                          <Mic className="w-3 h-3" /> Ligação
+                        </button>
+                      </div>
 
-                    {/* Text input (Using textarea for better native autocorrect support) */}
-                    <textarea
-                      ref={textareaRef}
-                      name="message"
-                      lang="pt-BR"
-                      rows={1}
-                      autoComplete="on"
-                      autoCorrect="on"
-                      spellCheck={true}
-                      autoCapitalize="sentences"
-                      className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#d4af35]/40 placeholder-slate-600 transition-colors disabled:opacity-50 resize-none min-h-[42px] max-h-[200px] overflow-y-auto leading-relaxed"
-                      placeholder={
-                        isRecording ? "Gravando áudio…" : 
-                        isNoteMode ? "Descreva o que aconteceu (reunião, ligação, etc)…" : 
-                        "Digite sua mensagem inteligente…"
-                      }
-                      value={composerText}
-                      disabled={isRecording}
-                      onChange={e => setComposerText(e.target.value)}
-                      onKeyDown={e => {
-                        if (e.key === "Enter" && !e.shiftKey) {
-                          e.preventDefault();
-                          handleSend();
+                      {/* Call Status Selector */}
+                      <AnimatePresence>
+                        {interactionMode === "call" && (
+                          <motion.div 
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: "auto" }}
+                            exit={{ opacity: 0, height: 0 }}
+                            className="flex items-center gap-4 overflow-hidden"
+                          >
+                            <label className="flex items-center gap-2 cursor-pointer group">
+                              <input 
+                                type="radio" 
+                                checked={callStatus === "attended"} 
+                                onChange={() => setCallStatus("attended")}
+                                className="hidden"
+                              />
+                              <div className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center transition-all ${callStatus === "attended" ? "border-emerald-500" : "border-slate-600 group-hover:border-slate-500"}`}>
+                                {callStatus === "attended" && <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />}
+                              </div>
+                              <span className={`text-[10px] font-bold uppercase tracking-wider ${callStatus === "attended" ? "text-emerald-400" : "text-slate-500"}`}>Atendida</span>
+                            </label>
+                            <label className="flex items-center gap-2 cursor-pointer group">
+                              <input 
+                                type="radio" 
+                                checked={callStatus === "missed"} 
+                                onChange={() => setCallStatus("missed")}
+                                className="hidden"
+                              />
+                              <div className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center transition-all ${callStatus === "missed" ? "border-red-500" : "border-slate-600 group-hover:border-slate-500"}`}>
+                                {callStatus === "missed" && <div className="w-1.5 h-1.5 rounded-full bg-red-500" />}
+                              </div>
+                              <span className={`text-[10px] font-bold uppercase tracking-wider ${callStatus === "missed" ? "text-red-400" : "text-slate-500"}`}>Não Atendida</span>
+                            </label>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+
+                      <textarea
+                        ref={textareaRef}
+                        name="message"
+                        lang="pt-BR"
+                        rows={1}
+                        autoComplete="on"
+                        autoCorrect="on"
+                        spellCheck={true}
+                        autoCapitalize="sentences"
+                        className={`bg-white/5 border rounded-xl px-4 py-2.5 text-sm focus:outline-none transition-all disabled:opacity-50 resize-none min-h-[42px] max-h-[200px] overflow-y-auto leading-relaxed ${
+                          interactionMode === 'note' ? 'border-[#d4af35]/40 focus:border-[#d4af35]' :
+                          interactionMode === 'call' ? 'border-emerald-500/40 focus:border-emerald-500' :
+                          'border-white/10 focus:border-[#2ec5ff]/40'
+                        }`}
+                        placeholder={
+                          isRecording ? "Gravando áudio…" : 
+                          interactionMode === "note" ? "Descreva o que aconteceu (reunião, anotação importante)…" : 
+                          interactionMode === "call" ? (callStatus === "attended" ? "Resumo da conversa ocorrida..." : "O que aconteceu na ligação não atendida?") :
+                          "Digite sua mensagem do WhatsApp…"
                         }
-                      }}
-                    />
+                        value={composerText}
+                        disabled={isRecording}
+                        onChange={e => setComposerText(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === "Enter" && !e.shiftKey) {
+                            e.preventDefault();
+                            handleSend();
+                          }
+                        }}
+                      />
+                    </div>
 
                     {/* Mic — toggles recording */}
                     {/* Mic — toggles recording */}

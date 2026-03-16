@@ -105,6 +105,15 @@ export function TopBar({ totalLeads, isDark, onThemeToggle, onLogout }: TopBarPr
           <div className="w-px h-4 bg-[var(--orbit-glass-border)] mx-1" />
           
           <Link
+            href="/telemetry"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-[var(--orbit-glow)]/10 text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)] transition-all duration-300 text-[10px] font-medium"
+            title="Telemetria do Operador"
+          >
+            <Activity className="h-3.5 w-3.5" />
+            Telemetria
+          </Link>
+
+          <Link
             href="/atlas"
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-[var(--orbit-glow)]/10 text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)] transition-all duration-300 text-[10px] font-medium"
             title="Mapa Atlas"
