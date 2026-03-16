@@ -295,32 +295,44 @@ function AtlasManagerContent() {
       }
 
       // 1. Create or get Client Space (Selection Portal)
-      const slug = `${lead.name.toLowerCase().replace(/\s+/g, '-')}-${Math.random().toString(36).substring(7)}`
-      console.log("[ATLAS] Creating space with slug:", slug)
+      // Check if lead already has a space
+      const { data: existingSpace } = await supabase
+        .from('client_spaces')
+        .select('id, slug')
+        .eq('lead_id', selectedLeadId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      let useSlug: string
       
-      const spacePayload: any = {
-        lead_id: selectedLeadId,
-        slug,
-        theme: 'paper'
+      if (existingSpace) {
+        console.log("[ATLAS] Reusing existing space:", (existingSpace as any).slug)
+        useSlug = (existingSpace as any).slug
+      } else {
+        const slug = `${lead.name.toLowerCase().replace(/\s+/g, '-')}-${Math.random().toString(36).substring(7)}`
+        console.log("[ATLAS] Creating new space with slug:", slug)
+        
+        const spacePayload: any = {
+          lead_id: selectedLeadId,
+          slug,
+          theme: 'paper',
+          theme_config: { mode: 'light', variant: 'paper' },
+          title: `Seleção Orbit - ${lead.name}`
+        }
+
+        const { data: space, error: spaceError } = await (supabase
+          .from('client_spaces') as any)
+          .insert([spacePayload])
+          .select()
+          .single()
+
+        if (spaceError) {
+          console.error("[ATLAS] Space creation error:", spaceError)
+          throw new Error(`Erro ao criar portal: ${spaceError.message}`)
+        }
+        useSlug = space.slug
       }
-
-      // Add columns only if they might exist (or rely on the SQL fix being applied)
-      // If the user hasn't run the SQL, these will fail, but we catch it below.
-      spacePayload.theme_config = { mode: 'light', variant: 'paper' }
-      spacePayload.title = `Seleção Orbit - ${lead.name}`
-      
-      const { data: space, error: spaceError } = await (supabase
-        .from('client_spaces') as any)
-        .insert([spacePayload])
-        .select()
-        .single()
-
-      if (spaceError) {
-        console.error("[ATLAS] Space creation error:", spaceError)
-        throw new Error(`Erro ao criar portal: ${spaceError.message}`)
-      }
-
-      console.log("[ATLAS] Space created:", space.id)
 
       // 2. Insert items into capsule_items
       const inserts = propertyIds.map(pid => ({
@@ -339,7 +351,7 @@ function AtlasManagerContent() {
       }
 
       // 3. Trigger WhatsApp via API
-      const portalUrl = `${window.location.origin}/selection/${slug}`
+      const portalUrl = `${window.location.origin}/selection/${useSlug}`
       const message = `Olá ${lead.name.split(' ')[0]}! Selecionei alguns imóveis que fazem sentido para seu perfil. Você pode conferir aqui no seu portal exclusivo: ${portalUrl}`
 
       // Prioritize LID for sending if available
