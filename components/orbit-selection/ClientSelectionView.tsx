@@ -2,10 +2,9 @@
 
 import { useState, useMemo, useEffect } from "react"
 import { motion } from "framer-motion"
-import { 
-  Star, Phone
-} from "lucide-react"
+import { Star, Phone } from "lucide-react"
 import "../../styles/themes/orbit-selection.css"
+import { VideoEmbed } from "./VideoEmbed"
 
 interface SelectionItem {
   id: string;
@@ -172,16 +171,10 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
                         </div>
                       )}
 
-                      {/* Video */}
+                      {/* Video Embed */}
                       {item.videoUrl && (
-                        <div className="mb-4 flex items-center gap-2 p-[9px_13px] bg-[rgba(28,24,18,0.04)] border border-[rgba(28,24,18,0.08)] rounded-lg hover:bg-[rgba(28,24,18,0.07)] transition-all cursor-pointer">
-                          <div className="w-7 h-7 bg-[var(--ink)] rounded-full flex items-center justify-center shrink-0">
-                            <div className="w-0 h-0 border-y-[5px] border-y-transparent border-l-[8px] border-l-white ml-0.5" />
-                          </div>
-                          <div className="text-left">
-                            <p className="text-[13px] font-medium text-[var(--ink)]">Vídeo Exclusivo</p>
-                            <span className="text-[11px] text-[var(--ink3)]">Assista o tour gravado</span>
-                          </div>
+                        <div className="mb-6">
+                           <VideoEmbed url={item.videoUrl} className="shadow-lg" />
                         </div>
                       )}
 
