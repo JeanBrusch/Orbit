@@ -9,6 +9,8 @@ import { getSupabase } from "@/lib/supabase"
 import dynamic from "next/dynamic"
 import type { MapProperty } from "./atlas/MapAtlas"
 
+const ClientSpacesManager = dynamic(() => import("./atlas/ClientSpacesManager"), { ssr: false })
+
 const MapAtlas = dynamic(
   () => import("./atlas/MapAtlas").then((m) => m.MapAtlas),
   { ssr: false, loading: () => <div className="flex-1 bg-[#050505] flex items-center justify-center"><div className="animate-spin h-6 w-6 border-2 border-indigo-400 border-t-transparent rounded-full" /></div> }
@@ -45,6 +47,7 @@ export function AtlasFocusSurface() {
   const [searchResults, setSearchResults] = useState<any[]>([])
   const [isSearchingLeads, setIsSearchingLeads] = useState(false)
   const [showLeadSearch, setShowLeadSearch] = useState(false)
+  const [showClientSpaceFor, setShowClientSpaceFor] = useState<string | null>(null)
   
   const { 
     isAtlasMapActive, 
@@ -304,9 +307,9 @@ export function AtlasFocusSurface() {
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: 380, opacity: 0 }}
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            className="fixed right-0 top-0 h-full w-[380px] z-[35] border-l border-white/10 bg-[#0a0a0c]/95 backdrop-blur-2xl flex flex-col overflow-hidden shadow-[-20px_0_50px_rgba(0,0,0,0.5)] pointer-events-auto"
+            className="fixed right-0 top-0 h-full w-[420px] z-[35] border-l border-white/10 bg-[#0a0a0c]/95 backdrop-blur-2xl flex flex-col overflow-hidden shadow-[-20px_0_50px_rgba(0,0,0,0.5)] pointer-events-auto"
           >
-              <div className="w-[380px] h-full flex flex-col relative">
+              <div className="w-full h-full flex flex-col relative">
                 
                 {/* Visual Header do Imóvel Selecionado */}
                 <div className="relative h-48 shrink-0 border-b border-white/5 bg-black">
@@ -325,9 +328,12 @@ export function AtlasFocusSurface() {
                     <div className="inline-flex px-2 py-1 bg-white/10 backdrop-blur-md rounded border border-white/20 text-[10px] uppercase tracking-wider text-white/80 font-medium mb-2">
                        {selectedProperty.type || "Residencial"}
                     </div>
-                    <h3 className="text-lg font-medium text-white leading-tight line-clamp-2 shadow-black drop-shadow-md">
-                      {selectedProperty.name}
-                    </h3>
+                    <div className="flex items-start justify-between">
+                      <h3 className="text-lg font-medium text-white leading-tight line-clamp-2 shadow-black drop-shadow-md">
+                        {selectedProperty.name}
+                      </h3>
+                      <button onClick={() => setSelectedProperty(null)} className="p-1 text-zinc-500 hover:text-white"><X size={18} /></button>
+                    </div>
                     <div className="mt-1 flex items-center justify-between">
                       <p className="text-xs text-zinc-400 font-light flex items-center gap-1">
                         <MapPin className="w-3 h-3" /> {selectedProperty.locationText}
@@ -352,66 +358,80 @@ export function AtlasFocusSurface() {
                   </div>
                 </div>
 
-                {/* Match Engine / Leads Compatíveis */}
-                <div className="flex-1 overflow-y-auto custom-scrollbar p-5">
-                  <div className="flex items-center gap-2 mb-4">
-                    <Stars className="w-4 h-4 text-indigo-400" />
-                    <h4 className="text-sm font-medium text-white tracking-wide">
-                      Predictive Matches
-                    </h4>
+                <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col">
+                  {/* TABS DE CONTEXTO */}
+                  <div className="flex h-12 border-b border-white/5 bg-white/5">
+                    <button className="flex-1 text-xs font-medium text-white border-b-2 border-indigo-500">Predictive Matches</button>
+                    <button className="flex-1 text-xs font-medium text-zinc-500 hover:text-zinc-300">Histórico</button>
                   </div>
-                  
-                  {isMatching ? (
-                    <div className="flex flex-col gap-3">
-                      {[1, 2, 3].map(i => (
-                        <div key={i} className="h-16 rounded-xl bg-white/5 animate-pulse border border-white/5" />
-                      ))}
+
+                  {/* Match Engine / Leads Compatíveis */}
+                  <div className="p-5">
+                    <div className="flex items-center gap-2 mb-4">
+                      <Stars className="w-4 h-4 text-indigo-400" />
+                      <h4 className="text-sm font-medium text-white tracking-wide">
+                        Predictive Matches
+                      </h4>
                     </div>
-                  ) : matches.length > 0 ? (
-                    <div className="space-y-3">
-                      {matches.map((match, i) => (
-                        <motion.div 
-                          key={match.id}
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: i * 0.1 }}
-                          className="group relative p-3 rounded-xl bg-white/5 border border-white/10 hover:border-indigo-500/50 hover:bg-white/10 transition-colors overflow-hidden"
-                        >
-                          <div className="flex items-center gap-3 relative z-10">
-                            <div className="w-10 h-10 rounded-full border border-white/20 bg-zinc-800 overflow-hidden shrink-0">
-                              {match.photo_url && match.photo_url !== "null" ? (
-                                <img src={match.photo_url} className="w-full h-full object-cover" alt={match.name} />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center text-zinc-500 uppercase text-xs font-bold">
-                                  {match.name.substring(0,2)}
-                                </div>
-                              )}
+                    
+                    {isMatching ? (
+                      <div className="flex flex-col gap-3">
+                        {[1, 2, 3].map(i => (
+                          <div key={i} className="h-16 rounded-xl bg-white/5 animate-pulse border border-white/5" />
+                        ))}
+                      </div>
+                    ) : (matches.length > 0 || atlasInvokeContext?.leadId) ? (
+                      <div className="space-y-3">
+                        {/* Se viemos de um lead específico, mostramos ele primeiro ou com destaque */}
+                        {matches.map((match, i) => (
+                          <motion.div 
+                            key={match.id}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: i * 0.1 }}
+                            className={`group relative p-3 rounded-xl border transition-all overflow-hidden ${atlasInvokeContext?.leadId === match.id ? 'bg-indigo-500/10 border-indigo-500/40 shadow-[0_0_15px_rgba(99,102,241,0.2)]' : 'bg-white/5 border-white/10 hover:border-indigo-500/50 hover:bg-white/10'}`}
+                          >
+                            <div className="flex items-center gap-3 relative z-10">
+                              <div className="w-10 h-10 rounded-full border border-white/20 bg-zinc-800 overflow-hidden shrink-0">
+                                {match.photo_url && match.photo_url !== "null" ? (
+                                  <img src={match.photo_url} className="w-full h-full object-cover" alt={match.name} />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center text-zinc-500 uppercase text-xs font-bold">
+                                    {match.name.substring(0,2)}
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <h5 className="text-[13px] font-medium text-zinc-100 truncate">{match.name}</h5>
+                                <p className="text-[10px] text-zinc-400 capitalize flex items-center gap-1">
+                                  {match.orbit_stage || "Lead"}
+                                  <span className="w-1 h-1 rounded-full bg-zinc-700" />
+                                  AI Focus
+                                </p>
+                              </div>
+                              <div className="shrink-0 flex flex-col items-end gap-1">
+                                <span className="text-xs font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-fuchsia-400">
+                                  {(match.similarity ? (match.similarity * 100).toFixed(0) : "95")}%
+                                </span>
+                                <button 
+                                  onClick={() => setShowClientSpaceFor(match.id)}
+                                  className="p-1 rounded bg-white/5 hover:bg-indigo-500/40 text-[9px] text-zinc-400 hover:text-white uppercase font-bold tracking-tighter"
+                                >
+                                  Selection
+                                </button>
+                              </div>
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <h5 className="text-[13px] font-medium text-zinc-100 truncate">{match.name}</h5>
-                              <p className="text-[10px] text-zinc-400 capitalize flex items-center gap-1">
-                                {match.orbit_stage}
-                                <span className="w-1 h-1 rounded-full bg-zinc-700" />
-                                Algo Affinity
-                              </p>
-                            </div>
-                            <div className="shrink-0 flex flex-col items-end">
-                              <span className="text-xs font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-fuchsia-400">
-                                {(match.similarity * 100).toFixed(0)}%
-                              </span>
-                            </div>
-                          </div>
-                          {/* Fundo de afinidade sutil */}
-                          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                        </motion.div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="p-4 rounded-xl border border-dashed border-zinc-700/50 flex flex-col items-center justify-center text-center gap-2">
-                       <p className="text-xs text-zinc-400">Nenhum Match Automático</p>
-                       <p className="text-[10px] text-zinc-500 max-w-[200px]">A IA não encontrou afinidade semântica explícita com os leads latentes.</p>
-                    </div>
-                  )}
+                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                          </motion.div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="p-4 rounded-xl border border-dashed border-zinc-700/50 flex flex-col items-center justify-center text-center gap-2">
+                         <p className="text-xs text-zinc-400">Nenhum Match Automático</p>
+                         <p className="text-[10px] text-zinc-500 max-w-[200px]">A IA não encontrou afinidade semântica explícita com os leads latentes.</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Confirm Action Se houver Lead já pre-selecionado (envio ativo) */}
@@ -427,6 +447,32 @@ export function AtlasFocusSurface() {
                   </div>
                 )}
               </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Orbit Selection Canvas (Client Spaces Manager) */}
+      <AnimatePresence>
+        {showClientSpaceFor && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[50] flex items-center justify-end bg-black/40 backdrop-blur-sm pointer-events-auto"
+            onClick={() => setShowClientSpaceFor(null)}
+          >
+            <motion.div
+              initial={{ x: 420 }}
+              animate={{ x: 0 }}
+              exit={{ x: 420 }}
+              className="w-[420px] h-full bg-[#0a0a0c] border-l border-white/10 shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <ClientSpacesManager 
+                leadId={showClientSpaceFor} 
+                onClose={() => setShowClientSpaceFor(null)} 
+              />
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>

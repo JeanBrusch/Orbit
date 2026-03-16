@@ -1,0 +1,112 @@
+/* ══════════════════════════════════════
+   ORBIT SELECTION THEMES
+   ══════════════════════════════════════ */
+
+.orbit-selection-root {
+  --selection-transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 1. SEPIA/PAPER THEME (Standard) */
+[data-selection-theme="paper"] {
+  --paper:    #f5f1eb;
+  --paper2:   #ede8df;
+  --paper3:   #e4ddd0;
+  --ink:      #1c1812;
+  --ink2:     #4a4438;
+  --ink3:     #8a7f70;
+  --ink4:     #b8af9e;
+  --gold:     #a07828;
+  --gold2:    #c49840;
+  --gold-bg:  rgba(160,120,40,.07);
+  --gold-bd:  rgba(160,120,40,.18);
+  --cream:    #fff9f0;
+  --match:    #5a7a4a;
+  --selection-bg: var(--paper);
+  --selection-text: var(--ink);
+  --selection-card-bg: #ffffff;
+  --selection-border: rgba(28,24,18,.07);
+  --selection-header-bg: rgba(245,241,235,.92);
+}
+
+/* 2. LIGHT/ORBIT VIEW THEME */
+[data-selection-theme="light"] {
+  --selection-bg: #f8fafc;
+  --selection-text: #0f172a;
+  --selection-card-bg: #ffffff;
+  --selection-border: rgba(0,0,0,0.06);
+  --gold: #6366f1; /* Indigo like Orbit */
+  --gold-bg: rgba(99, 102, 241, 0.05);
+  --gold-bd: rgba(99, 102, 241, 0.1);
+  --ink2: #475569;
+  --ink3: #64748b;
+  --ink4: #94a3b8;
+  --match: #10b981;
+  --selection-header-bg: rgba(255, 255, 255, 0.8);
+}
+
+/* 3. DARK MODE (Orbit Standard) */
+[data-selection-theme="dark"] {
+  --selection-bg: #050505;
+  --selection-text: #f8fafc;
+  --selection-card-bg: rgba(20, 20, 23, 0.6);
+  --selection-border: rgba(255,255,255,0.08);
+  --gold: #818cf8;
+  --gold-bg: rgba(129, 140, 248, 0.1);
+  --gold-bd: rgba(129, 140, 248, 0.2);
+  --ink2: #94a3b8;
+  --ink3: #64748b;
+  --ink4: #475569;
+  --match: #34d399;
+  --selection-header-bg: rgba(5, 5, 5, 0.8);
+}
+
+.selection-container {
+  min-height: 100vh;
+  background-color: var(--selection-bg);
+  color: var(--selection-text);
+  font-family: 'DM Sans', sans-serif;
+  transition: var(--selection-transition);
+}
+
+/* Grain Effect for Paper Only */
+[data-selection-theme="paper"] .selection-container::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)' opacity='.03'/%3E%3C/svg%3E");
+  opacity: 0.5;
+}
+
+.selection-header {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 100;
+  height: 64px;
+  background-color: var(--selection-header-bg);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--selection-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2rem;
+  transition: var(--selection-transition);
+}
+
+.selection-card {
+  background-color: var(--selection-card-bg);
+  border: 1px solid var(--selection-border);
+  border-radius: 1.25rem;
+  overflow: hidden;
+  transition: var(--selection-transition);
+}
+
+.selection-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.08);
+}
+
+.selection-title-sepia {
+  font-family: 'Cormorant Garamond', serif;
+}
