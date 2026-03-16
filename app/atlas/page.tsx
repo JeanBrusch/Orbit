@@ -418,7 +418,7 @@ function AtlasManagerContent() {
           {[
             { id: 'curadoria', label: 'Curadoria', icon: Sparkles },
             { id: 'acervo', label: 'Acervo', icon: Building2 },
-            { id: 'selections', label: 'Selections', icon: Link2 },
+            { id: 'selections', label: 'Selections', icon: Sparkles },
           ].map((tab) => (
             <button
               key={tab.id}
