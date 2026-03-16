@@ -11,7 +11,7 @@ import {
   LayoutGrid, List, Sparkles, Share2, 
   MoreHorizontal, ChevronRight, Building2,
   Mic, Loader2, Users, ShoppingCart, Send,
-  X, Check, ExternalLink, Link2, Compass, Settings
+  X, Check, ExternalLink, Link2, Compass, Settings, Trash2
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -135,11 +135,13 @@ function AtlasManagerContent() {
   const [isVoiceModalOpen, setIsVoiceModalOpen] = useState(false)
   const [isMapModalOpen, setIsMapModalOpen] = useState(false)
   const [isIngestModalOpen, setIsIngestModalOpen] = useState(false)
+  const [ingestUrl, setIngestUrl] = useState("")
+  const [ingestStatus, setIngestStatus] = useState<"idle" | "processing" | "complete" | "failed">("idle")
+  const [ingestStep, setIngestStep] = useState<"url" | "review">("url")
   
   const [scrapedData, setScrapedData] = useState<any>({
     title: "", image: "", value: "", condo_name: "", payment: ""
   })
-  const [ingestStatus, setIngestStatus] = useState<"idle" | "processing" | "complete" | "failed">("idle")
 
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null)
   const [selectedPropertyIds, setSelectedPropertyIds] = useState<Set<string>>(new Set())
@@ -173,6 +175,42 @@ function AtlasManagerContent() {
 
   // ── Ingestion Logic ────────────────────────────────────────────────────────
 
+  const handleIngestSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!ingestUrl) return
+    setIngestStatus("processing")
+    
+    try {
+      const previewRes = await fetch("/api/link-preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: ingestUrl }),
+      })
+      const data = await previewRes.json()
+      
+      setScrapedData({
+        title: data.title || "",
+        image: data.image || "",
+        value: data.value ? data.value.toString() : "",
+        neighborhood: data.neighborhood || "",
+        city: data.city || "",
+        area_privativa: data.area_privativa || null,
+        bedrooms: data.bedrooms || null,
+        suites: data.suites || null,
+        parking_spots: data.parking_spots || null,
+        condo_fee: data.condo_fee || null,
+        iptu: data.iptu || null,
+        features: data.features || [],
+        payment: ""
+      })
+      setIngestStep("review")
+      setIngestStatus("idle")
+    } catch (err) {
+      setIngestStatus("failed")
+      toast.error("Falha ao capturar dados do link")
+    }
+  }
+
   const handleConfirmIngest = async (e: React.FormEvent) => {
     e.preventDefault()
     setIngestStatus("processing")
@@ -204,6 +242,8 @@ function AtlasManagerContent() {
       setTimeout(() => {
         setIsIngestModalOpen(false)
         setIngestStatus("idle")
+        setIngestUrl("")
+        setIngestStep("url")
         setScrapedData({ title: "", image: "", value: "", condo_name: "", payment: "" })
       }, 1500)
     } catch(err: any) {
@@ -461,7 +501,19 @@ function AtlasManagerContent() {
           )}
         </div>
 
-        <div className="flex items-center gap-4 ml-auto">
+        <div className="flex items-center gap-3 ml-auto">
+          <Button 
+            onClick={() => {
+              setIngestStep("url")
+              setIsIngestModalOpen(true)
+            }}
+            variant="ghost"
+            className="h-10 px-4 border border-[rgba(28,24,18,0.1)] rounded-xl flex items-center gap-2 hover:bg-black/5 transition-all"
+          >
+            <Link2 className="h-4 w-4 text-[#a07828]" />
+            <span className="text-[10px] font-mono uppercase tracking-widest font-bold text-[#8a7f70]">Cadastro por Link</span>
+          </Button>
+
           <Button 
             onClick={() => setIsVoiceModalOpen(true)}
             className="h-10 px-5 bg-[#a07828] hover:bg-[#8a651e] text-white rounded-xl flex items-center gap-2 shadow-lg shadow-[#a07828]/20 transition-all group"
@@ -732,9 +784,10 @@ function AtlasManagerContent() {
                   features: data.features,
                   payment: data.payment || ""
                 })
-                setIsVoiceModalOpen(false)
-                setIsIngestModalOpen(true)
-              }}
+                 setIsVoiceModalOpen(false)
+                 setIngestStep("review")
+                 setIsIngestModalOpen(true)
+               }}
             />
           </div>
         )}
@@ -761,82 +814,109 @@ function AtlasManagerContent() {
                 </button>
               </div>
 
-              <form onSubmit={handleConfirmIngest} className="p-8 overflow-y-auto space-y-6 custom-scrollbar">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="md:col-span-2 space-y-2">
-                    <label className="text-[10px] font-mono uppercase tracking-widest text-[#8a7f70]">Título do Patrimônio</label>
-                    <Input 
-                      value={scrapedData.title}
-                      onChange={(e) => setScrapedData({...scrapedData, title: e.target.value})}
-                      className="border-[rgba(28,24,18,0.1)] h-11 rounded-xl bg-[#fdfaf5]"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-mono uppercase tracking-widest text-[#8a7f70]">Valor (R$)</label>
-                    <Input 
-                      type="number"
-                      value={scrapedData.value}
-                      onChange={(e) => setScrapedData({...scrapedData, value: e.target.value})}
-                      className="border-[rgba(28,24,18,0.1)] h-11 rounded-xl bg-[#fdfaf5]"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-mono uppercase tracking-widest text-[#8a7f70]">URL da Imagem</label>
-                    <Input 
-                      value={scrapedData.image}
-                      onChange={(e) => setScrapedData({...scrapedData, image: e.target.value})}
-                      placeholder="https://..."
-                      className="border-[rgba(28,24,18,0.1)] h-11 rounded-xl bg-[#fdfaf5]"
-                    />
-                  </div>
-
-                  <div className="md:col-span-2 space-y-2">
-                    <label className="text-[10px] font-mono uppercase tracking-widest text-[#8a7f70]">Condições de Pagamento</label>
-                    <Input 
-                      value={scrapedData.payment}
-                      onChange={(e) => setScrapedData({...scrapedData, payment: e.target.value})}
-                      placeholder="Ex: Aceita permuta, 30% entrada..."
-                      className="border-[rgba(28,24,18,0.1)] h-11 rounded-xl bg-[#fdfaf5]"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-3 md:col-span-2">
-                    <div className="p-3 bg-[#f5f1eb] rounded-xl border border-[rgba(28,24,18,0.05)] text-center">
-                      <span className="text-[8px] font-mono uppercase text-[#8a7f70]">Dorms</span>
-                      <p className="text-sm font-bold">{scrapedData.bedrooms || '-'}</p>
-                    </div>
-                    <div className="p-3 bg-[#f5f1eb] rounded-xl border border-[rgba(28,24,18,0.05)] text-center">
-                      <span className="text-[8px] font-mono uppercase text-[#8a7f70]">Suítes</span>
-                      <p className="text-sm font-bold">{scrapedData.suites || '-'}</p>
-                    </div>
-                    <div className="p-3 bg-[#f5f1eb] rounded-xl border border-[rgba(28,24,18,0.05)] text-center">
-                      <span className="text-[8px] font-mono uppercase text-[#8a7f70]">Área</span>
-                      <p className="text-sm font-bold">{scrapedData.area_privativa ? `${scrapedData.area_privativa}m²` : '-'}</p>
+               {ingestStep === 'url' ? (
+                <form onSubmit={handleIngestSubmit} className="p-8 space-y-6">
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-mono uppercase tracking-widest text-[#8a7f70]">URL do Imóvel</label>
+                    <p className="text-[11px] text-[#8a7f70] font-serif italic mb-4">Insira o link do portal imobiliário para captura automática.</p>
+                    <div className="relative group">
+                      <Link2 className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-[#a07828]/40 group-focus-within:text-[#a07828] transition-colors" />
+                      <Input 
+                        value={ingestUrl}
+                        onChange={(e) => setIngestUrl(e.target.value)}
+                        placeholder="https://www.zapimoveis.com.br/imovel/..."
+                        className="w-full pl-12 h-14 bg-[#fdfaf5] border-[rgba(28,24,18,0.1)] rounded-2xl text-xs focus:ring-[#a07828]/20"
+                      />
                     </div>
                   </div>
-                </div>
-
-                <div className="pt-6 border-t border-[rgba(28,24,18,0.05)] flex gap-3">
-                  <Button 
-                    type="button" 
-                    variant="ghost" 
-                    onClick={() => setIsIngestModalOpen(false)}
-                    className="flex-1 h-12 text-xs font-mono uppercase tracking-widest rounded-xl"
-                  >
-                    Cancelar
-                  </Button>
+                  
                   <Button 
                     type="submit" 
-                    disabled={ingestStatus === "processing"}
-                    className="flex-[2] h-12 bg-[#1c1812] hover:bg-black text-white gap-2 font-bold uppercase tracking-widest text-[10px] rounded-xl shadow-lg"
+                    disabled={ingestStatus === "processing" || !ingestUrl}
+                    className="w-full h-14 bg-[#1c1812] hover:bg-black text-white gap-3 font-bold uppercase tracking-widest text-[11px] rounded-2xl shadow-xl transition-all hover:scale-[1.02] disabled:opacity-50 disabled:scale-100"
                   >
-                    {ingestStatus === "processing" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                    Validar e Inserir no Acervo
+                    {ingestStatus === "processing" ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
+                    Capturar Dados com IA
                   </Button>
-                </div>
-              </form>
+                </form>
+              ) : (
+                <form onSubmit={handleConfirmIngest} className="p-8 overflow-y-auto space-y-6 custom-scrollbar">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="md:col-span-2 space-y-2">
+                      <label className="text-[10px] font-mono uppercase tracking-widest text-[#8a7f70]">Título do Patrimônio</label>
+                      <Input 
+                        value={scrapedData.title}
+                        onChange={(e) => setScrapedData({...scrapedData, title: e.target.value})}
+                        className="border-[rgba(28,24,18,0.1)] h-11 rounded-xl bg-[#fdfaf5]"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-mono uppercase tracking-widest text-[#8a7f70]">Valor (R$)</label>
+                      <Input 
+                        type="number"
+                        value={scrapedData.value}
+                        onChange={(e) => setScrapedData({...scrapedData, value: e.target.value})}
+                        className="border-[rgba(28,24,18,0.1)] h-11 rounded-xl bg-[#fdfaf5]"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-mono uppercase tracking-widest text-[#8a7f70]">URL da Imagem</label>
+                      <Input 
+                        value={scrapedData.image}
+                        onChange={(e) => setScrapedData({...scrapedData, image: e.target.value})}
+                        placeholder="https://..."
+                        className="border-[rgba(28,24,18,0.1)] h-11 rounded-xl bg-[#fdfaf5]"
+                      />
+                    </div>
+
+                    <div className="md:col-span-2 space-y-2">
+                      <label className="text-[10px] font-mono uppercase tracking-widest text-[#8a7f70]">Condições de Pagamento</label>
+                      <Input 
+                        value={scrapedData.payment}
+                        onChange={(e) => setScrapedData({...scrapedData, payment: e.target.value})}
+                        placeholder="Ex: Aceita permuta, 30% entrada..."
+                        className="border-[rgba(28,24,18,0.1)] h-11 rounded-xl bg-[#fdfaf5]"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-3 md:col-span-2">
+                      <div className="p-3 bg-[#f5f1eb] rounded-xl border border-[rgba(28,24,18,0.05)] text-center">
+                        <span className="text-[8px] font-mono uppercase text-[#8a7f70]">Dorms</span>
+                        <p className="text-sm font-bold">{scrapedData.bedrooms || '-'}</p>
+                      </div>
+                      <div className="p-3 bg-[#f5f1eb] rounded-xl border border-[rgba(28,24,18,0.05)] text-center">
+                        <span className="text-[8px] font-mono uppercase text-[#8a7f70]">Suítes</span>
+                        <p className="text-sm font-bold">{scrapedData.suites || '-'}</p>
+                      </div>
+                      <div className="p-3 bg-[#f5f1eb] rounded-xl border border-[rgba(28,24,18,0.05)] text-center">
+                        <span className="text-[8px] font-mono uppercase text-[#8a7f70]">Área</span>
+                        <p className="text-sm font-bold">{scrapedData.area_privativa ? `${scrapedData.area_privativa}m²` : '-'}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-6 border-t border-[rgba(28,24,18,0.05)] flex gap-3">
+                    <Button 
+                      type="button" 
+                      variant="ghost" 
+                      onClick={() => setIngestStep("url")}
+                      className="flex-1 h-12 text-xs font-mono uppercase tracking-widest rounded-xl"
+                    >
+                      Voltar
+                    </Button>
+                    <Button 
+                      type="submit" 
+                      disabled={ingestStatus === "processing"}
+                      className="flex-[2] h-12 bg-[#1c1812] hover:bg-black text-white gap-2 font-bold uppercase tracking-widest text-[10px] rounded-xl shadow-lg"
+                    >
+                      {ingestStatus === "processing" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                      Validar e Inserir no Acervo
+                    </Button>
+                  </div>
+                </form>
+              )}
             </motion.div>
           </div>
         )}
@@ -879,6 +959,22 @@ function SelectionsHistory() {
     
     if (data) setCapsules(data)
     setLoading(false)
+  }
+
+  async function handleDeleteSpace(id: string) {
+    if (!confirm("Tem certeza que deseja excluir este portal? Esta ação é irreversível.")) return
+    
+    const { error } = await supabase
+      .from('client_spaces')
+      .delete()
+      .eq('id', id)
+
+    if (error) {
+      toast.error("Erro ao excluir: " + error.message)
+    } else {
+      toast.success("Portal excluído com sucesso!")
+      fetchCapsules()
+    }
   }
 
   useEffect(() => {
@@ -954,6 +1050,13 @@ function SelectionsHistory() {
                 <Settings size={14} />
                 Gerenciar
               </Button>
+              <button 
+                onClick={() => handleDeleteSpace(cap.id)}
+                className="p-2.5 rounded-xl bg-red-50 text-red-400 hover:text-red-600 hover:bg-red-100 transition-colors"
+                title="Excluir Portal"
+              >
+                <Trash2 size={16} />
+              </button>
             </div>
           </div>
         ))}

@@ -107,6 +107,24 @@ export default function ClientSpacesManager({ leadId, onClose }: ClientSpacesMan
     setSentProperties(merged)
   }
 
+  const handleRemoveProperty = async (propertyId: string) => {
+    if (!confirm("Remover este imóvel da seleção do cliente?")) return
+    
+    // In Orbit, properties in a selection are 'capsule_items'
+    const { error } = await (supabase
+      .from('capsule_items') as any)
+      .delete()
+      .eq('lead_id', leadId)
+      .eq('property_id', propertyId)
+
+    if (error) {
+      toast.error("Erro ao remover: " + error.message)
+    } else {
+      toast.success("Imóvel removido com sucesso")
+      if (space) fetchSentProperties(space.id)
+    }
+  }
+
   const saveContext = async (propertyId: string, contextData: any) => {
     if (!space) return
     const { error } = await (supabase
@@ -137,15 +155,15 @@ export default function ClientSpacesManager({ leadId, onClose }: ClientSpacesMan
     setError(null)
     try {
       if (space) {
-        const { error } = await supabase
-          .from('client_spaces')
-          .update({ slug, theme, updated_at: new Date().toISOString() } as any)
+        const { error } = await (supabase
+          .from('client_spaces') as any)
+          .update({ slug, theme, updated_at: new Date().toISOString() })
           .eq('id', space.id)
         if (error) throw error
       } else {
-        const { data, error } = await supabase
-          .from('client_spaces')
-          .insert({ lead_id: leadId, slug, theme } as any)
+        const { data, error } = await (supabase
+          .from('client_spaces') as any)
+          .insert({ lead_id: leadId, slug, theme })
           .select()
           .single()
         if (error) throw error
@@ -313,6 +331,12 @@ export default function ClientSpacesManager({ leadId, onClose }: ClientSpacesMan
                           className={`p-1.5 rounded-lg transition-colors ${prop.context.note || prop.context.video_url ? 'bg-[#a07828]/10 text-[#a07828]' : 'text-[#8a7f70] hover:bg-black/5'}`}
                         >
                           <Pencil size={14} />
+                        </button>
+                        <button 
+                          onClick={() => handleRemoveProperty(prop.property_id)}
+                          className="p-1.5 rounded-lg text-red-400 hover:bg-red-50 transition-colors"
+                        >
+                          <Trash2 size={14} />
                         </button>
                       </div>
                       <p className="text-[9px] font-mono text-[#a07828] uppercase tracking-tighter mt-1">
