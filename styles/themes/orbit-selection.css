@@ -3,7 +3,7 @@
    ══════════════════════════════════════ */
 
 .orbit-selection-root {
-  --selection-transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  --selection-transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
 /* 1. SEPIA/PAPER THEME (Standard) */
@@ -21,6 +21,7 @@
   --gold-bd:  rgba(160,120,40,.18);
   --cream:    #fff9f0;
   --match:    #5a7a4a;
+  --match-bg: rgba(90,122,74,.08);
   --selection-bg: var(--paper);
   --selection-text: var(--ink);
   --selection-card-bg: #ffffff;
@@ -30,13 +31,13 @@
 
 /* 2. LIGHT/ORBIT VIEW THEME */
 [data-selection-theme="light"] {
-  --selection-bg: #f8fafc;
+  --selection-bg: #ffffff;
   --selection-text: #0f172a;
   --selection-card-bg: #ffffff;
   --selection-border: rgba(0,0,0,0.06);
-  --gold: #6366f1; /* Indigo like Orbit */
-  --gold-bg: rgba(99, 102, 241, 0.05);
-  --gold-bd: rgba(99, 102, 241, 0.1);
+  --gold: #1c1812; 
+  --gold-bg: rgba(28, 24, 18, 0.03);
+  --gold-bd: rgba(28, 24, 18, 0.08);
   --ink2: #475569;
   --ink3: #64748b;
   --ink4: #94a3b8;
@@ -46,13 +47,14 @@
 
 /* 3. DARK MODE (Orbit Standard) */
 [data-selection-theme="dark"] {
+  --paper: #050505;
   --selection-bg: #050505;
   --selection-text: #f8fafc;
   --selection-card-bg: rgba(20, 20, 23, 0.6);
   --selection-border: rgba(255,255,255,0.08);
-  --gold: #818cf8;
-  --gold-bg: rgba(129, 140, 248, 0.1);
-  --gold-bd: rgba(129, 140, 248, 0.2);
+  --gold: #a07828;
+  --gold-bg: rgba(160, 120, 40, 0.1);
+  --gold-bd: rgba(160, 120, 40, 0.2);
   --ink2: #94a3b8;
   --ink3: #64748b;
   --ink4: #475569;
@@ -66,6 +68,7 @@
   color: var(--selection-text);
   font-family: 'DM Sans', sans-serif;
   transition: var(--selection-transition);
+  -webkit-font-smoothing: antialiased;
 }
 
 /* Grain Effect for Paper Only */
@@ -83,30 +86,58 @@
   position: fixed;
   top: 0; left: 0; right: 0;
   z-index: 100;
-  height: 64px;
+  height: 58px;
   background-color: var(--selection-header-bg);
-  backdrop-filter: blur(16px);
+  backdrop-filter: blur(18px);
   border-bottom: 1px solid var(--selection-border);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 2rem;
+  padding: 0 40px;
   transition: var(--selection-transition);
 }
 
 .selection-card {
   background-color: var(--selection-card-bg);
   border: 1px solid var(--selection-border);
-  border-radius: 1.25rem;
+  border-radius: 18px;
   overflow: hidden;
   transition: var(--selection-transition);
+  cursor: pointer;
 }
 
 .selection-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 20px 40px rgba(0,0,0,0.08);
+  transform: translateY(-5px);
+  box-shadow: 0 24px 56px rgba(28,24,18,.1);
+  border-color: rgba(28,24,18,.12);
 }
 
 .selection-title-sepia {
   font-family: 'Cormorant Garamond', serif;
 }
+
+/* ANIMATIONS */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.fu { animation: fadeUp .55s cubic-bezier(.25, .46, .45, .94) both; }
+
+/* MAP SIDEBAR */
+.map-side {
+  width: 380px;
+  background: rgba(13,12,10,.82);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-left: 1px solid rgba(212,175,55,.12);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* UTILS */
+.custom-scrollbar::-webkit-scrollbar { width: 5px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(160, 120, 40, 0.1); border-radius: 99px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(160, 120, 40, 0.2); }

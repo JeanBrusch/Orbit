@@ -52,7 +52,7 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
   const firstName = lead?.name?.split(" ")[0] || "Cliente"
 
   const formatPrice = (value: number | null) => {
-    if (!value) return ""
+    if (!value) return "Sob consulta"
     return new Intl.NumberFormat("pt-BR", {
       style: "currency",
       currency: "BRL",
@@ -61,8 +61,8 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
   }
 
   const handleWhatsApp = (item?: SelectionItem) => {
-    const phone = "5551999999999" // TODO: Get from settings or operator profile
-    let text = `Olá! Estou vendo o espaço Orbit Selection da ${firstName}.`
+    const phone = "5551999999999" // TODO: Get from operator profile
+    let text = `Olá! Estou vendo o seu espaço Orbit Selection.`
     if (item) {
       text += ` Gostaria de saber mais sobre o imóvel: ${item.title}`
       text += `\nLink: ${window.location.origin}/selection/${slug}?prop=${item.id}`
@@ -72,154 +72,171 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
 
   return (
     <div className="orbit-selection-root" data-selection-theme={theme}>
-      <div className="selection-container min-h-screen">
+      <div className="selection-container min-h-screen relative">
         
         {/* HEADER */}
         <header className="selection-header">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full border-2 border-[var(--gold)] flex items-center justify-center">
-              <div className="w-2 h-2 rounded-full bg-[var(--gold)] animate-pulse" />
+          <a href="#" className="flex items-center gap-2 group">
+            <div className="w-[22px] h-[22px] border-2 border-[var(--gold)] rounded-full flex items-center justify-center">
+              <div className="w-[6px] h-[6px] bg-[var(--gold)] rounded-full animate-pulse" />
             </div>
-            <span className="font-mono text-[10px] uppercase tracking-widest opacity-60">Orbit</span>
-          </div>
+            <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-[var(--ink2)] font-light">Orbit</span>
+          </a>
 
-          <div className="flex bg-[var(--gold-bg)] p-1 rounded-full border border-[var(--gold-bd)]">
+          <div className="flex bg-[var(--paper2)] p-[3px] rounded-[30px] border border-[var(--paper3)]">
             <button 
               onClick={() => setView("curadoria")}
-              className={`px-4 py-1.5 rounded-full text-xs font-medium transition-all ${view === "curadoria" ? "bg-white text-[var(--selection-text)] shadow-sm" : "text-[var(--ink3)] hover:text-[var(--ink)]"}`}
+              className={`px-[18px] py-[6px] rounded-[24px] text-xs font-medium transition-all ${view === "curadoria" ? "bg-white text-[var(--ink)] border border-[rgba(28,24,18,0.08)] shadow-sm" : "text-[var(--ink3)] hover:text-[var(--ink)]"}`}
             >
-              Curadoria
+              Casas para você
             </button>
             <button 
               onClick={() => setView("mapa")}
-              className={`px-4 py-1.5 rounded-full text-xs font-medium transition-all ${view === "mapa" ? "bg-white text-[var(--selection-text)] shadow-sm" : "text-[var(--ink3)] hover:text-[var(--ink)]"}`}
+              className={`px-[18px] py-[6px] rounded-[24px] text-xs font-medium transition-all ${view === "mapa" ? "bg-white text-[var(--ink)] border border-[rgba(28,24,18,0.08)] shadow-sm" : "text-[var(--ink3)] hover:text-[var(--ink)]"}`}
             >
-              Ver no Mapa
+              Ver no mapa
             </button>
           </div>
 
-          <div className="flex items-center gap-4">
-            <div className="flex gap-2">
-              <button onClick={() => setTheme("paper")} className={`w-6 h-6 rounded-full border-2 border-white ${theme === 'paper' ? 'ring-2 ring-[var(--gold)]' : ''}`} style={{ backgroundColor: '#f5f1eb' }} />
-              <button onClick={() => setTheme("light")} className={`w-6 h-6 rounded-full border-2 border-white ${theme === 'light' ? 'ring-2 ring-[var(--gold)]' : ''}`} style={{ backgroundColor: '#ffffff' }} />
-              <button onClick={() => setTheme("dark")} className={`w-6 h-6 rounded-full border-2 border-white ${theme === 'dark' ? 'ring-2 ring-[var(--gold)]' : ''}`} style={{ backgroundColor: '#050505' }} />
-            </div>
-            <div className="hidden md:flex flex-col items-end">
-              <span className="text-[11px] font-medium opacity-80">{lead?.name}</span>
-              <span className="text-[9px] uppercase tracking-wider opacity-40">Perfil Privado</span>
-            </div>
-            <div className="w-9 h-9 rounded-full bg-[var(--gold-bg)] border border-[var(--gold-bd)] flex items-center justify-center text-[var(--gold)] font-medium text-sm">
+          <div className="flex items-center gap-3">
+            <span className="text-[13px] text-[var(--ink2)] font-light hidden sm:block">{lead?.name}</span>
+            <div className="w-8 h-8 rounded-full bg-[var(--gold-bg)] border-[1.5px] border-[var(--gold-bd)] flex items-center justify-center text-[var(--gold)] font-serif text-[14px]">
               {firstName[0]}
             </div>
+            <a 
+              href={`https://wa.me/5551999999999?text=Olá, Jean! Estou vendo o portal.`} 
+              target="_blank"
+              className="flex items-center gap-2 px-[14px] py-[6px] rounded-[8px] bg-[var(--match-bg)] border border-[rgba(90,122,74,0.18)] text-[var(--match)] text-xs font-medium hover:bg-[rgba(90,122,74,0.14)] transition-all ml-2"
+            >
+              <Phone size={14} className="fill-current" />
+              Conversar
+            </a>
           </div>
         </header>
 
-        <main className="pt-24 pb-20 px-6 md:px-20 max-w-7xl mx-auto">
+        <main className="max-w-[1100px] mx-auto pt-[58px]">
           <AnimatePresence mode="wait">
             {view === "curadoria" ? (
               <motion.div 
                 key="curadoria"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                className="space-y-12"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="pb-20"
               >
                 {/* HERO */}
-                <section className="max-w-3xl">
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className="w-8 h-[1px] bg-[var(--ink4)]" />
-                    <span className="font-mono text-[10px] uppercase tracking-widest text-[var(--ink4)]">orbit.house / selection</span>
+                <section className="px-[72px] pt-[72px] pb-[56px] fu fu1">
+                  <div className="flex items-center gap-[10px] mb-5">
+                    <div className="w-7 h-[1px] bg-[var(--ink4)]" />
+                    <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--ink4)]">orbit.house / {firstName.toLowerCase()} · espaço privado</span>
                   </div>
-                  <h1 className="text-5xl md:text-7xl font-light leading-[1.1] text-[var(--selection-text)] selection-title-sepia">
-                    Seu <span className="italic text-[var(--gold)]">próximo imóvel</span> <br />
+                  <h1 className="text-[clamp(52px,6vw,80px)] font-serif font-light leading-[1.04] tracking-[-0.02em] text-[var(--ink)] mb-4">
+                    Seu <br />
+                    <em className="italic text-[var(--gold)] font-normal">próximo imóvel</em> <br />
                     <strong>está aqui.</strong>
                   </h1>
-                  <p className="mt-6 text-lg text-[var(--ink3)] font-light leading-relaxed">
+                  <p className="text-[16px] text-[var(--ink3)] font-light leading-[1.7] max-w-[460px]">
                     Reuni casas que realmente fazem sentido para você — não um catálogo, uma curadoria feita com atenção.
                   </p>
                 </section>
 
                 {/* INSIGHT BAR */}
-                {preferences && (
-                  <section className="bg-[var(--cream)] border border-[var(--gold-bd)] rounded-2xl p-6 md:p-8 flex items-center gap-6 shadow-sm">
-                    <div className="w-12 h-12 rounded-xl bg-[var(--gold-bg)] border border-[var(--gold-bd)] flex items-center justify-center text-[var(--gold)] text-xl shrink-0">
-                      <Sparkles />
+                <section className="mx-[72px] mb-[56px] bg-[var(--cream)] border border-[var(--gold-bd)] rounded-[16px] p-[22px_28px] flex items-center gap-6 fu fu2">
+                  <div className="w-10 h-10 rounded-[10px] bg-[var(--gold-bg)] border border-[var(--gold-bd)] flex items-center justify-center text-lg shrink-0">
+                    ✦
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-[var(--ink)] mb-2">O que aprendi sobre o que você busca</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {preferences?.preferred_property_type && <span className="px-3 py-0.5 rounded-full bg-[var(--gold-bg)] border border-[var(--gold-bd)] text-[var(--gold2)] text-xs font-medium">{preferences.preferred_property_type}</span>}
+                      {preferences?.preferred_area && <span className="px-3 py-0.5 rounded-full bg-[var(--gold-bg)] border border-[var(--gold-bd)] text-[var(--gold2)] text-xs font-medium">{preferences.preferred_area}</span>}
+                      {preferences?.preferred_features?.map((f: string) => (
+                        <span key={f} className="px-3 py-0.5 rounded-full bg-[var(--gold-bg)] border border-[var(--gold-bd)] text-[var(--gold2)] text-xs font-medium">{f}</span>
+                      ))}
                     </div>
-                    <div className="flex-1">
-                      <h4 className="text-[10px] uppercase tracking-[0.2em] font-bold text-[var(--gold)] mb-3 flex items-center gap-2 opacity-80">
-                        Insights de Perfil
-                        <Zap className="w-3 h-3 text-[var(--gold2)]" />
-                      </h4>
-                      <div className="flex flex-wrap gap-2">
-                        {preferences.preferred_property_type && <span className="px-3 py-1 rounded-full bg-[var(--gold-bg)] border border-[var(--gold-bd)] text-[var(--gold)] text-[11px] font-medium">{preferences.preferred_property_type}</span>}
-                        {preferences.preferred_area && <span className="px-3 py-1 rounded-full bg-[var(--gold-bg)] border border-[var(--gold-bd)] text-[var(--gold)] text-[11px] font-medium">{preferences.preferred_area}</span>}
-                        {preferences.preferred_features?.map((f: string) => (
-                          <span key={f} className="px-3 py-1 rounded-full bg-[var(--gold-bg)] border border-[var(--gold-bd)] text-[var(--gold)] text-[11px] font-medium">{f}</span>
-                        ))}
-                      </div>
-                    </div>
-                  </section>
-                )}
+                  </div>
+                </section>
 
-                {/* PROPERTY GRID */}
-                <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                  {items.map((item, idx) => (
-                    <motion.div 
-                      key={item.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: idx * 0.1 }}
-                      className="selection-card group"
-                    >
-                      <div className="aspect-[4/3] relative overflow-hidden bg-zinc-100">
-                        {item.coverImage ? (
-                          <img src={item.coverImage} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt={item.title} />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-[var(--ink4)] opacity-20">
-                            <Home size={64} />
+                {/* MAIN GRID */}
+                <section className="px-[72px] pb-[72px]">
+                  <div className="flex items-baseline justify-between mb-8 pb-[18px] border-bottom border-[rgba(28,24,18,0.08)]">
+                    <h2 className="text-[30px] font-serif font-normal tracking-[-0.01em]">Casas que selecionei para você</h2>
+                    <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink4)]">curadas · não filtradas</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                    {items.map((item, idx) => (
+                      <motion.div 
+                        key={item.id}
+                        className={`selection-card group fu fu${(idx % 4) + 1}`}
+                        onClick={() => setSelectedItem(item)}
+                      >
+                        <div className="w-full overflow-hidden relative aspect-[4/3]">
+                          {item.coverImage ? (
+                            <img src={item.coverImage} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt={item.title} />
+                          ) : (
+                            <div className="w-full h-full bg-gradient-to-br from-[#e8ddd2] to-[#cfc3b0] flex items-center justify-center text-5xl">🏠</div>
+                          )}
+                          <div className="absolute top-3.5 left-3.5 px-2.5 py-1 rounded-full bg-white/90 backdrop-blur-md border border-[rgba(90,122,74,0.2)] flex items-center gap-1.5 font-mono text-[10px] font-medium text-[var(--match)]">
+                            <div className="w-1 h-1 rounded-full bg-[var(--match)]" />
+                            92% MATCH
                           </div>
-                        )}
-                        <div className="absolute top-4 left-4 px-3 py-1.5 rounded-full bg-white/90 backdrop-blur-md border border-[var(--selection-border)] flex items-center gap-2 text-[var(--match)] font-mono text-[10px] font-bold">
-                          <div className="w-1.5 h-1.5 rounded-full bg-[var(--match)]" />
-                          92% MATCH
                         </div>
-                      </div>
-                      
-                      <div className="p-6">
-                        <span className="font-mono text-[9px] uppercase tracking-widest text-[var(--gold)] mb-2 block">Curado para você</span>
-                        <h3 className="text-xl font-medium mb-1 selection-title-sepia">{item.title}</h3>
-                        <p className="text-xs text-[var(--ink3)] flex items-center gap-1 mb-4">
-                          <MapPin size={12} /> {item.location}
-                        </p>
-                        <div className="text-2xl font-light mb-6 selection-title-sepia">{formatPrice(item.price)}</div>
+                        
+                        <div className="p-[20px_22px_22px]">
+                          <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-[var(--gold)] mb-2 block">Curado para você</span>
+                          <h3 className="text-[21px] font-serif font-normal leading-tight text-[var(--ink)] mb-2 group-hover:text-[var(--gold)] transition-colors">{item.title}</h3>
+                          
+                          <div className="flex flex-wrap gap-x-3 gap-y-1 mb-3 text-xs text-[var(--ink3)]">
+                            <span className="border-r border-[var(--ink4)] pr-3 last:border-0">{item.location}</span>
+                            <span className="border-r border-[var(--ink4)] pr-3 last:border-0">3 Suítes</span>
+                            <span className="pr-3">420m²</span>
+                          </div>
 
-                        {/* Personalized Context */}
-                        <AnimatePresence>
+                          <div className="text-[24px] font-serif font-medium tracking-tight text-[var(--ink)] mb-4">
+                            {formatPrice(item.price)}
+                          </div>
+
+                          {/* Insight / Note */}
                           {(item.note || item.recommendedReason) && (
-                            <div className="mb-6 p-4 rounded-xl bg-[var(--gold-bg)] border-l-2 border-[var(--gold2)] italic text-sm text-[var(--ink2)] leading-relaxed relative">
-                              <span className="block not-italic font-mono text-[9px] uppercase tracking-wider text-[var(--gold)] mb-2">Nota do Jean</span>
+                            <div className="mb-4 p-[12px_14px] bg-[rgba(255,248,235,0.8)] border border-[rgba(160,120,40,0.15)] border-l-[3px] border-l-[var(--gold2)] rounded-[0_8px_8px_0] text-[13px] text-[var(--ink2)] leading-[1.65] font-serif italic">
+                              <strong className="block not-italic font-mono text-[9px] uppercase tracking-[0.1em] text-[var(--gold)] mb-1.5 font-normal">Insight do Especialista</strong>
                               "{item.note || item.recommendedReason}"
                             </div>
                           )}
-                        </AnimatePresence>
 
-                        <div className="flex gap-2">
-                          <button 
-                            onClick={() => window.open(item.url || "#", "_blank")}
-                            className="flex-1 px-4 py-2.5 rounded-lg bg-[var(--selection-text)] text-[var(--selection-bg)] text-xs font-medium hover:opacity-90 transition-all flex items-center justify-center gap-2"
-                          >
-                            Ver Detalhes <ExternalLink size={14} />
-                          </button>
-                          <button 
-                            onClick={() => handleWhatsApp(item)}
-                            className="w-11 h-11 rounded-lg border border-[var(--selection-border)] flex items-center justify-center text-[var(--ink3)] hover:text-[var(--gold)] hover:bg-[var(--gold-bg)] transition-all"
-                          >
-                            <MessageSquare size={18} />
-                          </button>
+                          {/* Video */}
+                          {item.videoUrl && (
+                            <div className="mb-4 flex items-center gap-2 p-[9px_13px] bg-[rgba(28,24,18,0.04)] border border-[rgba(28,24,18,0.08)] rounded-lg hover:bg-[rgba(28,24,18,0.07)] transition-all cursor-pointer">
+                              <div className="w-7 h-7 bg-[var(--ink)] rounded-full flex items-center justify-center shrink-0">
+                                <div className="w-0 h-0 border-y-[5px] border-y-transparent border-l-[8px] border-l-white ml-0.5" />
+                              </div>
+                              <div className="text-left">
+                                <p className="text-[13px] font-medium text-[var(--ink)]">Vídeo Exclusivo</p>
+                                <span className="text-[11px] text-[var(--ink3)]">Assista o tour gravado</span>
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="flex gap-2">
+                            <button className="flex-1 py-2.5 rounded-lg bg-[var(--ink)] text-[var(--paper)] text-xs font-medium hover:bg-[#2d2920] transition-all">Ver Detalhes</button>
+                            <button className="px-3.5 py-2.5 rounded-lg border border-[rgba(28,24,18,0.12)] text-[var(--ink3)] hover:bg-[rgba(28,24,18,0.05)] transition-all"><Star size={18} /></button>
+                          </div>
                         </div>
-                      </div>
-                    </motion.div>
-                  ))}
+                      </motion.div>
+                    ))}
+                  </div>
+                </section>
+
+                {/* COMPARISON PLACEHOLDER */}
+                <section className="mx-[72px] mb-[72px] bg-white border border-[rgba(28,24,18,0.08)] rounded-[20px] overflow-hidden">
+                  <div className="p-[24px_28px] border-b border-[rgba(28,24,18,0.07)] flex items-baseline justify-between">
+                    <h3 className="text-[22px] font-serif font-normal text-[var(--ink)]">Destaques da Curadoria</h3>
+                    <span className="text-xs text-[var(--ink4)]">Comparativo técnico</span>
+                  </div>
+                  <div className="p-8 text-center text-[var(--ink4)] italic font-serif">
+                    Selecione um imóvel para ver o comparativo detalhado.
+                  </div>
                 </section>
               </motion.div>
             ) : (
@@ -228,21 +245,55 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="h-[70vh] rounded-3xl overflow-hidden border border-[var(--selection-border)] bg-zinc-200 relative"
+                className="h-[calc(100vh-58px)] flex relative overflow-hidden"
               >
-                <SelectionMap 
-                  items={items} 
-                  theme={theme} 
-                  className="w-full h-full"
-                />
+                <div className="flex-1 relative">
+                  <SelectionMap 
+                    items={items} 
+                    theme={theme} 
+                    className="w-full h-full"
+                  />
+                  <div className="absolute bottom-5 left-5 z-10 flex items-center gap-2 px-3 py-1.5 bg-[rgba(13,12,10,0.85)] border border-[rgba(212,175,55,0.18)] rounded-full backdrop-blur-md">
+                    <div className="w-1.5 h-1.5 bg-[var(--gold)] rounded-full animate-pulse" />
+                    <span className="font-mono text-[9px] uppercase tracking-widest text-[#d4af37]/60">Live Radar active</span>
+                  </div>
+                </div>
+
+                <aside className="map-side h-full custom-scrollbar">
+                  <div className="p-[22px_24px_16px] border-b border-[rgba(212,175,55,0.08)]">
+                    <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-[#d4af37]/60 block mb-1.5">No seu radar agora</span>
+                    <h3 className="text-[22px] font-serif font-light text-[#f0ede4] leading-tight">Lista de curadoria</h3>
+                  </div>
+                  
+                  <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
+                    {items.map(item => (
+                      <div key={item.id} className="flex gap-3 p-3 rounded-xl border border-transparent hover:bg-[#d4af37]/5 hover:border-[#d4af37]/20 transition-all cursor-pointer group">
+                        <div className="w-14 h-12 bg-[#1a1812] rounded-lg shrink-0 overflow-hidden flex items-center justify-center text-xl">🏠</div>
+                        <div className="flex-1 min-w-0">
+                          <span className="font-mono text-[9px] uppercase tracking-widest text-[#d4af37]/70 mb-1 block">92% Match</span>
+                          <h4 className="text-[13px] font-medium text-[#e8e5dc] truncate mb-0.5">{item.title}</h4>
+                          <p className="text-[12px] text-[#e8e5dc]/45">{formatPrice(item.price)}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="p-4 border-t border-[rgba(212,175,55,0.08)]">
+                    <button className="w-full py-3 rounded-lg bg-[#5aa05a]/15 border border-[#5aa05a]/25 text-[#5ac85a]/80 text-[13px] font-medium flex items-center justify-center gap-2 hover:bg-[#5aa05a]/22 transition-all">
+                      <Phone size={14} className="fill-current" /> Agendar Visitas
+                    </button>
+                  </div>
+                </aside>
               </motion.div>
             )}
           </AnimatePresence>
         </main>
 
-        <footer className="py-12 border-t border-[var(--selection-border)] opacity-30 text-center">
-          <p className="text-[10px] uppercase tracking-widest">Orbit house · Curadoria imobiliária privada</p>
-        </footer>
+        {view === "curadoria" && (
+          <footer className="py-20 border-t border-[var(--selection-border)] opacity-30 text-center">
+            <p className="font-mono text-[10px] uppercase tracking-[0.2em]">Orbit house · Curadoria imobiliária privada</p>
+          </footer>
+        )}
       </div>
     </div>
   )
