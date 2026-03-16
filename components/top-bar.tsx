@@ -8,12 +8,14 @@ import {
   Sun, 
   LogOut, 
   Activity,
-  CircleDot
+  CircleDot,
+  UserPlus
 } from "lucide-react";
 import { WhatsAppInbox } from "./whatsapp-inbox";
 import { Button } from "./ui/button";
 import Link from "next/link";
 import { getSupabase } from "@/lib/supabase";
+import { useOrbitContext } from "./orbit-context";
 
 interface TopBarProps {
   totalLeads: number;
@@ -62,6 +64,13 @@ export function TopBar({ totalLeads, isDark, onThemeToggle, onLogout }: TopBarPr
     };
   }, []);
 
+  const { setIsAdminDrawerOpen, setActiveAdminView } = useOrbitContext();
+
+  const handleNewLead = () => {
+    setActiveAdminView("lead");
+    setIsAdminDrawerOpen(true);
+  };
+
   return (
     <div className="fixed top-0 left-0 right-0 z-[100] px-6 py-4 flex items-center justify-between pointer-events-none">
       {/* LEFT: System Identity */}
@@ -98,6 +107,18 @@ export function TopBar({ totalLeads, isDark, onThemeToggle, onLogout }: TopBarPr
       {/* RIGHT: Actions Toolset */}
       <div className="flex items-center gap-2 pointer-events-auto">
         <div className="flex items-center gap-1 p-1 rounded-xl bg-[var(--orbit-glass)] border border-[var(--orbit-glass-border)] backdrop-blur-md shadow-2xl">
+
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={handleNewLead}
+            className="flex items-center gap-1.5 px-3 py-1.5 h-8 rounded-lg hover:bg-[var(--orbit-glow)]/10 text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)] transition-all duration-300 text-[10px] font-medium"
+          >
+            <UserPlus className="h-3.5 w-3.5" />
+            Novo Lead
+          </Button>
+
+          <div className="w-px h-4 bg-[var(--orbit-glass-border)] mx-1" />
 
           {/* WhatsAppInbox recebe o count do TopBar (fonte única de verdade) */}
           <WhatsAppInbox externalCount={pendingCount} onCountChange={setPendingCount} />

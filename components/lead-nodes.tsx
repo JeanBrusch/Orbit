@@ -631,25 +631,22 @@ function mapEmotionalStateToAura(state: string): EmotionalAura {
   }
 }
 
-// Ciclo de contato → cor do anel baseada em dias desde a última interação.
-// Transpilation from hex strings to tailwind Ring/Glow object structure to match reference.
 function getContactCycleAura(
   days: number | undefined,
   needsAttention: boolean,
   isDark: boolean,
 ): { ring: string; glow: string } {
   if (needsAttention) {
-    // 1. Mensagem Nova (Verde) - Prioridade Máxima
-    return { ring: "border-emerald-500 border-[3px]", glow: "shadow-[0_0_24px] shadow-emerald-500/80" }
+    return { 
+      ring: "border-emerald-400", 
+      glow: "shadow-[0_0_16px] shadow-emerald-500/80" 
+    }
   }
-  
+
   const d = days ?? 0
-  
-  if (d <= 3) return { ring: "border-blue-500", glow: "shadow-[0_0_12px] shadow-blue-500/50" } // 5. Azul: contato recente
-  if (d <= 7) return { ring: "border-yellow-400", glow: "shadow-[0_0_12px] shadow-yellow-400/50" } // 4. Amarelo: precisa de atenção
-  if (d <= 15) return { ring: "border-orange-500", glow: "shadow-[0_0_12px] shadow-orange-500/50" } // 3. Laranja: esfriando
-  
-  // 2. Vermelho: abandono (>15 dias) - Alerta Claro
+  if (d <= 3) return { ring: "border-blue-500", glow: "shadow-[0_0_12px] shadow-blue-500/50" }
+  if (d <= 7) return { ring: "border-yellow-400", glow: "shadow-[0_0_12px] shadow-yellow-400/50" }
+  if (d <= 15) return { ring: "border-orange-500", glow: "shadow-[0_0_12px] shadow-orange-500/50" }
   return { ring: "border-red-600", glow: "shadow-[0_0_12px] shadow-red-600/50" }
 }
 
@@ -792,7 +789,7 @@ const LeadNodeItem = memo(({
           {hasFollowUpDue && !node.needsAttention && <FollowUpRing />}
 
           <div
-            className={`flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border-2 bg-[var(--orbit-glass)] text-xs font-light text-[var(--orbit-text)] backdrop-blur-sm transition-all duration-300 ${
+            className={`flex h-10 w-10 relative mt-0 z-10 items-center justify-center overflow-hidden rounded-full border-2 bg-[var(--orbit-glass)] text-xs font-light text-[var(--orbit-text)] backdrop-blur-sm transition-all duration-300 ${
               isHighlighted && isResponding
                 ? "animate-lead-highlight scale-110 border-[var(--orbit-glow)]"
                 : node.isNew
@@ -1014,11 +1011,10 @@ export function LeadNodes({
   }, [supabaseLeadNodes, adminLeadNodes, leadStates, orbitViewLeadScores, orbitView.active, dayLoadFactor]);
 
   const handleLeadClick = useCallback((leadId: string) => {
-    // Apaga a luz imediatamente na UI (otimista)
     setClearedAttentionLeads(prev =>
       prev.includes(leadId) ? prev : [...prev, leadId]
     );
-  
+
     // Persiste no banco — sobrevive ao reload
     fetch(`/api/lead/${leadId}/read`, { method: 'POST' }).catch((err) =>
       console.error('[LeadNodes] Erro ao marcar lead como lido:', err)

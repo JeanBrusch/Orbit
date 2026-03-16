@@ -4,7 +4,7 @@ import { useRef, useState, useEffect, useCallback, memo, useMemo } from "react";
 import {
   X, ArrowUp, Play, Loader2, Check, Brain,
   Mic, Zap, Star, Building2, ExternalLink, Copy, CheckCheck,
-  Square, Paperclip, Search, StopCircle, FileText, User
+  Square, Paperclip, Search, StopCircle, FileText, User, HelpCircle
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { getSupabase } from "@/lib/supabase";
@@ -200,6 +200,94 @@ const MessageBubble = memo(function MessageBubble({ msg, leadPhoto, leadName }: 
 
   try {
     const p = JSON.parse(text);
+    if (p.type === "audio_transcript" && p.url) {
+      // Rich transcription card
+      const ana = p.analysis || {};
+      const sentColor =
+        ana.sentiment === "positive" ? "text-emerald-400 border-emerald-500/30 bg-emerald-500/5"
+        : ana.sentiment === "negative" ? "text-red-400 border-red-500/30 bg-red-500/5"
+        : "text-blue-400 border-blue-400/20 bg-blue-500/5";
+      const urgencyWidth = `${Math.min(ana.urgency || 0, 100)}%`;
+
+      return (
+        <div className="flex flex-col items-end gap-1 self-end max-w-[90%] w-full">
+          <div className="w-full bg-[#1a1a2e] border border-[#2ec5ff]/20 rounded-2xl rounded-tr-none overflow-hidden shadow-lg">
+            {/* Header */}
+            <div className="flex items-center gap-2 px-3 py-2 border-b border-white/5 bg-[#2ec5ff]/5">
+              <div className="w-5 h-5 rounded-full bg-[#2ec5ff]/20 flex items-center justify-center">
+                <Mic className="h-3 w-3 text-[#2ec5ff]" />
+              </div>
+              <span className="text-[10px] font-mono uppercase tracking-widest text-[#2ec5ff]/70">Transcrição de Áudio</span>
+              <span className="ml-auto text-[10px] text-slate-500">{formatTime(msg.timestamp)}</span>
+            </div>
+
+            {/* Audio Player (basic) */}
+            <div className="flex items-center gap-3 px-3 py-2 border-b border-white/5">
+              <audio controls src={p.url} className="w-full h-8 opacity-70" style={{ filter: "invert(0.9) hue-rotate(180deg) saturate(0.6)" }} />
+            </div>
+
+            {/* Transcript */}
+            {p.transcript && (
+              <div className="px-3 py-2 border-b border-white/5">
+                <p className="text-[10px] uppercase tracking-wider text-slate-500 mb-1">Transcrição</p>
+                <p className="text-xs text-slate-200 leading-relaxed italic">"{p.transcript}"</p>
+              </div>
+            )}
+
+            {/* Analysis */}
+            {ana.summary && (
+              <div className="px-3 py-2 space-y-2">
+                {/* Sentiment + Urgency */}
+                <div className="flex items-center gap-2">
+                  {ana.sentiment && (
+                    <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-full border ${sentColor}`}>
+                      {ana.sentiment === "positive" ? "Positivo" : ana.sentiment === "negative" ? "Negativo" : "Neutro"}
+                    </span>
+                  )}
+                  {ana.intention && (
+                    <span className="text-[9px] font-medium text-slate-400 truncate">{ana.intention}</span>
+                  )}
+                </div>
+
+                {/* Urgency bar */}
+                {typeof ana.urgency === "number" && (
+                  <div>
+                    <div className="flex justify-between text-[9px] text-slate-500 mb-0.5">
+                      <span>Urgência</span><span>{ana.urgency}%</span>
+                    </div>
+                    <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
+                      <div className="h-full bg-[#2ec5ff] rounded-full transition-all duration-700" style={{ width: urgencyWidth }} />
+                    </div>
+                  </div>
+                )}
+
+                {/* Signals */}
+                {Array.isArray(ana.signals) && ana.signals.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {ana.signals.map((s: string, i: number) => (
+                      <span key={i} className="text-[9px] bg-white/5 border border-white/10 px-2 py-0.5 rounded-full text-slate-300">
+                        {s}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {/* Summary */}
+                <p className="text-[10px] text-slate-400 leading-relaxed border-l border-[#2ec5ff]/30 pl-2">{ana.summary}</p>
+
+                {/* Suggested action */}
+                {ana.suggested_action && (
+                  <div className="flex items-start gap-1.5 bg-[#d4af35]/5 border border-[#d4af35]/20 rounded-lg px-2 py-1.5">
+                    <Zap className="h-3 w-3 text-[#d4af35] shrink-0 mt-0.5" />
+                    <p className="text-[10px] text-[#d4af35]">{ana.suggested_action}</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
     if (p.type && p.url) { mediaType = p.type; mediaUrl = p.url; text = p.caption || ""; }
     else if (p.type && p.summary) { manualKind = p.type; text = p.summary; manualNextContact = p.next_contact_at; }
     else if (p.type === "property") {
@@ -218,6 +306,38 @@ const MessageBubble = memo(function MessageBubble({ msg, leadPhoto, leadName }: 
             </div>
           </div>
           <span className="text-[10px] text-slate-500 mr-1">{formatTime(msg.timestamp)}</span>
+        </div>
+      );
+    }
+    else if (p.type === "property_question") {
+      return (
+        <div className="flex gap-3 max-w-[90%]">
+          <div className="w-8 h-8 rounded-full border border-white/10 shrink-0 overflow-hidden bg-[#d4af35]/20 flex items-center justify-center text-[10px] font-bold text-[#d4af35]">
+            {leadPhoto ? <img src={leadPhoto} className="w-full h-full object-cover" alt="" /> : getInitials(leadName)}
+          </div>
+          <div className="flex flex-col gap-1 w-full">
+            <div className="bg-[#1a1a2e] border border-[#d4af35]/30 rounded-2xl rounded-tl-none overflow-hidden shadow-lg">
+              <div className="flex items-center gap-2 px-3 py-2 border-b border-white/5 bg-[#d4af35]/5">
+                <div className="w-5 h-5 rounded-full bg-[#d4af35]/20 flex items-center justify-center">
+                  <HelpCircle className="h-3 w-3 text-[#d4af35]" />
+                </div>
+                <span className="text-[10px] font-mono uppercase tracking-widest text-[#d4af35]/80">Dúvida do Portal</span>
+              </div>
+              <div className="p-4">
+                <p className="text-sm text-slate-200 leading-relaxed italic mb-3">"{p.text}"</p>
+                <div className="flex items-center gap-3 p-2 bg-black/40 rounded-xl border border-white/5">
+                  <div className="w-10 h-10 rounded-lg overflow-hidden bg-zinc-800 shrink-0">
+                    {p.propertyCover ? <img src={p.propertyCover} className="w-full h-full object-cover" /> : <Building2 className="w-4 h-4 text-slate-600 m-3" />}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-0.5">Sobre o imóvel</p>
+                    <p className="text-xs font-medium text-[#d4af35] truncate">{p.propertyTitle || "Imóvel selecionado"}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <span className="text-[10px] text-slate-500 ml-1">{formatTime(msg.timestamp)}</span>
+          </div>
         </div>
       );
     }
@@ -484,6 +604,8 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
   const [isRecording, setIsRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [lastTranscript, setLastTranscript] = useState<{ text: string; analysis: Record<string, unknown> } | null>(null);
 
   const startRecording = async () => {
     try {
@@ -495,25 +617,50 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
         stream.getTracks().forEach(t => t.stop());
         const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
         const url = URL.createObjectURL(blob);
+
+        // 1. Show optimistic audio bubble
+        const optimisticId = `opt-audio-${Date.now()}`;
         const optimistic: Message = {
-          id: `opt-audio-${Date.now()}`,
+          id: optimisticId,
           source: "operator",
-          content: JSON.stringify({ type: "audio", url, caption: "" }),
+          content: JSON.stringify({ type: "audio", url, caption: "Transcrevendo…" }),
           timestamp: new Date().toISOString(),
           ai_analysis: null,
         };
         setMessages(prev => [...prev, optimistic]);
-        if (leadId) {
-          const supabase = getSupabase();
-          try {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            await (supabase.from("interactions") as any).insert({
-              lead_id: leadId,
-              content: JSON.stringify({ type: "audio", url, caption: "[Áudio gravado]" }),
-              direction: "outbound",
-              channel: "manual",
-            });
-          } catch { /* silent */ }
+
+        // 2. Transcribe + analyse via API
+        setIsTranscribing(true);
+        try {
+          const formData = new FormData();
+          formData.append("audio", blob, "audio.webm");
+          if (leadId) formData.append("leadId", leadId);
+          formData.append("language", "pt");
+
+          const res = await fetch("/api/transcribe", { method: "POST", body: formData });
+          const data = res.ok ? await res.json() : null;
+
+          if (data?.transcript) {
+            setLastTranscript({ text: data.transcript, analysis: data.analysis || {} });
+            // Update the optimistic bubble with transcript data
+            setMessages(prev => prev.map(m => m.id === optimisticId
+              ? { ...m, content: JSON.stringify({ type: "audio_transcript", url, transcript: data.transcript, analysis: data.analysis }), ai_analysis: data.analysis }
+              : m
+            ));
+          } else {
+            setMessages(prev => prev.map(m => m.id === optimisticId
+              ? { ...m, content: JSON.stringify({ type: "audio", url, caption: "[Áudio gravado]" }) }
+              : m
+            ));
+          }
+        } catch {
+          // fallback: keep as plain audio if transcription fails
+          setMessages(prev => prev.map(m => m.id === optimisticId
+            ? { ...m, content: JSON.stringify({ type: "audio", url, caption: "[Áudio gravado]" }) }
+            : m
+          ));
+        } finally {
+          setIsTranscribing(false);
         }
       };
       recorder.start();
@@ -615,22 +762,7 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
         property: propMap.get(i.property_id || "") as PropertyInteraction["property"],
       })));
     } else {
-      // Fallback to property_sends
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const psRes = await (supabase.from("property_sends") as any)
-        .select("id,property_id,sent_at,lead_status,properties(title,cover_image,value,location_text,source_link)")
-        .eq("lead_id", leadId).order("sent_at", { ascending: false }).limit(10);
-      if (psRes.data) {
-        setInteractions((psRes.data as any[]).map((i: any) => ({
-          id: i.id,
-          interaction_type: (i.lead_status as string) || "sent",
-          timestamp: i.sent_at,
-          property: {
-            id: i.property_id,
-            ...(i.properties as object | null ?? {}),
-          } as PropertyInteraction["property"],
-        })));
-      }
+      setInteractions([]);
     }
 
     // AI Suggestion
@@ -1214,6 +1346,7 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
                           'border-white/10 focus:border-[#2ec5ff]/40'
                         }`}
                         placeholder={
+                          isTranscribing ? "Processando transcrição…" :
                           isRecording ? "Gravando áudio…" : 
                           interactionMode === "note" ? "Descreva o que aconteceu (reunião, anotação importante)…" : 
                           interactionMode === "call" ? (callStatus === "attended" ? "Resumo da conversa ocorrida..." : "O que aconteceu na ligação não atendida?") :
@@ -1237,12 +1370,16 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
                       onClick={isRecording ? stopRecording : startRecording}
                       title={isRecording ? "Parar gravação" : "Gravar áudio"}
                       className={`w-9 h-9 rounded-full border flex items-center justify-center transition-all shrink-0 mb-[2px] ${
-                        isRecording
-                          ? "bg-red-500 border-red-500 text-white animate-pulse"
-                          : "bg-white/5 border-white/10 text-slate-400 hover:text-white hover:border-white/30"
+                        isTranscribing
+                          ? "bg-[#2ec5ff]/80 border-[#2ec5ff] text-white"
+                          : isRecording
+                            ? "bg-red-500 border-red-500 text-white animate-pulse"
+                            : "bg-white/5 border-white/10 text-slate-400 hover:text-white hover:border-white/30"
                       }`}
                     >
-                      {isRecording ? <Square className="w-3.5 h-3.5 fill-current" /> : <Mic className="w-4 h-4" />}
+                      {isTranscribing ? <Loader2 className="w-4 h-4 animate-spin" /> : 
+                       isRecording ? <Square className="w-3.5 h-3.5 fill-current" /> : 
+                       <Mic className="w-4 h-4" />}
                     </button>
 
                     {/* Send */}

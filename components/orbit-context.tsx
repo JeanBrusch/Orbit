@@ -228,6 +228,10 @@ interface OrbitContextValue {
   addLead: (input: NewLeadInput) => Promise<string | null>
   newLeads: string[] // IDs of leads added via admin (for animations)
   atlasProperties: Property[] // Properties in Atlas (view model)
+  isAdminDrawerOpen: boolean
+  setIsAdminDrawerOpen: (open: boolean) => void
+  activeAdminView: "menu" | "lead" | "conversation"
+  setActiveAdminView: (view: "menu" | "lead" | "conversation") => void
 
   // Property Ingestion Pipeline (Pocket Listing is the ONLY source)
   ingestedProperties: IngestedProperty[] // All ingested properties
@@ -379,6 +383,8 @@ export function OrbitProvider({ children }: { children: ReactNode }) {
   // Admin-added items
   const [newLeads, setNewLeads] = useState<string[]>([])
   const [atlasProperties, setAtlasProperties] = useState<Property[]>([])
+  const [isAdminDrawerOpen, setIsAdminDrawerOpen] = useState(false)
+  const [activeAdminView, setActiveAdminView] = useState<"menu" | "lead" | "conversation">("menu")
 
   // Property Ingestion State
   const [ingestedProperties, setIngestedProperties] = useState<IngestedProperty[]>([])
@@ -1227,6 +1233,10 @@ export function OrbitProvider({ children }: { children: ReactNode }) {
     addLead,
     newLeads,
     atlasProperties,
+    isAdminDrawerOpen,
+    setIsAdminDrawerOpen,
+    activeAdminView,
+    setActiveAdminView,
 
     // Ingestion
     ingestedProperties,
@@ -1273,6 +1283,8 @@ export function OrbitProvider({ children }: { children: ReactNode }) {
     addLead,
     newLeads,
     atlasProperties,
+    isAdminDrawerOpen,
+    activeAdminView,
     ingestedProperties,
     ingestPropertyFromUrl,
     updateIngestedProperty,

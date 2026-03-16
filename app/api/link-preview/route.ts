@@ -23,8 +23,9 @@ export async function POST(request: NextRequest) {
     try {
       const response = await fetch(url, {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (compatible; OrbitBot/1.0)',
-          'Accept': 'text/html',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
         },
         signal: controller.signal,
       })
@@ -53,12 +54,20 @@ export async function POST(request: NextRequest) {
       }
 
       const price = extractPrice(html)
+      const bedrooms = extractNumber(html, ['(?:quartos|quarto|dorms|dormit[oó]rios?)'])
+      const suites = extractNumber(html, ['(?:su[ií]tes?)'])
+      const parking = extractNumber(html, ['(?:vagas?|garagens|garagem)'])
+      const area = extractArea(html)
 
       return NextResponse.json({
         title: title || null,
         description: description || null,
         image: resolvedImage || null,
         price: price || null,
+        bedrooms: bedrooms || null,
+        suites: suites || null,
+        parking_spots: parking || null,
+        area_privativa: area || null,
         sourceDomain,
         sourceLink: url,
       })
@@ -70,6 +79,10 @@ export async function POST(request: NextRequest) {
         description: null,
         image: null,
         price: null,
+        bedrooms: null,
+        suites: null,
+        parking_spots: null,
+        area_privativa: null,
         sourceDomain,
         sourceLink: url,
       })
@@ -107,13 +120,46 @@ function extractTitle(html: string): string | null {
 }
 
 function extractPrice(html: string): number | null {
-  // Regex heurística para procurar R$ seguido de números e pontos
-  const pricePattern = /R\$\s*([\d{1,3}(?:\.\d{3})*(?:,\d{2})?])/i
+  // Match R$ followed by number with Brazilian formatting (dots as thousands, comma as decimal)
+  const pricePattern = /R\$\s*(\d{1,3}(?:\.\d{3})*(?:,\d{2})?)/i
   const match = html.match(pricePattern)
   if (!match) return null
   
-  // Limpar a string e converter pra numero puro
   const rawNumber = match[1].replace(/\./g, '').replace(',', '.')
   const num = parseFloat(rawNumber)
   return isNaN(num) ? null : num
+}
+
+/** Extract a numeric value associated with real estate attribute keywords */
+function extractNumber(html: string, keywords: string[]): number | null {
+  const cleanHtml = html.replace(/<[^>]+>/g, ' ');
+  for (const kw of keywords) {
+    // Pattern: "3 quartos" (number before keyword)
+    const before = new RegExp(`(\\d+)\\s*${kw}`, 'i')
+    const beforeMatch = cleanHtml.match(before)
+    if (beforeMatch) return parseInt(beforeMatch[1], 10)
+
+    // Pattern: "quartos: 3" (number after keyword)
+    const after = new RegExp(`${kw}[^\\d]{0,15}(\\d+)`, 'i')
+    const afterMatch = cleanHtml.match(after)
+    if (afterMatch) return parseInt(afterMatch[1], 10)
+  }
+  return null
+}
+
+/** Extract area in m² */
+function extractArea(html: string): number | null {
+  const cleanHtml = html.replace(/<[^>]+>/g, ' ');
+  const patterns = [
+    /(\d+(?:[.,]\d+)?)\s*(?:m|m2|m²)/i,
+    /[áa]rea\s*(?:privativa|[úu]til|total)?[^0-9]{0,20}(\d+(?:[.,]\d+)?)/i,
+  ]
+  for (const p of patterns) {
+    const m = cleanHtml.match(p)
+    if (m) {
+      const num = parseFloat(m[1].replace(',', '.'))
+      if (!isNaN(num) && num > 10 && num < 10000) return num
+    }
+  }
+  return null
 }

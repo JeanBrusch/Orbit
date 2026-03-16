@@ -23,6 +23,7 @@ import {
   ChevronUp,
   Share2,
   Link2,
+  Loader2,
   CheckCircle2,
   MoreVertical,
   Trash2,
@@ -218,15 +219,51 @@ export function LeadFocusPanel({
   const { properties: allProperties } = useSupabaseProperties();
   const [atlasSearch, setAtlasSearch] = useState("");
   const [isAtlasSearchVisible, setIsAtlasSearchVisible] = useState(false);
+  
+  // Semantic Search
+  const [naturalSearchQuery, setNaturalSearchQuery] = useState("");
+  const [isSearchingNatural, setIsSearchingNatural] = useState(false);
+  const [naturalSearchResults, setNaturalSearchResults] = useState<any[]>([]);
 
   const filteredAtlasProperties = useMemo(() => {
+    if (naturalSearchResults.length > 0 && !atlasSearch.trim() && !naturalSearchQuery.trim()) {
+      return naturalSearchResults.slice(0, 15); // Return previous natural search results if no new search
+    }
+    if (naturalSearchResults.length > 0 && naturalSearchQuery.trim()) {
+       return naturalSearchResults;
+    }
     if (!atlasSearch.trim()) return allProperties.slice(0, 10);
     return allProperties.filter(p => 
       p.title?.toLowerCase().includes(atlasSearch.toLowerCase()) || 
       p.location_text?.toLowerCase().includes(atlasSearch.toLowerCase()) ||
       p.internal_name?.toLowerCase().includes(atlasSearch.toLowerCase())
     ).slice(0, 15);
-  }, [allProperties, atlasSearch]);
+  }, [allProperties, atlasSearch, naturalSearchResults, naturalSearchQuery]);
+
+  const handleNaturalSearch = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!naturalSearchQuery.trim()) {
+      setNaturalSearchResults([]);
+      return;
+    }
+    setIsSearchingNatural(true);
+    try {
+      const response = await fetch('/api/atlas/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: naturalSearchQuery })
+      });
+      const data = await response.json();
+      if (data.matchingIds) {
+        const matchingProps = allProperties.filter((p: any) => data.matchingIds.includes(p.id));
+        setNaturalSearchResults(matchingProps);
+      }
+    } catch (err) {
+      console.error("Erro na busca semântica:", err);
+    } finally {
+      setIsSearchingNatural(false);
+    }
+  };
 
   // Magic Link state
   const [magicLinkUrl, setMagicLinkUrl] = useState<string | null>(null);
@@ -606,6 +643,25 @@ export function LeadFocusPanel({
     }
   };
 
+  const { activateOrbitView } = useOrbitContext();
+  const [semanticQuery, setSemanticQuery] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
+
+  const handleSemanticSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!semanticQuery.trim()) return;
+    setIsSearching(true);
+    try {
+      await activateOrbitView(semanticQuery.trim());
+      // Optionally close the panel to view global search results
+      onClose();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     setSelectedImages((prev) => [...prev, ...files]);
@@ -840,6 +896,22 @@ export function LeadFocusPanel({
             backdropFilter: "blur(20px)",
           }}
         >
+          {/* SEARCH BAR */}
+          <div className="mb-4 mt-2">
+            <form onSubmit={handleSemanticSearch} className="relative cursor-pointer transition-all hover:brightness-110">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                {isSearching ? <Loader2 className="w-4 h-4 text-[var(--orbit-glow)] animate-spin" /> : <Search className="w-4 h-4 text-[var(--orbit-glow)]/70" />}
+              </div>
+              <input
+                type="text"
+                placeholder="Busca Semântica no Acervo Geral..."
+                value={semanticQuery}
+                onChange={(e) => setSemanticQuery(e.target.value)}
+                className="w-full bg-[var(--orbit-glow)]/5 border border-[var(--orbit-glow)]/20 focus:border-[var(--orbit-glow)]/50 rounded-lg pl-9 pr-4 py-2 text-xs text-slate-200 placeholder:text-slate-500 font-medium tracking-wide outline-none transition-all shadow-inner focus:shadow-[0_0_12px_rgba(46,197,255,0.15)] focus:bg-[var(--orbit-glow)]/10"
+              />
+            </form>
+          </div>
+
           <div className="flex items-start justify-between">
             <div className="flex gap-3 items-center">
               {/* Sci-Fi Avatar Ring */}
@@ -1504,6 +1576,25 @@ export function LeadFocusPanel({
                     {(() => {
                       try {
                         const parsed = JSON.parse(message.content);
+                        if (parsed.type === "property_question") {
+                          return (
+                            <div className="space-y-2 border-l-2 border-[var(--orbit-glow)] pl-3 py-2 bg-[var(--orbit-glow)]/5 rounded-r-lg">
+                              <div className="flex items-center gap-1.5">
+                                <MessageSquare className="h-3 w-3 text-[var(--orbit-glow)]" />
+                                <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--orbit-glow)] font-bold">Dúvida enviada do Portal</span>
+                              </div>
+                              <p className="text-[13px] leading-relaxed font-medium text-white ml-0.5">{parsed.text}</p>
+                              <a 
+                                href={`/atlas?id=${parsed.propertyId}`} 
+                                target="_blank" 
+                                className="flex items-center gap-1.5 pt-2 mt-1 border-t border-white/5 hover:opacity-80 transition-opacity"
+                              >
+                                <Building2 className="h-3 w-3 text-[var(--orbit-glow)]" />
+                                <span className="text-[10px] text-[var(--orbit-glow)] truncate italic underline decoration-[var(--orbit-glow)]/30 underline-offset-2">{parsed.propertyTitle || 'Ir para o Imóvel'}</span>
+                              </a>
+                            </div>
+                          );
+                        }
                         if (parsed.type && parsed.url) {
                           if (parsed.type === "image")
                             return (
@@ -1537,20 +1628,6 @@ export function LeadFocusPanel({
                                 <Paperclip className="h-4 w-4" />
                                 {parsed.caption || "Documento"}
                               </a>
-                            );
-                          if (parsed.type === "property_question")
-                            return (
-                              <div className="space-y-2 border-l-2 border-[var(--orbit-glow)] pl-3 py-1 bg-[var(--orbit-glow)]/5 rounded-r-lg">
-                                <div className="flex items-center gap-1.5">
-                                  <MessageSquare className="h-3 w-3 text-[var(--orbit-glow)]" />
-                                  <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--orbit-glow)] font-bold">Dúvida sobre Imóvel</span>
-                                </div>
-                                <p className="text-[13px] leading-relaxed font-medium text-white">{parsed.text}</p>
-                                <div className="flex items-center gap-1.5 pt-1 border-t border-white/5">
-                                  <Building2 className="h-3 w-3 text-white/40" />
-                                  <span className="text-[10px] text-white/60 truncate italic">{parsed.propertyTitle}</span>
-                                </div>
-                              </div>
                             );
                         }
                       } catch {}
@@ -1803,18 +1880,47 @@ export function LeadFocusPanel({
             <div className="flex flex-col gap-2 mb-3">
               {isAtlasSearchVisible ? (
                 <div className="bg-white/5 rounded-xl border border-white/10 overflow-hidden animate-in slide-in-from-top-2 duration-300">
-                  <div className="p-2 border-b border-white/5 flex items-center gap-2">
-                    <Search className="h-3.5 w-3.5 text-white/30" />
-                    <input 
-                      autoFocus
-                      value={atlasSearch}
-                      onChange={e => setAtlasSearch(e.target.value)}
-                      placeholder="Buscar no acervo..."
-                      className="flex-1 bg-transparent border-none outline-none text-xs text-white placeholder:text-white/20"
-                    />
-                    <button onClick={() => setIsAtlasSearchVisible(false)} className="text-white/30 hover:text-white transition-colors">
-                      <X className="h-3.5 w-3.5" />
-                    </button>
+                  <div className="p-2 border-b border-white/5 flex flex-col gap-2">
+                    <div className="flex items-center gap-2">
+                      <Search className="h-3.5 w-3.5 text-white/30" />
+                      <input 
+                        autoFocus
+                        value={atlasSearch}
+                        onChange={e => {
+                          setAtlasSearch(e.target.value);
+                          if (naturalSearchQuery) setNaturalSearchQuery(""); // clear semantic search if typing normally
+                          if (naturalSearchResults.length > 0) setNaturalSearchResults([]);
+                        }}
+                        placeholder="Buscar imóvel por nome..."
+                        className="flex-1 bg-transparent border-none outline-none text-xs text-white placeholder:text-white/20"
+                      />
+                      <button onClick={() => setIsAtlasSearchVisible(false)} className="text-white/30 hover:text-white transition-colors">
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                    {/* Natural Search Input */}
+                    <form 
+                      onSubmit={handleNaturalSearch}
+                      className="flex items-center gap-2 bg-black/40 rounded-lg px-2 text-xs border border-white/5 focus-within:border-[var(--orbit-glow)]/40 transition-colors py-1.5"
+                    >
+                      <Brain className="h-3 w-3 text-[var(--orbit-glow)]" />
+                      <input 
+                        value={naturalSearchQuery}
+                        onChange={e => {
+                          setNaturalSearchQuery(e.target.value);
+                          if (atlasSearch) setAtlasSearch(""); // clear normal search if using semantic
+                        }}
+                        placeholder="Busca Semântica (ex: apto 3 dorms vista mar)..."
+                        className="flex-1 bg-transparent border-none outline-none text-[11px] text-[var(--orbit-glow)] placeholder:text-[var(--orbit-glow)]/40 italic font-serif"
+                      />
+                      {isSearchingNatural ? (
+                        <div className="h-3 w-3 animate-spin rounded-full border border-current border-t-transparent text-[var(--orbit-glow)]" />
+                      ) : (
+                        <button type="submit" disabled={!naturalSearchQuery.trim()} className="text-[var(--orbit-glow)]/60 hover:text-[var(--orbit-glow)] disabled:opacity-30">
+                          <Send className="h-3 w-3" />
+                        </button>
+                      )}
+                    </form>
                   </div>
                   <div className="max-h-[220px] overflow-y-auto p-2 space-y-2 custom-scrollbar">
                     {filteredAtlasProperties.length === 0 ? (

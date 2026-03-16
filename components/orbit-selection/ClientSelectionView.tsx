@@ -66,20 +66,22 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
   }
 
   const handleInteraction = async (itemId: string, capsuleItemId: string, state: string) => {
-    const supabase = getSupabase()
     try {
       // Optimistic update
       setInteractions(prev => ({ ...prev, [itemId]: state }))
       
-      const { error } = await (supabase.from("property_interactions") as any)
-        .upsert({
-          lead_id: lead.id,
-          property_id: itemId,
+      const response = await fetch('/api/property-interactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          leadId: lead?.id,
+          propertyId: itemId,
           interaction_type: state,
-          timestamp: new Date().toISOString()
+          source: 'client_portal'
         })
+      })
 
-      if (error) throw error
+      if (!response.ok) throw new Error("Falha ao registrar")
       toast.success(state === 'favorited' ? "Imóvel curtido!" : state === 'visited' ? "Visita solicitada!" : "Interação registrada")
     } catch (err: any) {
       toast.error("Erro ao registrar interação")
@@ -87,31 +89,43 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
     }
   }
 
+  const trackView = async (itemId: string) => {
+    try {
+      await fetch('/api/property-interactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          leadId: lead?.id,
+          propertyId: itemId,
+          interaction_type: 'viewed',
+          source: 'client_portal'
+        })
+      })
+    } catch(e) {}
+  }
+
   const handleAskQuestion = async (item: SelectionItem) => {
     const text = questionText[item.id]?.trim()
     if (!text) return
 
-    const supabase = getSupabase()
     setIsSubmitting(prev => ({ ...prev, [item.id]: true }))
 
     try {
-      const messageContent = JSON.stringify({
-        type: "property_question",
-        text: text,
-        propertyId: item.id,
-        propertyTitle: item.title,
-        context: "Dúvida direta do Portal do Cliente"
+      const response = await fetch('/api/property-interactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          leadId: lead?.id,
+          propertyId: item.id,
+          interaction_type: 'property_question',
+          source: 'client_portal',
+          propertyTitle: item.title,
+          propertyCover: item.coverImage,
+          text: text
+        })
       })
 
-      const { error } = await (supabase.from("messages") as any)
-        .insert({
-          lead_id: lead.id,
-          content: messageContent,
-          source: 'whatsapp', // Mark as incoming from client
-          timestamp: new Date().toISOString()
-        })
-
-      if (error) throw error
+      if (!response.ok) throw new Error("Falha ao enviar pergunta")
       
       toast.success("Pergunta enviada ao consultor!")
       setQuestionText(prev => ({ ...prev, [item.id]: "" }))
@@ -243,7 +257,10 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
 
                       <div className="flex gap-2 mb-4">
                         <button 
-                          onClick={() => setSelectedItem(item)}
+                          onClick={() => {
+                            setSelectedItem(item)
+                            trackView(item.id)
+                          }}
                           className="flex-1 py-2.5 rounded-lg bg-[var(--ink)] text-[var(--paper)] text-xs font-medium hover:bg-[#2d2920] transition-all"
                         >
                           Ver Detalhes

@@ -11,7 +11,7 @@ import {
   LayoutGrid, List, Sparkles, Share2, 
   MoreHorizontal, ChevronRight, Building2,
   Mic, Loader2, Users, ShoppingCart, Send,
-  X, Check, ExternalLink, Link2, Compass, Settings, Trash2, Pencil, ChevronLeft
+  X, Check, ExternalLink, Link2, Compass, Settings, Trash2, Pencil, ChevronLeft, Eye, Heart, Calendar
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -21,6 +21,7 @@ import dynamic from "next/dynamic"
 
 const VoiceIngestion = dynamic(() => import("@/components/atlas/VoiceIngestion"), { ssr: false })
 const MapModal = dynamic(() => import("@/components/atlas/MapModal"), { ssr: false })
+const EditPropertyModal = dynamic(() => import("@/components/atlas/EditPropertyModal"), { ssr: false })
 
 // ── Aesthetics & Tokens ──────────────────────────────────────────────────────
 const paper = {
@@ -274,23 +275,23 @@ function AtlasManagerContent() {
     }
   }
 
-  const handleUpdateProperty = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!editingProperty) return
+  const handleUpdateProperty = async (updatedData: any) => {
     setIsSavingEdit(true)
     const supabase = getSupabase()
 
     try {
       const { error } = await (supabase.from("properties") as any)
         .update({
-          title: editingProperty.title,
-          value: parseFloat(editingProperty.value) || null,
-          location_text: editingProperty.location_text,
-          neighborhood: editingProperty.neighborhood,
-          city: editingProperty.city,
-          cover_image: editingProperty.cover_image,
+          title: updatedData.title,
+          value: parseFloat(updatedData.value) || null,
+          location_text: updatedData.location_text,
+          neighborhood: updatedData.neighborhood,
+          city: updatedData.city,
+          cover_image: updatedData.cover_image,
+          lat: updatedData.lat,
+          lng: updatedData.lng
         })
-        .eq("id", editingProperty.id)
+        .eq("id", updatedData.id)
 
       if (error) throw error
 
@@ -500,11 +501,11 @@ function AtlasManagerContent() {
         <div className="flex items-center gap-3 pr-8 border-r border-[rgba(28,24,18,0.1)]">
           <Button 
             variant="ghost" 
-            size="icon" 
-            className="h-10 w-10 rounded-xl bg-white/50 border border-[rgba(28,24,18,0.1)] hover:bg-white transition-all shadow-sm"
+            className="h-10 px-3 rounded-xl bg-white/50 border border-[rgba(28,24,18,0.1)] hover:bg-white transition-all shadow-sm gap-1.5"
             onClick={() => window.history.back()}
           >
-            <ChevronLeft className="h-5 w-5" />
+            <ChevronLeft className="h-4 w-4" />
+            <span className="text-[10px] font-mono uppercase tracking-widest font-bold text-[#1c1812]">Voltar</span>
           </Button>
           <div className="w-10 h-10 rounded-xl bg-[#1c1812] flex items-center justify-center text-[#f5f1eb] shadow-lg shadow-black/10">
             <Compass className="h-5 w-5" />
@@ -994,6 +995,16 @@ function AtlasManagerContent() {
         onToggleSelect={togglePropertySelection}
       />
 
+      <EditPropertyModal 
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false)
+          setEditingProperty(null)
+        }}
+        property={editingProperty}
+        onSave={handleUpdateProperty}
+      />
+
       <style jsx global>{`
         .custom-scrollbar::-webkit-scrollbar { width: 5px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
@@ -1012,7 +1023,7 @@ function SelectionsHistory() {
 
   async function fetchCapsules() {
     setLoading(true)
-    const { data, error } = await (supabase
+    const { data: capsulesData, error } = await (supabase
       .from('client_spaces') as any)
       .select('*, leads(name, capsule_items(count))')
       .order('created_at', { ascending: false })
@@ -1020,9 +1031,34 @@ function SelectionsHistory() {
     if (error) {
       console.error("[ATLAS] Selections history error:", error)
       toast.error("Erro ao carregar histórico: " + error.message)
+      setLoading(false)
+      return
     }
     
-    if (data) setCapsules(data)
+    if (capsulesData && capsulesData.length > 0) {
+      const leadIds = capsulesData.map((c: any) => c.lead_id)
+      const { data: interactionsData } = await (supabase
+        .from('property_interactions') as any)
+        .select('lead_id, interaction_type')
+        .in('lead_id', leadIds)
+        .eq('source', 'client_portal')
+
+      const statsByLead = leadIds.reduce((acc: any, id: string) => {
+        const leadInts = interactionsData?.filter((i: any) => i.lead_id === id) || [];
+        acc[id] = {
+          views: leadInts.filter((i: any) => i.interaction_type === 'viewed').length,
+          likes: leadInts.filter((i: any) => i.interaction_type === 'favorited').length,
+          discards: leadInts.filter((i: any) => i.interaction_type === 'discarded').length,
+          visits: leadInts.filter((i: any) => i.interaction_type === 'visited').length,
+        }
+        return acc;
+      }, {})
+
+      setCapsules(capsulesData.map((c: any) => ({ ...c, stats: statsByLead[c.lead_id] })))
+    } else {
+      setCapsules([])
+    }
+    
     setLoading(false)
   }
 
@@ -1088,6 +1124,14 @@ function SelectionsHistory() {
                     {new Date(cap.created_at).toLocaleDateString('pt-BR')}
                   </span>
                 </div>
+                {cap.stats && (
+                  <div className="flex gap-3 mt-3 text-[10px] font-mono font-medium" title="Interações no Portal">
+                    <span className="flex items-center gap-1.5 text-[#8a7f70]"><Eye size={12} /> {cap.stats.views} views</span>
+                    <span className="flex items-center gap-1.5 text-rose-400"><Heart size={12} /> {cap.stats.likes}</span>
+                    <span className="flex items-center gap-1.5 text-emerald-500"><Calendar size={12} /> {cap.stats.visits}</span>
+                    {cap.stats.discards > 0 && <span className="flex items-center gap-1.5 text-[#8a7f70] opacity-50"><X size={12} /> {cap.stats.discards}</span>}
+                  </div>
+                )}
               </div>
             </div>
 

@@ -1,53 +1,37 @@
 "use client"
 
-import React from "react"
-
-import { useState, useCallback, useEffect } from "react"
+import React, { useState, useCallback, useEffect } from "react"
 import { X, UserPlus, ChevronRight, MessageCircle } from "lucide-react"
 import { QuickLeadForm } from "./quick-lead-form"
 import { NewConversationForm } from "./new-conversation-form"
+import { useOrbitContext } from "@/components/orbit-context"
 
 type AdminView = "menu" | "lead" | "conversation"
 
 interface AdminDrawerProps {
-  isOpen: boolean
-  onClose: () => void
+  isOpen?: boolean // Kept for backward compat but preferred to use context
+  onClose?: () => void
 }
 
-export function AdminDrawer({ isOpen, onClose }: AdminDrawerProps) {
-  const [view, setView] = useState<AdminView>("menu")
+export function AdminDrawer({ isOpen: propIsOpen, onClose: propOnClose }: AdminDrawerProps) {
+  const { 
+    isAdminDrawerOpen: contextIsOpen, 
+    setIsAdminDrawerOpen, 
+    activeAdminView: view, 
+    setActiveAdminView: setView 
+  } = useOrbitContext()
+  
+  const isOpen = contextIsOpen ?? propIsOpen
   const [isExiting, setIsExiting] = useState(false)
-
-  // Reset view when drawer closes
-  useEffect(() => {
-    if (!isOpen) {
-      setView("menu")
-      setIsExiting(false)
-    }
-  }, [isOpen])
-
-  // Handle escape key
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && isOpen) {
-        if (view !== "menu") {
-          setView("menu")
-        } else {
-          handleClose()
-        }
-      }
-    }
-    window.addEventListener("keydown", handleKeyDown)
-    return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [isOpen, view])
 
   const handleClose = useCallback(() => {
     setIsExiting(true)
     setTimeout(() => {
-      onClose()
+      if (propOnClose) propOnClose()
+      setIsAdminDrawerOpen(false)
       setIsExiting(false)
     }, 200)
-  }, [onClose])
+  }, [propOnClose, setIsAdminDrawerOpen])
 
   const handleSuccess = useCallback(() => {
     // Brief delay to show success state, then close
