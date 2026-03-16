@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import {
   X,
   Send,
@@ -30,12 +30,14 @@ import {
   RefreshCw,
   Ban,
   Brain,
+  Search,
+  MessageSquare,
 } from "lucide-react";
 
 
 import type { Property } from "./atlas-map";
 import { useOrbitContext } from "./orbit-context";
-import { useLeadDetails, type PropertyInteractionRow } from "@/hooks/use-supabase-data";
+import { useLeadDetails, useSupabaseProperties, type PropertyInteractionRow } from "@/hooks/use-supabase-data";
 
 
 // Helper to format value as abbreviated string (950k, 1.2M)
@@ -211,6 +213,20 @@ export function LeadFocusPanel({
   // Capsule View state - tracks all sent properties and their states
   const [sentProperties, setSentProperties] = useState<SentProperty[]>([]);
   const [isCapsuleExpanded, setIsCapsuleExpanded] = useState(true);
+
+  // Atlas Search Integration
+  const { properties: allProperties } = useSupabaseProperties();
+  const [atlasSearch, setAtlasSearch] = useState("");
+  const [isAtlasSearchVisible, setIsAtlasSearchVisible] = useState(false);
+
+  const filteredAtlasProperties = useMemo(() => {
+    if (!atlasSearch.trim()) return allProperties.slice(0, 10);
+    return allProperties.filter(p => 
+      p.title?.toLowerCase().includes(atlasSearch.toLowerCase()) || 
+      p.location_text?.toLowerCase().includes(atlasSearch.toLowerCase()) ||
+      p.internal_name?.toLowerCase().includes(atlasSearch.toLowerCase())
+    ).slice(0, 15);
+  }, [allProperties, atlasSearch]);
 
   // Magic Link state
   const [magicLinkUrl, setMagicLinkUrl] = useState<string | null>(null);
@@ -1522,6 +1538,20 @@ export function LeadFocusPanel({
                                 {parsed.caption || "Documento"}
                               </a>
                             );
+                          if (parsed.type === "property_question")
+                            return (
+                              <div className="space-y-2 border-l-2 border-[var(--orbit-glow)] pl-3 py-1 bg-[var(--orbit-glow)]/5 rounded-r-lg">
+                                <div className="flex items-center gap-1.5">
+                                  <MessageSquare className="h-3 w-3 text-[var(--orbit-glow)]" />
+                                  <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--orbit-glow)] font-bold">Dúvida sobre Imóvel</span>
+                                </div>
+                                <p className="text-[13px] leading-relaxed font-medium text-white">{parsed.text}</p>
+                                <div className="flex items-center gap-1.5 pt-1 border-t border-white/5">
+                                  <Building2 className="h-3 w-3 text-white/40" />
+                                  <span className="text-[10px] text-white/60 truncate italic">{parsed.propertyTitle}</span>
+                                </div>
+                              </div>
+                            );
                         }
                       } catch {}
                       // Fallback text
@@ -1737,10 +1767,6 @@ export function LeadFocusPanel({
                       src={linkedProperty.coverImage}
                       alt={linkedProperty.name}
                       className="h-full w-full object-cover"
-                      onError={(e) => {
-                        e.currentTarget.style.display = "none";
-                        e.currentTarget.nextElementSibling?.classList.remove("hidden");
-                      }}
                     />
                   ) : null}
                   <Building2 className={`h-5 w-5 ${linkedProperty.coverImage ? "hidden" : ""}`} />
@@ -1749,26 +1775,20 @@ export function LeadFocusPanel({
                   <p className="text-[10px] font-mono tracking-widest uppercase text-[var(--orbit-glow)]">
                     Em Foco
                   </p>
-                  <a 
-                    href={`/atlas?id=${linkedProperty.id}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="truncate text-sm font-medium text-white/90 hover:text-[var(--orbit-glow)] transition-colors"
-                  >
-                    {linkedProperty.name}
-                  </a>
+                  <div className="flex items-center gap-2">
+                    <span className="truncate text-sm font-medium text-white/90">
+                      {linkedProperty.name}
+                    </span>
+                    <button onClick={() => setLinkedProperty(null)} className="text-white/30 hover:text-white transition-colors">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
                   {linkedProperty.value && (
                     <p className="text-xs font-mono text-emerald-400">
                       {formatValue(linkedProperty.value)}
                     </p>
                   )}
                 </div>
-                <button
-                  onClick={handleSelectPropertyOnMap}
-                  className="shrink-0 rounded-lg px-2.5 py-1.5 text-[10px] font-mono tracking-wider transition-all hover:bg-white/10 text-white/50 border border-white/10"
-                >
-                  ALTERAR
-                </button>
               </div>
               <button
                 onClick={handleSendProperty}
@@ -1780,23 +1800,83 @@ export function LeadFocusPanel({
               </button>
             </div>
           ) : (
-            <div className="flex gap-2 mb-3">
-              <button
-                onClick={handleSelectPropertyOnMap}
-                className="flex-1 flex items-center justify-center gap-2 rounded-xl py-2.5 text-xs font-mono tracking-widest uppercase transition-all hover:bg-[var(--orbit-glow)]/20 active:scale-[0.98] border border-[var(--orbit-glow)]/30 text-[var(--orbit-glow)]"
-              >
-                <MapPin className="h-3.5 w-3.5" />
-                Vincular
-              </button>
-              <a 
-                href={`/atlas?leadId=${leadId}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-mono tracking-widest uppercase transition-all bg-white/5 hover:bg-white/10 border border-white/10 text-white/70"
-              >
-                <ExternalLink className="h-3.5 w-3.5" />
-                Atlas
-              </a>
+            <div className="flex flex-col gap-2 mb-3">
+              {isAtlasSearchVisible ? (
+                <div className="bg-white/5 rounded-xl border border-white/10 overflow-hidden animate-in slide-in-from-top-2 duration-300">
+                  <div className="p-2 border-b border-white/5 flex items-center gap-2">
+                    <Search className="h-3.5 w-3.5 text-white/30" />
+                    <input 
+                      autoFocus
+                      value={atlasSearch}
+                      onChange={e => setAtlasSearch(e.target.value)}
+                      placeholder="Buscar no acervo..."
+                      className="flex-1 bg-transparent border-none outline-none text-xs text-white placeholder:text-white/20"
+                    />
+                    <button onClick={() => setIsAtlasSearchVisible(false)} className="text-white/30 hover:text-white transition-colors">
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                  <div className="max-h-[220px] overflow-y-auto p-2 space-y-2 custom-scrollbar">
+                    {filteredAtlasProperties.length === 0 ? (
+                      <p className="text-[10px] text-center py-4 text-white/20 italic">Nenhum imóvel encontrado</p>
+                    ) : (
+                      filteredAtlasProperties.map(p => (
+                        <div 
+                          key={p.id}
+                          onClick={() => {
+                            handlePropertySelected({
+                              id: p.id,
+                              name: p.title || p.internal_name || "Imóvel",
+                              locationText: p.location_text || undefined,
+                              type: "apartment",
+                              value: p.value,
+                              url: p.source_link || undefined,
+                              domain: p.source_domain || undefined,
+                              coverImage: p.cover_image || undefined,
+                              position: { x: 0, y: 0 }
+                            })
+                            setIsAtlasSearchVisible(false)
+                          }}
+                          className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/10 cursor-pointer transition-all border border-transparent hover:border-white/10 group"
+                        >
+                          <div className="h-10 w-12 rounded bg-black/40 overflow-hidden flex-shrink-0">
+                            {p.cover_image && <img src={p.cover_image} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h5 className="text-[11px] font-medium text-white/90 truncate">{p.title || p.internal_name}</h5>
+                            <p className="text-[9px] text-white/40 truncate">{p.location_text}</p>
+                            {p.value && <p className="text-[10px] font-mono text-emerald-400/80 mt-0.5">{formatValue(p.value)}</p>}
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setIsAtlasSearchVisible(true)}
+                    className="flex-3 flex items-center justify-center gap-2 rounded-xl py-2.5 text-[10px] font-mono tracking-widest uppercase transition-all hover:bg-[var(--orbit-glow)]/20 active:scale-[0.98] border border-[var(--orbit-glow)]/30 text-[var(--orbit-glow)]"
+                  >
+                    <Building2 className="h-3.5 w-3.5" />
+                    Vincular Acervo
+                  </button>
+                  <button
+                    onClick={handleSelectPropertyOnMap}
+                    className="flex-1 flex items-center justify-center gap-2 rounded-xl py-2.5 text-[10px] font-mono tracking-widest uppercase transition-all hover:bg-white/5 active:scale-[0.98] border border-white/10 text-white/40"
+                  >
+                    <MapPin className="h-3 w-3" />
+                  </button>
+                  <a 
+                    href={`/atlas?leadId=${leadId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-[10px] font-mono tracking-widest uppercase transition-all bg-white/5 hover:bg-white/10 border border-white/10 text-white/70"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </a>
+                </div>
+              )}
             </div>
           )}
 

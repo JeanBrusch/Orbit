@@ -11,7 +11,7 @@ import {
   LayoutGrid, List, Sparkles, Share2, 
   MoreHorizontal, ChevronRight, Building2,
   Mic, Loader2, Users, ShoppingCart, Send,
-  X, Check, ExternalLink, Link2, Compass, Settings, Trash2
+  X, Check, ExternalLink, Link2, Compass, Settings, Trash2, Pencil, ChevronLeft
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -38,11 +38,13 @@ const paper = {
 function PropertyCard({ 
   property, 
   isSelected, 
-  onToggleSelect 
+  onToggleSelect,
+  onEdit
 }: { 
   property: any, 
   isSelected: boolean, 
-  onToggleSelect: (p: any) => void 
+  onToggleSelect: (p: any) => void,
+  onEdit?: (p: any) => void
 }) {
   return (
     <motion.div 
@@ -111,9 +113,26 @@ function PropertyCard({
               size="icon" 
               variant="ghost" 
               className={`h-8 w-8 rounded-full border border-black/5 ${isSelected ? 'bg-[#a07828] text-white hover:bg-[#a07828]/90' : ''}`}
+              onClick={(e) => {
+                e.stopPropagation()
+                onToggleSelect(property)
+              }}
             >
               {isSelected ? <Check className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
             </Button>
+            {onEdit && (
+              <Button 
+                size="icon" 
+                variant="ghost" 
+                className="h-8 w-8 rounded-full border border-black/5 hover:text-[#a07828]"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onEdit(property)
+                }}
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </Button>
+            )}
           </div>
         </div>
       </div>
@@ -146,6 +165,9 @@ function AtlasManagerContent() {
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null)
   const [selectedPropertyIds, setSelectedPropertyIds] = useState<Set<string>>(new Set())
   const [isSending, setIsSending] = useState(false)
+  const [editingProperty, setEditingProperty] = useState<any>(null)
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [isSavingEdit, setIsSavingEdit] = useState(false)
 
   const { refetch: refetchProps } = useSupabaseProperties()
 
@@ -249,6 +271,37 @@ function AtlasManagerContent() {
     } catch(err: any) {
       setIngestStatus("failed")
       toast.error(`Erro ao salvar: ${err.message}`)
+    }
+  }
+
+  const handleUpdateProperty = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingProperty) return
+    setIsSavingEdit(true)
+    const supabase = getSupabase()
+
+    try {
+      const { error } = await (supabase.from("properties") as any)
+        .update({
+          title: editingProperty.title,
+          value: parseFloat(editingProperty.value) || null,
+          location_text: editingProperty.location_text,
+          neighborhood: editingProperty.neighborhood,
+          city: editingProperty.city,
+          cover_image: editingProperty.cover_image,
+        })
+        .eq("id", editingProperty.id)
+
+      if (error) throw error
+
+      toast.success("Imóvel atualizado com sucesso!")
+      await refetch()
+      setIsEditModalOpen(false)
+      setEditingProperty(null)
+    } catch (err: any) {
+      toast.error(`Erro ao atualizar: ${err.message}`)
+    } finally {
+      setIsSavingEdit(false)
     }
   }
 
@@ -445,6 +498,14 @@ function AtlasManagerContent() {
       {/* Modern Unified Header */}
       <header className="h-20 border-b border-[rgba(28,24,18,0.05)] bg-[#f5f1eb]/80 backdrop-blur-md flex items-center px-10 gap-8 sticky top-0 z-30 shrink-0">
         <div className="flex items-center gap-3 pr-8 border-r border-[rgba(28,24,18,0.1)]">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="h-10 w-10 rounded-xl bg-white/50 border border-[rgba(28,24,18,0.1)] hover:bg-white transition-all shadow-sm"
+            onClick={() => window.history.back()}
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </Button>
           <div className="w-10 h-10 rounded-xl bg-[#1c1812] flex items-center justify-center text-[#f5f1eb] shadow-lg shadow-black/10">
             <Compass className="h-5 w-5" />
           </div>
@@ -576,6 +637,10 @@ function AtlasManagerContent() {
                       property={prop} 
                       isSelected={selectedPropertyIds.has(prop.id)}
                       onToggleSelect={togglePropertySelection}
+                      onEdit={(p) => {
+                        setEditingProperty({ ...p })
+                        setIsEditModalOpen(true)
+                      }}
                     />
                   ))}
                 </div>

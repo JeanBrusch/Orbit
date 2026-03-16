@@ -2,7 +2,10 @@
 
 import { useState, useMemo, useEffect } from "react"
 import { motion } from "framer-motion"
-import { Star, Phone } from "lucide-react"
+import { Star, Phone, X, MapPin, Maximize2, Share2, Sparkles, Heart, XCircle, Calendar, Send, CheckCircle2, MessageSquare } from "lucide-react"
+import { getSupabase } from "@/lib/supabase"
+import { toast } from "sonner"
+import { AnimatePresence } from "framer-motion"
 import "../../styles/themes/orbit-selection.css"
 import { VideoEmbed } from "./VideoEmbed"
 
@@ -37,6 +40,9 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
   const { space, lead, preferences, items } = data
   const theme = space.theme || "paper"
   const [selectedItem, setSelectedItem] = useState<SelectionItem | null>(null)
+  const [interactions, setInteractions] = useState<Record<string, string>>({})
+  const [questionText, setQuestionText] = useState<Record<string, string>>({})
+  const [isSubmitting, setIsSubmitting] = useState<Record<string, boolean>>({})
 
   const firstName = lead?.name?.split(" ")[0] || "Cliente"
 
@@ -57,6 +63,64 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
       text += `\nLink: ${window.location.origin}/selection/${slug}?prop=${item.id}`
     }
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, "_blank")
+  }
+
+  const handleInteraction = async (itemId: string, capsuleItemId: string, state: string) => {
+    const supabase = getSupabase()
+    try {
+      // Optimistic update
+      setInteractions(prev => ({ ...prev, [itemId]: state }))
+      
+      const { error } = await (supabase.from("property_interactions") as any)
+        .upsert({
+          lead_id: lead.id,
+          property_id: itemId,
+          interaction_type: state,
+          timestamp: new Date().toISOString()
+        })
+
+      if (error) throw error
+      toast.success(state === 'favorited' ? "Imóvel curtido!" : state === 'visited' ? "Visita solicitada!" : "Interação registrada")
+    } catch (err: any) {
+      toast.error("Erro ao registrar interação")
+      console.error(err)
+    }
+  }
+
+  const handleAskQuestion = async (item: SelectionItem) => {
+    const text = questionText[item.id]?.trim()
+    if (!text) return
+
+    const supabase = getSupabase()
+    setIsSubmitting(prev => ({ ...prev, [item.id]: true }))
+
+    try {
+      const messageContent = JSON.stringify({
+        type: "property_question",
+        text: text,
+        propertyId: item.id,
+        propertyTitle: item.title,
+        context: "Dúvida direta do Portal do Cliente"
+      })
+
+      const { error } = await (supabase.from("messages") as any)
+        .insert({
+          lead_id: lead.id,
+          content: messageContent,
+          source: 'whatsapp', // Mark as incoming from client
+          timestamp: new Date().toISOString()
+        })
+
+      if (error) throw error
+      
+      toast.success("Pergunta enviada ao consultor!")
+      setQuestionText(prev => ({ ...prev, [item.id]: "" }))
+    } catch (err: any) {
+      toast.error("Erro ao enviar pergunta")
+      console.error(err)
+    } finally {
+      setIsSubmitting(prev => ({ ...prev, [item.id]: false }))
+    }
   }
 
   return (
@@ -135,7 +199,6 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
                   <motion.div 
                     key={item.id}
                     className={`selection-card group fu fu${(idx % 4) + 1}`}
-                    onClick={() => setSelectedItem(item)}
                   >
                     <div className="w-full overflow-hidden relative aspect-[4/3]">
                       {item.coverImage ? (
@@ -178,9 +241,42 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
                         </div>
                       )}
 
-                      <div className="flex gap-2">
-                        <button className="flex-1 py-2.5 rounded-lg bg-[var(--ink)] text-[var(--paper)] text-xs font-medium hover:bg-[#2d2920] transition-all">Ver Detalhes</button>
-                        <button className="px-3.5 py-2.5 rounded-lg border border-[rgba(28,24,18,0.12)] text-[var(--ink3)] hover:bg-[rgba(28,24,18,0.05)] transition-all"><Star size={18} /></button>
+                      <div className="flex gap-2 mb-4">
+                        <button 
+                          onClick={() => setSelectedItem(item)}
+                          className="flex-1 py-2.5 rounded-lg bg-[var(--ink)] text-[var(--paper)] text-xs font-medium hover:bg-[#2d2920] transition-all"
+                        >
+                          Ver Detalhes
+                        </button>
+                        <button 
+                          onClick={() => handleInteraction(item.id, item.capsuleItemId, 'favorited')}
+                          className={`px-3.5 py-2.5 rounded-lg border border-[rgba(28,24,18,0.12)] transition-all ${interactions[item.id] === 'favorited' ? 'bg-rose-50 text-rose-500 border-rose-200' : 'text-[var(--ink3)] hover:bg-[rgba(28,24,18,0.05)]'}`}
+                        >
+                          <Heart size={18} className={interactions[item.id] === 'favorited' ? 'fill-current' : ''} />
+                        </button>
+                        <button 
+                          onClick={() => handleInteraction(item.id, item.capsuleItemId, 'discarded')}
+                          className={`px-3.5 py-2.5 rounded-lg border border-[rgba(28,24,18,0.12)] transition-all ${interactions[item.id] === 'discarded' ? 'bg-gray-100 text-gray-500 border-gray-300' : 'text-[var(--ink3)] hover:bg-[rgba(28,24,18,0.05)]'}`}
+                        >
+                          <XCircle size={18} />
+                        </button>
+                      </div>
+
+                      {/* Quick Question */}
+                      <div className="relative group/q">
+                        <textarea 
+                          value={questionText[item.id] || ""}
+                          onChange={e => setQuestionText(prev => ({ ...prev, [item.id]: e.target.value }))}
+                          placeholder="Alguma dúvida sobre este imóvel?"
+                          className="w-full bg-[var(--paper2)] border border-[rgba(28,24,18,0.08)] rounded-xl p-3 text-xs outline-none focus:border-[var(--gold)] transition-all resize-none h-[70px]"
+                        />
+                        <button 
+                          onClick={() => handleAskQuestion(item)}
+                          disabled={!questionText[item.id]?.trim() || isSubmitting[item.id]}
+                          className="absolute bottom-2 right-2 p-1.5 bg-[var(--gold)] text-white rounded-lg opacity-0 group-focus-within/q:opacity-100 disabled:opacity-30 transition-all hover:bg-[var(--gold2)]"
+                        >
+                          <Send size={14} />
+                        </button>
                       </div>
                     </div>
                   </motion.div>
@@ -204,6 +300,159 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
         <footer className="py-20 border-t border-[var(--selection-border)] opacity-30 text-center">
           <p className="font-mono text-[10px] uppercase tracking-[0.2em]">Orbit house · Curadoria imobiliária privada</p>
         </footer>
+
+        {/* PROPERTY DETAIL MODAL */}
+        <AnimatePresence>
+          {selectedItem && (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[500] flex items-center justify-center p-4 sm:p-6"
+            >
+              <div 
+                className="absolute inset-0 bg-[var(--ink)]/40 backdrop-blur-md" 
+                onClick={() => setSelectedItem(null)}
+              />
+              
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className="bg-[var(--paper)] w-full max-w-4xl max-h-[90vh] rounded-[24px] shadow-2xl overflow-hidden relative border border-[var(--ink)]/10 flex flex-col md:flex-row"
+              >
+                <button 
+                  onClick={() => setSelectedItem(null)}
+                  className="absolute top-5 right-5 z-10 w-10 h-10 rounded-full bg-white/80 backdrop-blur-md border border-black/5 flex items-center justify-center text-[var(--ink)] hover:bg-white hover:scale-110 transition-all shadow-sm"
+                >
+                  <X size={20} />
+                </button>
+
+                <div className="w-full md:w-1/2 aspect-[4/3] md:aspect-auto bg-[var(--paper2)] overflow-hidden relative">
+                  {selectedItem.coverImage ? (
+                    <img 
+                      src={selectedItem.coverImage} 
+                      className="w-full h-full object-cover" 
+                      alt={selectedItem.title} 
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-6xl">🏢</div>
+                  )}
+                  
+                  <div className="absolute bottom-6 left-6 right-6">
+                    <div className="px-3 py-1.5 rounded-full bg-white/90 backdrop-blur-md border border-[rgba(90,122,74,0.2)] inline-flex items-center gap-1.5 font-mono text-[10px] font-medium text-[var(--match)] shadow-sm">
+                      <div className="w-1 h-1 rounded-full bg-[var(--match)]" />
+                      ORBIT CURATED SELECTION
+                    </div>
+                  </div>
+                </div>
+
+                <div className="w-full md:w-1/2 p-8 md:p-10 overflow-y-auto">
+                  <div className="mb-8">
+                    <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--gold)] mb-3 block">Detalhes do Imóvel</span>
+                    <h2 className="text-[32px] font-serif font-normal leading-tight text-[var(--ink)] mb-3">{selectedItem.title}</h2>
+                    <div className="flex items-center gap-2 text-[var(--ink3)] text-sm mb-6">
+                      <MapPin size={16} className="text-[var(--gold)]" />
+                      {selectedItem.location || "Localização Privada"}
+                    </div>
+                    
+                    <div className="text-[36px] font-serif font-medium tracking-tight text-[var(--ink)] mb-8 border-b border-[var(--ink)]/5 pb-6">
+                      {formatPrice(selectedItem.price)}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-y-6 gap-x-4 mb-8">
+                      <div>
+                        <p className="font-mono text-[9px] uppercase tracking-widest text-[var(--ink4)] mb-1">Dormitórios</p>
+                        <p className="text-[17px] font-medium text-[var(--ink2)]">3 Dorms</p>
+                      </div>
+                      <div>
+                        <p className="font-mono text-[9px] uppercase tracking-widest text-[var(--ink4)] mb-1">Área Total</p>
+                        <p className="text-[17px] font-medium text-[var(--ink2)]">420 m²</p>
+                      </div>
+                      <div>
+                        <p className="font-mono text-[9px] uppercase tracking-widest text-[var(--ink4)] mb-1">Tipo</p>
+                        <p className="text-[17px] font-medium text-[var(--ink2)]">Residencial</p>
+                      </div>
+                      <div>
+                        <p className="font-mono text-[9px] uppercase tracking-widest text-[var(--ink4)] mb-1">Match ID</p>
+                        <p className="text-[17px] font-medium text-[var(--ink2)]">#{selectedItem.id.slice(0, 8)}</p>
+                      </div>
+                    </div>
+
+                    {selectedItem.recommendedReason && (
+                      <div className="p-5 bg-[var(--gold-bg)] border border-[var(--gold-bd)] rounded-2xl mb-8">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Sparkles size={16} className="text-[var(--gold)]" />
+                          <p className="font-mono text-[10px] uppercase tracking-widest text-[var(--gold)] font-medium">Por que esta casa?</p>
+                        </div>
+                        <p className="text-[14px] text-[var(--ink2)] leading-[1.6] italic font-serif">
+                          "{selectedItem.recommendedReason}"
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="flex gap-3">
+                      <button 
+                        onClick={() => handleInteraction(selectedItem.id, selectedItem.capsuleItemId, 'favorited')}
+                        className={`flex-1 py-3.5 rounded-xl border transition-all flex flex-col items-center gap-1 ${interactions[selectedItem.id] === 'favorited' ? 'bg-rose-50 border-rose-200 text-rose-500' : 'border-[rgba(28,24,18,0.12)] text-[var(--ink3)] hover:bg-[rgba(28,24,18,0.02)]'}`}
+                      >
+                        <Heart size={20} className={interactions[selectedItem.id] === 'favorited' ? 'fill-current' : ''} />
+                        <span className="text-[10px] font-mono uppercase tracking-widest font-medium">Curtir</span>
+                      </button>
+                      <button 
+                        onClick={() => handleInteraction(selectedItem.id, selectedItem.capsuleItemId, 'visited')}
+                        className={`flex-1 py-3.5 rounded-xl border transition-all flex flex-col items-center gap-1 ${interactions[selectedItem.id] === 'visited' ? 'bg-emerald-50 border-emerald-200 text-emerald-600' : 'border-[rgba(28,24,18,0.12)] text-[var(--ink3)] hover:bg-[rgba(28,24,18,0.02)]'}`}
+                      >
+                        <Calendar size={20} />
+                        <span className="text-[10px] font-mono uppercase tracking-widest font-medium">Visitar</span>
+                      </button>
+                      <button 
+                        onClick={() => handleInteraction(selectedItem.id, selectedItem.capsuleItemId, 'discarded')}
+                        className={`flex-1 py-3.5 rounded-xl border transition-all flex flex-col items-center gap-1 ${interactions[selectedItem.id] === 'discarded' ? 'bg-gray-100 border-gray-300 text-gray-500' : 'border-[rgba(28,24,18,0.12)] text-[var(--ink3)] hover:bg-[rgba(28,24,18,0.02)]'}`}
+                      >
+                        <XCircle size={20} />
+                        <span className="text-[10px] font-mono uppercase tracking-widest font-medium">Ignorar</span>
+                      </button>
+                    </div>
+
+                    <div className="bg-[var(--paper2)] rounded-2xl p-6 border border-[rgba(28,24,18,0.05)]">
+                      <div className="flex items-center gap-2 mb-4">
+                        <MessageSquare size={16} className="text-[var(--gold)]" />
+                        <h4 className="font-mono text-[10px] uppercase tracking-widest text-[var(--gold)] font-medium">Dúvida sobre o imóvel?</h4>
+                      </div>
+                      <div className="relative">
+                        <textarea 
+                          value={questionText[selectedItem.id] || ""}
+                          onChange={e => setQuestionText(prev => ({ ...prev, [selectedItem.id]: e.target.value }))}
+                          placeholder="Pergunte ao seu consultor especializado..."
+                          className="w-full bg-[var(--paper)] border border-[rgba(28,24,18,0.08)] rounded-xl p-4 text-sm outline-none focus:border-[var(--gold)] transition-all resize-none h-[100px]"
+                        />
+                        <button 
+                          onClick={() => handleAskQuestion(selectedItem)}
+                          disabled={!questionText[selectedItem.id]?.trim() || isSubmitting[selectedItem.id]}
+                          className="mt-3 w-full py-3 bg-[var(--ink)] text-[var(--paper)] rounded-xl text-xs font-medium hover:bg-[#2d2920] transition-all flex items-center justify-center gap-2 disabled:opacity-40"
+                        >
+                          <Send size={14} />
+                          {isSubmitting[selectedItem.id] ? "Enviando..." : "Enviar Pergunta"}
+                        </button>
+                      </div>
+                    </div>
+
+                    <button 
+                      onClick={() => handleWhatsApp(selectedItem)}
+                      className="w-full py-4 rounded-xl bg-[var(--match-bg)] text-[var(--match)] border border-[rgba(90,122,74,0.18)] text-sm font-medium hover:bg-[rgba(90,122,74,0.14)] transition-all flex items-center justify-center gap-2 shadow-sm"
+                    >
+                      <Phone size={18} />
+                      Conversar pelo WhatsApp
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   )

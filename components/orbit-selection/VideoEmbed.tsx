@@ -9,8 +9,9 @@ interface VideoEmbedProps {
 
 export const VideoEmbed: React.FC<VideoEmbedProps> = ({ url, className = "" }) => {
   const getEmbedInfo = (url: string) => {
-    // YouTube
-    const ytMatch = url.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&?/\s]+)/)
+    // YouTube (shorts/embed/watch/v/youtu.be)
+    const ytRegex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/|v\/)|youtu\.be\/)([^&?/\s]+)/
+    const ytMatch = url.match(ytRegex)
     if (ytMatch && ytMatch[1]) {
       return { type: "youtube", id: ytMatch[1] }
     }
@@ -32,24 +33,29 @@ export const VideoEmbed: React.FC<VideoEmbedProps> = ({ url, className = "" }) =
 
   const info = getEmbedInfo(url)
 
-  if (!info) return null
+  if (!info) {
+    console.warn("VideoEmbed: Unsupported URL", url)
+    return null
+  }
 
   return (
     <div className={`video-embed-container overflow-hidden rounded-xl border border-[rgba(28,24,18,0.1)] bg-black/5 ${className}`}>
       {info.type === "youtube" && (
         <iframe
-          src={`https://www.youtube.com/embed/${info.id}?rel=0`}
+          src={`https://www.youtube.com/embed/${info.id}?rel=0&modestbranding=1`}
           className="w-full aspect-video border-0"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           allowFullScreen
+          title="YouTube Video Player"
         />
       )}
       {info.type === "vimeo" && (
         <iframe
-          src={`https://player.vimeo.com/video/${info.id}`}
+          src={`https://player.vimeo.com/video/${info.id}?badge=0&autopause=0&player_id=0&app_id=58479`}
           className="w-full aspect-video border-0"
           allow="autoplay; fullscreen; picture-in-picture"
           allowFullScreen
+          title="Vimeo Video Player"
         />
       )}
       {info.type === "direct" && (
@@ -58,7 +64,9 @@ export const VideoEmbed: React.FC<VideoEmbedProps> = ({ url, className = "" }) =
           controls 
           className="w-full aspect-video object-cover"
           poster=""
-        />
+        >
+          Seu navegador não suporta a reprodução de vídeos.
+        </video>
       )}
     </div>
   )
