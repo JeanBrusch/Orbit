@@ -159,6 +159,7 @@ function AtlasManagerContent() {
     }
     if (lId) {
       setSelectedLeadId(lId)
+      setLeadSearch("") // Clear search if lead is pre-selected
     }
     if (tab && (tab === 'curadoria' || tab === 'acervo' || tab === 'selections')) {
       setActiveTab(tab as any)

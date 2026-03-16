@@ -656,7 +656,8 @@ export function LeadFocusPanel({
       // 3. Notify lead via WhatsApp
       const sendTo = (lead.lid ? (lead.lid.includes('@lid') ? lead.lid : `${lead.lid}@lid`) : null) || lead.phone;
       if (sendTo) {
-        const message = `Olá ${lead.name.split(' ')[0]}! Veja esse imóvel que acabei de encontrar para você: ${linkedProperty.url || 'Link do imóvel'}`;
+        const propertyName = linkedProperty.name || 'Imóvel selecionado';
+        const message = `Olá ${lead.name.split(' ')[0]}! Veja esse imóvel que acabei de encontrar para você: ${propertyName} - ${linkedProperty.url || 'Consulte-me para mais detalhes'}`;
         await fetch("/api/whatsapp/send", {
           method: "POST",
           headers: { "Content-Type": "application/json" },

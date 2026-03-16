@@ -174,7 +174,7 @@ export function useSupabaseLeads(options: Options = {}) {
           const [leadsRes, cognitiveRes] = await Promise.all([
             supabase
               .from('leads')
-              .select('id, orbit_stage, orbit_visual_state, action_suggested, last_event_type, cycle_stage, followup_active, followup_remaining, followup_done_today')
+              .select('id, orbit_stage, orbit_visual_state, action_suggested, last_event_type, cycle_stage, followup_active, followup_remaining')
               .in('id', chunk),
             supabase
               .from('lead_cognitive_state')
