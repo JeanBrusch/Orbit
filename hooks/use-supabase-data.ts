@@ -124,16 +124,23 @@ interface OrbitDataEntry {
   last_ai_analysis_at?: string | null
 }
 
-export function useSupabaseLeads() {
+interface Options {
+  disableInterval?: boolean;
+  disableRealtime?: boolean;
+}
+
+export function useSupabaseLeads(options: Options = {}) {
   const [leads, setLeads] = useState<OrbitLead[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
   const leadsRef = useRef<OrbitLead[]>([])
   leadsRef.current = leads
 
-  const fetchLeads = useCallback(async () => {
+  const fetchLeads = useCallback(async (forceLoading = false) => {
     try {
-      setLoading(true)
+      if (forceLoading || leadsRef.current.length === 0) {
+        setLoading(true)
+      }
 
       const supabase = getSupabase()
 
@@ -294,9 +301,14 @@ export function useSupabaseLeads() {
   }, [])
 
   useEffect(() => {
-    fetchLeads()
+    fetchLeads(true)
 
-    const interval = setInterval(fetchLeads, 10000)
+    let interval: any;
+    if (!options.disableInterval) {
+      interval = setInterval(() => fetchLeads(false), 10000)
+    }
+
+    if (options.disableRealtime) return;
 
     const supabase = getSupabase()
     console.log('[REALTIME] Initializing leads-orbit-realtime channel...')
@@ -331,11 +343,13 @@ export function useSupabaseLeads() {
     document.addEventListener('visibilitychange', handleVisibilityChange)
 
     return () => {
-      clearInterval(interval)
-      supabase.removeChannel(channel)
+      if (interval) clearInterval(interval)
+      if (!options.disableRealtime) {
+        supabase.removeChannel(channel)
+      }
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
-  }, [fetchLeads])
+  }, [fetchLeads, options.disableInterval, options.disableRealtime])
 
   const removeLead = useCallback((leadId: string) => {
     setLeads(prev => prev.filter(lead => lead.id !== leadId))

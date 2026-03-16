@@ -31,7 +31,7 @@ export interface TelemetryData {
 }
 
 export function useTelemetryData() {
-  const { leads, loading } = useSupabaseLeads();
+  const { leads, loading } = useSupabaseLeads({ disableInterval: true, disableRealtime: true });
   const [messages, setMessages] = useState<any[]>([]);
   const [messagesLoading, setMessagesLoading] = useState(true);
 
@@ -54,31 +54,6 @@ export function useTelemetryData() {
     }
 
     fetchMessages();
-
-    const client = getSupabase();
-    // REALTIME: Listen for new messages or lead updates
-    const channel = client
-      .channel("telemetry-realtime")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "messages" },
-        (payload) => {
-          console.log("Telemetry Realtime: Message change detected", payload.eventType);
-          fetchMessages();
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "leads" },
-        (payload) => {
-           console.log("Telemetry Realtime: Lead update detected", payload.new.id);
-        }
-      )
-      .subscribe();
-
-    return () => {
-      client.removeChannel(channel);
-    };
   }, []);
 
   const telemetry = useMemo(() => {
