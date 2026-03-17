@@ -87,9 +87,13 @@ async function getSelectionData(slug: string) {
       }
     })
 
+  // Normalize lead — Supabase returns object or array depending on relation
+  const leadRaw = space.leads
+  const lead = Array.isArray(leadRaw) ? leadRaw[0] : leadRaw
+
   return {
     space,
-    lead: space.leads,
+    lead: lead ? { ...lead, id: lead.id ?? leadId } : { id: leadId, name: null, photo_url: null },
     preferences: prefs,
     items
   }

@@ -67,6 +67,7 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
   }
 
   const handleInteraction = async (itemId: string, capsuleItemId: string, state: string) => {
+    if (!lead?.id) { toast.error("Erro: sessão sem identificador de lead"); return; }
     const prevState = interactions[itemId]
     try {
       // Optimistic update
@@ -76,7 +77,7 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          leadId: lead?.id,
+          leadId: lead.id,
           propertyId: itemId,
           interaction_type: state,
           source: 'client_portal'
@@ -102,12 +103,13 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
   }
 
   const trackView = async (itemId: string) => {
+    if (!lead?.id) return
     try {
       await fetch('/api/property-interactions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          leadId: lead?.id,
+          leadId: lead.id,
           propertyId: itemId,
           interaction_type: 'viewed',
           source: 'client_portal'
@@ -118,18 +120,35 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
     }
   }
 
+  const trackExternalLink = async (itemId: string) => {
+    if (!lead?.id) return
+    try {
+      await fetch('/api/property-interactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          leadId: lead.id,
+          propertyId: itemId,
+          interaction_type: 'visited_site',
+          source: 'client_portal'
+        })
+      })
+    } catch(err) {
+      console.error("Failed to track external link:", err)
+    }
+  }
+
   useEffect(() => {
     // Log portal access when component mounts
-    let isMounted = true
+    if (!lead?.id || !items[0]?.id) return
     const logPortalAccess = async () => {
-      if (!lead?.id) return
       try {
         await fetch('/api/property-interactions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             leadId: lead.id,
-            propertyId: items[0]?.id, // Supply first item or null
+            propertyId: items[0].id,
             interaction_type: 'portal_opened',
             source: 'client_portal'
           })
@@ -138,11 +157,9 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
         console.error("Failed to log portal access:", err)
       }
     }
-    
-    if (isMounted) logPortalAccess()
-    return () => { isMounted = false }
+    logPortalAccess()
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [lead?.id])
 
   const handleAskQuestion = async (item: SelectionItem) => {
     const text = questionText[item.id]?.trim()
@@ -305,6 +322,7 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
                           <a 
                             href={item.url}
                             target="_blank"
+                            onClick={() => trackExternalLink(item.id)}
                             className="px-3.5 py-2.5 rounded-lg border border-[rgba(28,24,18,0.12)] text-[var(--ink3)] hover:bg-[rgba(28,24,18,0.05)] transition-all flex items-center justify-center"
                             title="Acessar link externo"
                           >
@@ -514,6 +532,7 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
                       <a 
                         href={selectedItem.url}
                         target="_blank"
+                        onClick={() => trackExternalLink(selectedItem.id)}
                         className="mt-3 w-full py-4 rounded-xl bg-white border border-[rgba(28,24,18,0.1)] text-[var(--ink2)] text-sm font-medium hover:bg-[rgba(28,24,18,0.02)] transition-all flex items-center justify-center gap-2 shadow-sm"
                       >
                         <ExternalLink size={18} />
