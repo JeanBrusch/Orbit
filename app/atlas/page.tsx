@@ -307,6 +307,23 @@ function AtlasManagerContent() {
     }
   }
 
+  const handleDeleteProperty = async (propertyId: string) => {
+    try {
+      const res = await fetch(`/api/properties/${propertyId}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || 'Falha ao excluir')
+      }
+      toast.success("Imóvel excluído do banco de dados")
+      await refetch()
+      setIsEditModalOpen(false)
+      setEditingProperty(null)
+    } catch (err: any) {
+      toast.error(`Erro ao excluir: ${err.message}`)
+      throw err
+    }
+  }
+
   // ── Grain Texture Overlay ──
   const grainStyle = {
     backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)' opacity='.025'/%3E%3C/svg%3E")`,
@@ -501,94 +518,89 @@ function AtlasManagerContent() {
       {/* Grain */}
       <div className="fixed inset-0 z-50 pointer-events-none" style={grainStyle} />
 
-      {/* Modern Unified Header */}
-      <header className="h-[72px] border-b border-[rgba(46,197,255,0.15)] bg-[#0b1220]/80 backdrop-blur-xl flex items-center px-8 gap-6 sticky top-0 z-30 shrink-0">
-        <div className="flex items-center gap-4 pr-6 border-r border-[rgba(46,197,255,0.15)]">
-          <Button 
-            variant="ghost" 
-            className="h-9 px-3 rounded-xl bg-white/5 border border-[rgba(46,197,255,0.1)] hover:bg-white/10 hover:border-[rgba(46,197,255,0.2)] text-[#94a3b8] hover:text-[#e6eef6] transition-all gap-1.5"
-            onClick={() => window.history.back()}
-          >
+      {/* Minimalist Header — Orbit style */}
+      <header className="h-14 border-b border-[rgba(46,197,255,0.12)] bg-[#05060a]/90 backdrop-blur-xl flex items-center px-6 gap-4 sticky top-0 z-30 shrink-0">
+        {/* Brand */}
+        <div className="flex items-center gap-3 pr-4 border-r border-[rgba(46,197,255,0.1)]">
+          <button onClick={() => window.history.back()} className="p-1.5 rounded-lg hover:bg-white/5 text-[#94a3b8] hover:text-[#e6eef6] transition-colors" title="Voltar">
             <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <div className="w-9 h-9 rounded-xl bg-[#2ec5ff]/10 border border-[#2ec5ff]/20 flex items-center justify-center text-[#2ec5ff] shadow-[0_0_15px_rgba(46,197,255,0.15)]">
-            <Compass className="h-4 w-4" />
+          </button>
+          <div className="w-6 h-6 rounded-lg bg-[#2ec5ff]/10 border border-[#2ec5ff]/20 flex items-center justify-center text-[#2ec5ff]">
+            <Compass className="h-3.5 w-3.5" />
           </div>
-          <div>
-            <h1 className="font-sans font-semibold text-lg tracking-tight text-[#e6eef6] leading-none mb-1">Atlas Manager</h1>
-            <p className="font-mono text-[9px] uppercase tracking-[0.2em] text-[#2ec5ff]/80 font-bold">Intelligence Hub</p>
-          </div>
+          <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-[#e6eef6]/80 font-medium">Atlas</span>
         </div>
 
-        <nav className="flex items-center gap-1 p-1 bg-white/5 rounded-lg border border-[rgba(46,197,255,0.1)]">
+        {/* Tabs */}
+        <nav className="flex items-center gap-0.5">
           {[
-            { id: 'curadoria', label: 'Curadoria', icon: Sparkles },
-            { id: 'selections', label: 'Selections', icon: Sparkles },
+            { id: 'curadoria', label: 'Curadoria' },
+            { id: 'selections', label: 'Selections' },
           ].map((tab) => (
             <button
-               key={tab.id}
+              key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-[11px] font-mono uppercase tracking-wider transition-all ${activeTab === tab.id ? 'bg-[#2ec5ff]/10 text-[#2ec5ff] shadow-sm border border-[#2ec5ff]/20' : 'text-[#94a3b8] hover:text-[#e6eef6] hover:bg-white/5'}`}
+              className={`px-4 py-1.5 rounded-lg text-[11px] font-mono uppercase tracking-wider transition-all ${
+                activeTab === tab.id 
+                  ? 'text-[#2ec5ff] bg-[rgba(46,197,255,0.08)]' 
+                  : 'text-[#94a3b8] hover:text-[#e6eef6] hover:bg-white/5'
+              }`}
             >
-              <tab.icon className="h-3.5 w-3.5" />
               {tab.label}
             </button>
           ))}
         </nav>
 
-        <div className="flex-1 max-w-xl relative group ml-2">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-[#94a3b8] transition-colors group-focus-within:text-[#2ec5ff]" />
+        {/* Semantic search */}
+        <div className="flex-1 max-w-sm relative group">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#94a3b8] transition-colors group-focus-within:text-[#2ec5ff]" />
           <form onSubmit={handleNaturalSearch}>
-            <div className="relative">
-              <Input 
-                value={naturalSearch}
-                onChange={(e) => {
-                  setNaturalSearch(e.target.value)
-                  if (!e.target.value) setFilteredIds(null)
-                }}
-                placeholder="Busca Semântica Cognitive: 'Apartamento 3 dorms com varanda'..."
-                className="w-full pl-12 h-10 bg-[#05060a]/50 border border-[rgba(46,197,255,0.1)] rounded-xl text-sm text-[#e6eef6] placeholder:text-[#94a3b8]/50 focus:border-[#2ec5ff]/40 focus:ring-1 focus:ring-[#2ec5ff]/40 transition-all font-sans"
-              />
-              {isSearchingNatural && (
-                <div className="absolute right-12 top-1/2 -translate-y-1/2">
-                  <Loader2 className="h-4 w-4 animate-spin text-[#2ec5ff]" />
-                </div>
-              )}
-            </div>
-          </form>
-          {naturalSearch && (
-            <button 
-              onClick={() => {
-                setNaturalSearch("")
-                setFilteredIds(null)
+            <Input 
+              value={naturalSearch}
+              onChange={(e) => {
+                setNaturalSearch(e.target.value)
+                if (!e.target.value) setFilteredIds(null)
               }}
-              className="absolute right-4 top-1/2 -translate-y-1/2 p-1 hover:bg-white/10 rounded-full transition-colors"
+              placeholder="Busca semântica..."
+              className="w-full pl-9 h-8 bg-[#05060a]/80 border border-[rgba(46,197,255,0.1)] rounded-lg text-xs text-[#e6eef6] placeholder:text-[#94a3b8]/40 focus:border-[#2ec5ff]/30 focus:ring-0 transition-all font-sans pr-8"
+            />
+          </form>
+          {isSearchingNatural && (
+            <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 animate-spin text-[#2ec5ff]" />
+          )}
+          {naturalSearch && !isSearchingNatural && (
+            <button 
+              onClick={() => { setNaturalSearch(""); setFilteredIds(null) }}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 hover:bg-white/10 rounded-full transition-colors"
             >
               <X className="h-3 w-3 text-[#94a3b8]" />
             </button>
           )}
         </div>
 
-        <div className="flex items-center gap-3 ml-auto">
-          <Button 
-            onClick={() => {
-              setIngestStep("url")
-              setIsIngestModalOpen(true)
-            }}
-            variant="ghost"
-            className="h-10 px-4 border border-[rgba(46,197,255,0.15)] rounded-xl flex items-center gap-2 hover:bg-[#2ec5ff]/5 hover:border-[#2ec5ff]/30 text-[#e6eef6] transition-all shadow-sm"
+        {/* Actions */}
+        <div className="flex items-center gap-2 ml-auto">
+          <button 
+            onClick={() => setIsMapModalOpen(true)}
+            className="p-2 rounded-lg border border-[rgba(46,197,255,0.1)] text-[#94a3b8] hover:text-[#2ec5ff] hover:bg-[rgba(46,197,255,0.08)] hover:border-[rgba(46,197,255,0.25)] transition-all"
+            title="Visualizar no Mapa"
           >
-            <Link2 className="h-4 w-4 text-[#2ec5ff]" />
-            <span className="text-[10px] font-mono uppercase tracking-widest font-bold">Cadastro URL</span>
-          </Button>
-
-          <Button 
+            <MapIcon className="h-4 w-4" />
+          </button>
+          <button 
+            onClick={() => { setIngestStep("url"); setIsIngestModalOpen(true) }}
+            className="p-2 rounded-lg border border-[rgba(46,197,255,0.1)] text-[#94a3b8] hover:text-[#2ec5ff] hover:bg-[rgba(46,197,255,0.08)] hover:border-[rgba(46,197,255,0.25)] transition-all"
+            title="Cadastrar via URL"
+          >
+            <Link2 className="h-4 w-4" />
+          </button>
+          <button 
             onClick={() => setIsVoiceModalOpen(true)}
-            className="h-10 px-5 bg-[#2ec5ff] hover:bg-[#2ec5ff]/90 text-[#05060a] rounded-xl flex items-center gap-2 shadow-[0_0_20px_rgba(46,197,255,0.25)] transition-all group border border-[#2ec5ff]/20 font-bold"
+            className="h-8 px-4 bg-[#2ec5ff] hover:bg-[#2ec5ff]/90 text-[#05060a] rounded-lg flex items-center gap-2 shadow-[0_0_15px_rgba(46,197,255,0.2)] transition-all font-mono text-[10px] uppercase tracking-wider font-bold"
           >
-            <Mic className="h-4 w-4 group-hover:scale-110 transition-transform" />
-            <span className="text-[10px] font-mono uppercase tracking-widest">Cadastro Voz</span>
-          </Button>
+            <Mic className="h-3.5 w-3.5" />
+            Voz
+          </button>
         </div>
       </header>
 
@@ -973,6 +985,7 @@ function AtlasManagerContent() {
         }}
         property={editingProperty}
         onSave={handleUpdateProperty}
+        onDelete={handleDeleteProperty}
       />
 
       <style jsx global>{`
