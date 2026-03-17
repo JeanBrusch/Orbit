@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo, useEffect, useRef } from "react"
 import { motion } from "framer-motion"
 import { Star, Phone, X, MapPin, Maximize2, Share2, Sparkles, Heart, XCircle, Calendar, Send, CheckCircle2, MessageSquare, ExternalLink } from "lucide-react"
 import { getSupabase } from "@/lib/supabase"
@@ -44,6 +44,66 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
   const [interactions, setInteractions] = useState<Record<string, string[]>>(initialInteractions || {})
   const [questionText, setQuestionText] = useState<Record<string, string>>({})
   const [isSubmitting, setIsSubmitting] = useState<Record<string, boolean>>({})
+
+  // ── Session tracking ─────────────────────────────────────────────────────────
+  const sessionStartRef = useRef<number>(Date.now())
+
+  const sendSessionEnd = (durationSeconds: number) => {
+    if (!lead?.id || !items[0]?.id) return
+    const payload = JSON.stringify({
+      leadId: lead.id,
+      propertyId: items[0].id,
+      interaction_type: 'session_end',
+      source: 'client_portal',
+      metadata: { duration_seconds: durationSeconds },
+    })
+    // Usa sendBeacon para garantir envio mesmo ao fechar a aba
+    if (navigator.sendBeacon) {
+      const blob = new Blob([payload], { type: 'application/json' })
+      navigator.sendBeacon('/api/property-interactions', blob)
+    } else {
+      // Fallback: fetch com keepalive
+      fetch('/api/property-interactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: payload,
+        keepalive: true,
+      }).catch(() => {})
+    }
+  }
+
+  useEffect(() => {
+    if (!lead?.id || !items[0]?.id) return
+
+    sessionStartRef.current = Date.now()
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        const durationSeconds = Math.round((Date.now() - sessionStartRef.current) / 1000)
+        if (durationSeconds >= 2) {
+          sendSessionEnd(durationSeconds)
+          console.log(`[SessionTracker] Duração: ${durationSeconds}s (visibilitychange)`)
+        }
+      }
+    }
+
+    const handleBeforeUnload = () => {
+      const durationSeconds = Math.round((Date.now() - sessionStartRef.current) / 1000)
+      if (durationSeconds >= 2) {
+        sendSessionEnd(durationSeconds)
+        console.log(`[SessionTracker] Duração: ${durationSeconds}s (beforeunload)`)
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('beforeunload', handleBeforeUnload)
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lead?.id])
 
   const firstName = lead?.name?.split(" ")[0] || "Cliente"
 
@@ -136,6 +196,7 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
 
   const trackExternalLink = async (itemId: string) => {
     if (!lead?.id) return
+    console.log(`[ClickTracker] Acessar Página Original clicado — propertyId: ${itemId}`)
     try {
       await fetch('/api/property-interactions', {
         method: 'POST',
@@ -153,10 +214,8 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
   }
 
   useEffect(() => {
+    // Log portal access when component mounts
     if (!lead?.id || !items[0]?.id) return
-    
-    const startTime = Date.now()
-    
     const logPortalAccess = async () => {
       try {
         await fetch('/api/property-interactions', {
@@ -173,22 +232,7 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
         console.error("Failed to log portal access:", err)
       }
     }
-    
     logPortalAccess()
-
-    // Track session duration on unmount/background
-    return () => {
-      const duration = Math.round((Date.now() - startTime) / 1000)
-      if (duration > 5) { // Only log if they stayed more than 5s
-        navigator.sendBeacon('/api/property-interactions', JSON.stringify({
-          leadId: lead.id,
-          propertyId: items[0].id,
-          interaction_type: 'portal_session',
-          source: 'client_portal',
-          text: `Duração: ${duration}s`
-        }))
-      }
-    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lead?.id])
 

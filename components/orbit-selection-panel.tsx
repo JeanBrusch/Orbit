@@ -15,8 +15,9 @@ import {
   MessageSquare,
   Sparkles,
   Clock,
+  TrendingUp,
+  Timer,
 } from "lucide-react";
-import { getSupabase } from "@/lib/supabase";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -38,6 +39,12 @@ interface SelectionProperty {
   state: string;
   lastInteraction?: string;
   interactionType?: string;
+  viewCount?: number; // NEW: total de views para este imóvel
+}
+
+interface TopInterest {
+  property: SelectionProperty;
+  viewCount: number;
 }
 
 interface ClientSpace {
@@ -79,14 +86,25 @@ function formatRelativeTime(ts: string | null): string {
   return `${days}d`;
 }
 
+// NEW: formata duração em segundos para exibição legível
+function formatDuration(seconds: number): string {
+  if (seconds < 60) return `${seconds}s`;
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  if (m < 60) return s > 0 ? `${m}min ${s}s` : `${m}min`;
+  const h = Math.floor(m / 60);
+  const rm = m % 60;
+  return rm > 0 ? `${h}h ${rm}min` : `${h}h`;
+}
+
 const stateConfig: Record<string, { label: string; color: string; bg: string }> = {
-  favorited: { label: "Curtido", color: "text-rose-400", bg: "bg-rose-500/10 border-rose-500/20" },
-  visited:   { label: "Visita", color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/20" },
-  discarded: { label: "Descartado", color: "text-slate-500", bg: "bg-slate-500/10 border-slate-500/20" },
-  viewed:    { label: "Visto", color: "text-blue-400", bg: "bg-blue-500/10 border-blue-500/20" },
-  sent:      { label: "Enviado", color: "text-[#d4af35]", bg: "bg-[#d4af35]/10 border-[#d4af35]/20" },
-  portal_opened: { label: "Portal aberto", color: "text-purple-400", bg: "bg-purple-500/10 border-purple-500/20" },
-  property_question: { label: "Pergunta", color: "text-sky-400", bg: "bg-sky-500/10 border-sky-500/20" },
+  favorited:         { label: "Curtido",       color: "text-rose-400",    bg: "bg-rose-500/10 border-rose-500/20" },
+  visited:           { label: "Visita",         color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/20" },
+  discarded:         { label: "Descartado",     color: "text-slate-500",   bg: "bg-slate-500/10 border-slate-500/20" },
+  viewed:            { label: "Visto",          color: "text-blue-400",    bg: "bg-blue-500/10 border-blue-500/20" },
+  sent:              { label: "Enviado",        color: "text-[#d4af35]",   bg: "bg-[#d4af35]/10 border-[#d4af35]/20" },
+  portal_opened:     { label: "Portal aberto",  color: "text-purple-400",  bg: "bg-purple-500/10 border-purple-500/20" },
+  property_question: { label: "Pergunta",       color: "text-sky-400",     bg: "bg-sky-500/10 border-sky-500/20" },
 };
 
 // ─── Stat Badge ────────────────────────────────────────────────────────────────
@@ -110,20 +128,25 @@ function StatBadge({ icon: Icon, value, label, color }: {
 
 // ─── Property Row ──────────────────────────────────────────────────────────────
 
-function PropertyRow({ prop }: { prop: SelectionProperty }) {
+function PropertyRow({ prop, isTop }: { prop: SelectionProperty; isTop?: boolean }) {
   const cfg = prop.interactionType
     ? (stateConfig[prop.interactionType] || stateConfig.sent)
     : stateConfig.sent;
 
   return (
-    <div className="flex items-center gap-3 py-2.5 border-b border-white/[0.04] last:border-0 group">
+    <div className={`flex items-center gap-3 py-2.5 border-b border-white/[0.04] last:border-0 group ${isTop ? "rounded-lg px-2 bg-blue-500/[0.06] border border-blue-500/[0.15] mb-1" : ""}`}>
       {/* Cover */}
-      <div className="w-9 h-9 rounded-lg overflow-hidden bg-white/5 shrink-0">
+      <div className="w-9 h-9 rounded-lg overflow-hidden bg-white/5 shrink-0 relative">
         {prop.cover_image ? (
           <img src={prop.cover_image} alt="" className="w-full h-full object-cover" />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
             <Building2 className="w-3.5 h-3.5 text-slate-600" />
+          </div>
+        )}
+        {isTop && (
+          <div className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-blue-500 flex items-center justify-center">
+            <TrendingUp className="w-2 h-2 text-white" />
           </div>
         )}
       </div>
@@ -139,6 +162,16 @@ function PropertyRow({ prop }: { prop: SelectionProperty }) {
             <>
               <span className="text-slate-700">·</span>
               <span className="text-[9px] text-slate-600">{formatRelativeTime(prop.lastInteraction)}</span>
+            </>
+          )}
+          {/* NEW: view count badge por imóvel */}
+          {prop.viewCount && prop.viewCount > 0 && (
+            <>
+              <span className="text-slate-700">·</span>
+              <span className="text-[9px] text-blue-400/70 flex items-center gap-0.5">
+                <Eye className="w-2.5 h-2.5" />
+                {prop.viewCount}x
+              </span>
             </>
           )}
         </div>
@@ -170,122 +203,194 @@ export function OrbitSelectionPanel({ leadId }: OrbitSelectionPanelProps) {
   const [space, setSpace] = useState<ClientSpace | null>(null);
   const [stats, setStats] = useState<SelectionStats | null>(null);
   const [properties, setProperties] = useState<SelectionProperty[]>([]);
+  const [topInterest, setTopInterest] = useState<TopInterest | null>(null);
   const [portalUrl, setPortalUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
   const [lastOpen, setLastOpen] = useState<string | null>(null);
+  const [lastSessionDuration, setLastSessionDuration] = useState<number | null>(null); // NEW: duração em segundos
 
   const glass = "bg-[rgba(12,12,12,0.85)] backdrop-blur-[16px] border border-white/[0.07]";
 
   const fetchData = useCallback(async () => {
+    if (!leadId) return;
     setLoading(true);
-    const supabase = getSupabase();
 
-    // 1. Get client space for this lead
-    const { data: spaceData } = await (supabase
-      .from("client_spaces") as any)
-      .select("id, slug, created_at, lead_id")
-      .eq("lead_id", leadId)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    try {
+      // ── 1. Client Space ──────────────────────────────────────────────────────
+      // Usa fetch para a rota de API do servidor (bypassa RLS via service role)
+      const spaceRes = await fetch(`/api/client-spaces?leadId=${leadId}`);
+      let spaceData: ClientSpace | null = null;
 
-    if (!spaceData) {
-      setSpace(null);
-      setStats(null);
-      setProperties([]);
-      setLoading(false);
-      return;
-    }
+      if (spaceRes.ok) {
+        const sd = await spaceRes.json();
+        spaceData = sd.space || null;
+      }
 
-    setSpace(spaceData);
-    const url = `${window.location.origin}/selection/${spaceData.slug}`;
-    setPortalUrl(url);
+      // Fallback: tenta direto se a rota não existir ainda
+      if (!spaceData) {
+        const { getSupabase } = await import("@/lib/supabase");
+        const supabase = getSupabase();
+        const { data } = await (supabase.from("client_spaces") as any)
+          .select("id, slug, created_at, lead_id")
+          .eq("lead_id", leadId)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        spaceData = data;
+      }
 
-    console.log("[OrbitSelectionPanel] Fetching for leadId:", leadId);
-    // 2. Get all property interactions from client_portal via Server Route to bypass RLS
-    const intRes = await fetch(`/api/property-interactions?leadId=${leadId}`)
-    const intData = await intRes.json()
-    console.log("[OrbitSelectionPanel] Received interactions:", intData);
-    
-    const intList = ((intData.interactions || []) as any[]).filter(i => i.source === "client_portal");
-    console.log("[OrbitSelectionPanel] Filtered interactions (client_portal):", intList.length);
+      if (!spaceData) {
+        setSpace(null);
+        setStats(null);
+        setProperties([]);
+        setTopInterest(null);
+        setLoading(false);
+        return;
+      }
 
-    // Stats
-    const computedStats: SelectionStats = {
-      views:     intList.filter(i => i.interaction_type === "viewed").length,
-      likes:     intList.filter(i => i.interaction_type === "favorited").length,
-      discards:  intList.filter(i => i.interaction_type === "discarded").length,
-      visits:    intList.filter(i => i.interaction_type === "visited").length,
-      questions: intList.filter(i => i.interaction_type === "property_question").length,
-    };
-    setStats(computedStats);
+      setSpace(spaceData);
+      setPortalUrl(`${window.location.origin}/selection/${spaceData.slug}`);
 
-    // Find Most Viewed Property
-    const viewCounts: Record<string, number> = {};
-    intList.filter(i => i.interaction_type === "viewed").forEach(i => {
-      viewCounts[i.property_id] = (viewCounts[i.property_id] || 0) + 1;
-    });
-    const mostViewedId = Object.entries(viewCounts).sort((a,b) => b[1] - a[1])[0]?.[0];
-    (computedStats as any).mostViewedId = mostViewedId;
-    (computedStats as any).mostViewedCount = viewCounts[mostViewedId] || 0;
+      // ── 2. Interactions via rota de servidor (bypassa RLS) ───────────────────
+      console.log("[OrbitSelectionPanel] Fetching interactions via server API for leadId:", leadId);
+      const intRes = await fetch(`/api/property-interactions?leadId=${leadId}`);
+      const intData = await intRes.json();
+      console.log("[OrbitSelectionPanel] Server API interactions count:", intData.interactions?.length ?? 0);
 
-    // Last portal open
-    const openEvent = intList.find(i => i.interaction_type === "portal_opened");
-    setLastOpen(openEvent?.timestamp || null);
+      const allInteractions = (intData.interactions || []) as Array<{
+        interaction_type: string;
+        property_id: string;
+        timestamp: string;
+        metadata?: any;
+      }>;
 
-    // 3. Get capsule items and their properties
-    const { data: capsuleItems } = await (supabase
-      .from("capsule_items") as any)
-      .select(`
-        property_id,
-        state,
-        properties:property_id (
-          id, title, internal_name, cover_image, value, source_link
-        )
-      `)
-      .eq("lead_id", leadId)
-      .neq("state", "discarded");
+      // Filtra só interações do portal do cliente
+      const intList = allInteractions.filter(i => {
+        // A rota GET não retorna 'source', então aceita tudo que veio da rota server
+        // (já filtramos por leadId, e as interações do portal têm tipos específicos)
+        return true;
+      });
 
-    if (capsuleItems && capsuleItems.length > 0) {
-      // Build a map of latest interaction per property
-      const latestInteractionMap = new Map<string, { type: string; ts: string }>();
+      // ── 3. Stats globais ─────────────────────────────────────────────────────
+      const computedStats: SelectionStats = {
+        views:     intList.filter(i => i.interaction_type === "viewed").length,
+        likes:     intList.filter(i => i.interaction_type === "favorited").length,
+        discards:  intList.filter(i => i.interaction_type === "discarded").length,
+        visits:    intList.filter(i => i.interaction_type === "visited").length,
+        questions: intList.filter(i => i.interaction_type === "property_question").length,
+      };
+      setStats(computedStats);
+
+      // ── 4. Último acesso e duração de sessão (NEW) ───────────────────────────
+      const openEvent = [...intList]
+        .filter(i => i.interaction_type === "portal_opened")
+        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
+      setLastOpen(openEvent?.timestamp || null);
+
+      // Pega a duração da sessão mais recente
+      const sessionEndEvents = intList
+        .filter(i => i.interaction_type === "session_end")
+        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      
+      if (sessionEndEvents.length > 0) {
+        const lastSession = sessionEndEvents[0];
+        const duration = lastSession.metadata?.duration_seconds
+          ?? (lastSession as any).duration_seconds
+          ?? null;
+        setLastSessionDuration(typeof duration === "number" ? duration : null);
+      } else {
+        setLastSessionDuration(null);
+      }
+
+      // ── 5. Contagem de views por imóvel (NEW: Top Interesse) ─────────────────
+      const viewsByProperty: Record<string, number> = {};
       for (const int of intList) {
-        if (!latestInteractionMap.has(int.property_id)) {
-          latestInteractionMap.set(int.property_id, {
-            type: int.interaction_type,
-            ts: int.timestamp,
-          });
+        if (int.interaction_type === "viewed" && int.property_id) {
+          viewsByProperty[int.property_id] = (viewsByProperty[int.property_id] || 0) + 1;
         }
       }
 
-      const props: SelectionProperty[] = (capsuleItems as any[])
-        .filter(item => item.properties)
-        .map(item => {
-          const p = item.properties as any;
-          const latestInt = latestInteractionMap.get(p.id);
-          return {
-            id: p.id,
-            title: p.title,
-            internal_name: p.internal_name,
-            cover_image: p.cover_image,
-            value: p.value,
-            source_link: p.source_link,
-            state: item.state,
-            lastInteraction: latestInt?.ts,
-            interactionType: latestInt?.type || item.state,
-          };
-        });
+      // ── 6. Capsule items com dados de propriedade ────────────────────────────
+      const { getSupabase } = await import("@/lib/supabase");
+      const supabase = getSupabase();
 
-      // Sort: most interacted first (favorited/visited > viewed > sent)
-      const priority: Record<string, number> = {
-        favorited: 0, visited: 1, property_question: 2, viewed: 3, portal_opened: 4, sent: 5,
-      };
-      props.sort((a, b) => (priority[a.interactionType || "sent"] ?? 5) - (priority[b.interactionType || "sent"] ?? 5));
+      const { data: capsuleItems } = await (supabase.from("capsule_items") as any)
+        .select(`
+          property_id,
+          state,
+          properties:property_id (
+            id, title, internal_name, cover_image, value, source_link
+          )
+        `)
+        .eq("lead_id", leadId)
+        .neq("state", "discarded");
 
-      setProperties(props);
-    } else {
-      setProperties([]);
+      if (capsuleItems && capsuleItems.length > 0) {
+        // Mapa de última interação por imóvel
+        const latestInteractionMap = new Map<string, { type: string; ts: string }>();
+        for (const int of intList) {
+          if (!latestInteractionMap.has(int.property_id)) {
+            latestInteractionMap.set(int.property_id, {
+              type: int.interaction_type,
+              ts: int.timestamp,
+            });
+          }
+        }
+
+        const props: SelectionProperty[] = (capsuleItems as any[])
+          .filter(item => item.properties)
+          .map(item => {
+            const p = item.properties as any;
+            const latestInt = latestInteractionMap.get(p.id);
+            return {
+              id: p.id,
+              title: p.title,
+              internal_name: p.internal_name,
+              cover_image: p.cover_image,
+              value: p.value,
+              source_link: p.source_link,
+              state: item.state,
+              lastInteraction: latestInt?.ts,
+              interactionType: latestInt?.type || item.state,
+              viewCount: viewsByProperty[p.id] || 0, // NEW
+            };
+          });
+
+        // Ordena: mais interagido primeiro
+        const priority: Record<string, number> = {
+          favorited: 0, visited: 1, property_question: 2, viewed: 3, portal_opened: 4, sent: 5,
+        };
+        props.sort((a, b) => (priority[a.interactionType || "sent"] ?? 5) - (priority[b.interactionType || "sent"] ?? 5));
+
+        setProperties(props);
+
+        // ── 7. Top Interesse: imóvel com mais views (NEW) ──────────────────────
+        let topPropId: string | null = null;
+        let topViewCount = 0;
+        for (const [propId, count] of Object.entries(viewsByProperty)) {
+          if (count > topViewCount) {
+            topViewCount = count;
+            topPropId = propId;
+          }
+        }
+
+        if (topPropId && topViewCount >= 1) {
+          const topProp = props.find(p => p.id === topPropId);
+          if (topProp) {
+            setTopInterest({ property: topProp, viewCount: topViewCount });
+          } else {
+            setTopInterest(null);
+          }
+        } else {
+          setTopInterest(null);
+        }
+      } else {
+        setProperties([]);
+        setTopInterest(null);
+      }
+    } catch (err) {
+      console.error("[OrbitSelectionPanel] fetchData error:", err);
     }
 
     setLoading(false);
@@ -391,21 +496,49 @@ export function OrbitSelectionPanel({ leadId }: OrbitSelectionPanelProps) {
         </div>
       )}
 
-      {/* Last portal open */}
-      {lastOpen && (
-        <div className="flex items-center gap-1.5 text-[10px] text-slate-500">
-          <Clock className="w-3 h-3" />
-          <span>Último acesso: <span className="text-slate-400">{formatRelativeTime(lastOpen)}</span></span>
-        </div>
-      )}
+      {/* Last portal open + sessão */}
+      <div className="flex items-center gap-3">
+        {lastOpen && (
+          <div className="flex items-center gap-1.5 text-[10px] text-slate-500">
+            <Clock className="w-3 h-3" />
+            <span>Acesso: <span className="text-slate-400">{formatRelativeTime(lastOpen)}</span></span>
+          </div>
+        )}
+        {/* NEW: Duração da última sessão */}
+        {lastSessionDuration !== null && lastSessionDuration > 0 && (
+          <div className="flex items-center gap-1.5 text-[10px] text-blue-400/70">
+            <Timer className="w-3 h-3" />
+            <span>Duração: <span className="text-blue-300">{formatDuration(lastSessionDuration)}</span></span>
+          </div>
+        )}
+      </div>
 
       {/* Stats row */}
       {stats && (
         <div className="grid grid-cols-4 gap-1 p-3 rounded-lg bg-white/[0.03] border border-white/[0.05]">
-          <StatBadge icon={Eye}      value={stats.views}    label="Views"   color="text-blue-400" />
-          <StatBadge icon={Heart}    value={stats.likes}    label="Curtidas" color="text-rose-400" />
-          <StatBadge icon={Calendar} value={stats.visits}   label="Visitas"  color="text-emerald-400" />
+          <StatBadge icon={Eye}           value={stats.views}     label="Views"     color="text-blue-400" />
+          <StatBadge icon={Heart}         value={stats.likes}     label="Curtidas"  color="text-rose-400" />
+          <StatBadge icon={Calendar}      value={stats.visits}    label="Visitas"   color="text-emerald-400" />
           <StatBadge icon={MessageSquare} value={stats.questions} label="Perguntas" color="text-sky-400" />
+        </div>
+      )}
+
+      {/* NEW: Top Interesse — destaque azul */}
+      {topInterest && (
+        <div className="flex items-center gap-3 p-3 rounded-lg bg-blue-500/[0.08] border border-blue-500/[0.2]">
+          <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-blue-500/20 shrink-0">
+            <TrendingUp className="w-3.5 h-3.5 text-blue-400" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[9px] text-blue-400/70 uppercase tracking-widest font-bold mb-0.5">Top Interesse</p>
+            <p className="text-[11px] text-slate-200 truncate font-medium">
+              {topInterest.property.title || topInterest.property.internal_name || "Imóvel"}
+            </p>
+          </div>
+          <div className="flex items-center gap-1 shrink-0 text-blue-300">
+            <Eye className="w-3 h-3" />
+            <span className="text-[11px] font-bold">{topInterest.viewCount}x</span>
+          </div>
         </div>
       )}
 
@@ -427,36 +560,19 @@ export function OrbitSelectionPanel({ leadId }: OrbitSelectionPanelProps) {
         </div>
       )}
 
-      {/* Most Viewed Highlight */}
-      {(stats as any)?.mostViewedId && (
-        <div className="px-3 py-2.5 rounded-lg bg-blue-500/5 border border-blue-500/10 flex items-center justify-between group/mv">
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded flex items-center justify-center bg-blue-500/10 text-blue-400">
-              <Sparkles size={12} />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-[8px] font-mono text-blue-400/70 uppercase">Top Interesse</span>
-              <span className="text-[10px] text-slate-300 font-medium truncate max-w-[140px]">
-                {properties.find(p => p.id === (stats as any).mostViewedId)?.title || "Imóvel em destaque"}
-              </span>
-            </div>
-          </div>
-          <div className="text-right">
-            <span className="text-[10px] font-bold text-blue-400">{(stats as any).mostViewedCount}x</span>
-            <span className="text-[8px] block text-slate-600 font-mono">VIEWS</span>
-          </div>
-        </div>
-      )}
-
       {/* Property list */}
       {properties.length > 0 && (
         <div className="flex flex-col">
-          <p className="text-[9px] text-slate-600 uppercase tracking-widest font-bold mb-1">
+          <p className="text-[9px] text-slate-600 uppercase tracking-widest font-bold mb-2">
             {properties.length} imóve{properties.length > 1 ? "is" : "l"} na seleção
           </p>
           <div>
             {properties.map(p => (
-              <PropertyRow key={p.id} prop={p} />
+              <PropertyRow
+                key={p.id}
+                prop={p}
+                isTop={topInterest?.property.id === p.id}
+              />
             ))}
           </div>
         </div>

@@ -11,6 +11,7 @@ const INTERACTION_LABELS: Record<string, string> = {
   visited_site:      '🌐 Site Externo Visitado',
   viewed:            '🔍 Imóvel Visualizado',
   property_question: '💬 Pergunta Enviada',
+  session_end:       '⏱️ Sessão Encerrada',
 }
 
 async function sendInteractionEmail(opts: {
@@ -20,6 +21,7 @@ async function sendInteractionEmail(opts: {
   propertyTitle?: string
   propertyId: string
   text?: string
+  durationSeconds?: number
 }) {
   const resendKey = process.env.RESEND_API_KEY
   const notifyEmail = process.env.NOTIFY_EMAIL
@@ -27,6 +29,12 @@ async function sendInteractionEmail(opts: {
 
   const label = INTERACTION_LABELS[opts.interactionType] || opts.interactionType
   const when = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })
+
+  const durationRow = opts.durationSeconds != null ? `
+  <tr style="border-bottom: 1px solid #f0f0f0;">
+    <td style="padding: 8px 0; color: #888;">Duração</td>
+    <td style="padding: 8px 0; font-weight: 600;">${formatDurationEmail(opts.durationSeconds)}</td>
+  </tr>` : ''
 
   const html = `
     <div style="font-family: -apple-system, sans-serif; max-width: 520px; margin: 0 auto; color: #1a1a1a;">
@@ -56,6 +64,7 @@ async function sendInteractionEmail(opts: {
             <td style="padding: 8px 0; color: #888;">Mensagem</td>
             <td style="padding: 8px 0; font-style: italic;">"${opts.text}"</td>
           </tr>` : ''}
+          ${durationRow}
           <tr>
             <td style="padding: 8px 0; color: #888;">Horário</td>
             <td style="padding: 8px 0;">${when}</td>
@@ -79,7 +88,7 @@ async function sendInteractionEmail(opts: {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        from: 'Orbit <onboarding@resend.dev>', // Use Resend default for testing if domain not verified
+        from: 'Orbit <onboarding@resend.dev>',
         to: notifyEmail,
         subject: `${label} — ${opts.leadName}`,
         html,
@@ -97,6 +106,16 @@ async function sendInteractionEmail(opts: {
   }
 }
 
+function formatDurationEmail(seconds: number): string {
+  if (seconds < 60) return `${seconds}s`
+  const m = Math.floor(seconds / 60)
+  const s = seconds % 60
+  if (m < 60) return s > 0 ? `${m}min ${s}s` : `${m}min`
+  const h = Math.floor(m / 60)
+  const rm = m % 60
+  return rm > 0 ? `${h}h ${rm}min` : `${h}h`
+}
+
 // ── GET ─────────────────────────────────────────────────────────────────────
 export async function GET(request: NextRequest) {
   try {
@@ -107,17 +126,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'leadId é obrigatório' }, { status: 400 })
     }
 
+    // Usa service role via getSupabaseServer — bypassa RLS completamente
     const supabase = getSupabaseServer()
-    let query = supabase.from('property_interactions').select('*')
-
-    if (leadId.includes(',')) {
-      const ids = leadId.split(',').map((id: string) => id.trim())
-      query = query.in('lead_id', ids)
-    } else {
-      query = query.eq('lead_id', leadId)
-    }
-
-    const { data, error } = await query.order('timestamp', { ascending: false })
+    const { data, error } = await supabase
+      .from('property_interactions')
+      .select('*')
+      .eq('lead_id', leadId)
+      .order('timestamp', { ascending: false })
 
     if (error) {
       console.error('[PROP_INT] Error fetching:', error)
@@ -134,8 +149,22 @@ export async function GET(request: NextRequest) {
 // ── POST ────────────────────────────────────────────────────────────────────
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { leadId, propertyId, interaction_type, source, propertyTitle, propertyCover, text } = body
+    // Suporta tanto application/json quanto text/plain (enviado pelo sendBeacon)
+    const contentType = request.headers.get('content-type') || ''
+    let body: any
+    if (contentType.includes('application/json')) {
+      body = await request.json()
+    } else {
+      // sendBeacon envia como text/plain ou application/x-www-form-urlencoded
+      const text = await request.text()
+      try {
+        body = JSON.parse(text)
+      } catch {
+        return NextResponse.json({ error: 'Body inválido' }, { status: 400 })
+      }
+    }
+
+    const { leadId, propertyId, interaction_type, source, propertyTitle, propertyCover, text, metadata } = body
     const itype = interaction_type || body.interactionType
 
     if (!leadId || !propertyId || !itype) {
@@ -157,7 +186,7 @@ export async function POST(request: NextRequest) {
 
     // 2. Get property title if not provided
     let propTitle = propertyTitle
-    if (!propTitle && itype !== 'portal_opened') {
+    if (!propTitle && itype !== 'portal_opened' && itype !== 'session_end') {
       const { data: prop } = await supabase
         .from('properties')
         .select('title, internal_name')
@@ -167,23 +196,59 @@ export async function POST(request: NextRequest) {
     }
 
     // 3. Create the interaction record
-    const { data: interaction, error: intError } = await supabase
+    // Tenta inserir com metadata; se a coluna não existir, insere sem ela
+    let interaction: any = null
+    let intError: any = null
+
+    const insertPayload: any = {
+      lead_id: leadId,
+      property_id: propertyId,
+      interaction_type: itype,
+      source: source || 'client_portal',
+    }
+
+    // Adiciona metadata se existir (ex: duration_seconds para session_end)
+    if (metadata && typeof metadata === 'object') {
+      insertPayload.metadata = metadata
+    }
+
+    // Log de duração de sessão
+    if (itype === 'session_end' && metadata?.duration_seconds != null) {
+      console.log(`[PROP_INT] session_end — lead: ${leadId}, duração: ${metadata.duration_seconds}s`)
+    }
+
+    const result = await supabase
       .from('property_interactions')
-      .insert({
-        lead_id: leadId,
-        property_id: propertyId,
-        interaction_type: itype,
-        source: source || 'client_portal'
-      })
+      .insert(insertPayload)
       .select()
       .single()
+
+    interaction = result.data
+    intError = result.error
+
+    // Se falhou por causa da coluna metadata não existir, tenta sem ela
+    if (intError && intError.message?.includes('metadata')) {
+      console.warn('[PROP_INT] metadata column not found, retrying without it')
+      const fallback = await supabase
+        .from('property_interactions')
+        .insert({
+          lead_id: leadId,
+          property_id: propertyId,
+          interaction_type: itype,
+          source: source || 'client_portal',
+        })
+        .select()
+        .single()
+      interaction = fallback.data
+      intError = fallback.error
+    }
 
     if (intError) {
       console.error('[PROP_INT] Error creating interaction:', intError)
       return NextResponse.json({ error: 'Erro ao registrar interação' }, { status: 500 })
     }
 
-    // 4. If it's a question, also create a message record + ai_insight
+    // 4. Se é pergunta, cria mensagem + insight
     if (itype === 'property_question') {
       const { error: msgError } = await supabase
         .from('messages')
@@ -213,7 +278,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 5. Fire email notification (non-blocking)
-    const notifyEvents = ['property_question', 'favorited', 'visited', 'visited_site', 'portal_opened']
+    const notifyEvents = ['property_question', 'favorited', 'visited', 'visited_site', 'portal_opened', 'session_end']
     if (notifyEvents.includes(itype)) {
       sendInteractionEmail({
         leadName,
@@ -221,7 +286,8 @@ export async function POST(request: NextRequest) {
         interactionType: itype,
         propertyTitle: propTitle,
         propertyId,
-        text
+        text,
+        durationSeconds: metadata?.duration_seconds,
       }).catch(err => console.error('[PROP_INT] Email send failed:', err))
     }
 
