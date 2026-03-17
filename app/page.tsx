@@ -6,6 +6,7 @@ import { LeadNodes } from "@/components/lead-nodes";
 import { ParticleBackground } from "@/components/particle-background";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { LeadCognitiveConsole } from "@/components/lead-cognitive-console";
+import { CopilotoPanel } from "@/components/copiloto-panel";
 import { OrbitProvider, useOrbitContext } from "@/components/orbit-context";
 import { AdminTrigger } from "@/components/admin/admin-trigger";
 import { useSupabaseLeads, type OrbitLead } from "@/hooks/use-supabase-data";
@@ -141,7 +142,7 @@ function OrbitInterfaceContent() {
         setTimeout(() => {
           setCoreState("idle");
           setCoreMessage("Campo Cognitivo Ativo");
-        }, 5000);
+        }, 2000);
       } catch (err) {
         console.error("Cognitive search error:", err);
         setCoreState("idle");
@@ -161,7 +162,8 @@ function OrbitInterfaceContent() {
     setCoreState("idle");
     setCoreMessage("Campo Cognitivo Ativo");
     setHighlightedLeads([]);
-  }, []);
+    deactivateOrbitView();
+  }, [deactivateOrbitView]);
 
   if (!isMounted) return null;
 
@@ -189,6 +191,9 @@ function OrbitInterfaceContent() {
         onThemeToggle={toggleTheme}
         onLogout={logout}
       />
+
+      {/* ── Copiloto: resultados da busca cognitiva (persistente) ── */}
+      <CopilotoPanel />
 
       {/* ── Layer 2: Orbit rings + Core (static, NOT zoomed) ─────────────── */}
       <div className="absolute inset-0 z-[60] pointer-events-none flex items-center justify-center">
