@@ -10,6 +10,7 @@ import {
   Zap, Star, Clock, Building2, ExternalLink
 } from "lucide-react"
 import { ManualInteractionModal } from "@/components/lead-brain/manual-interaction-modal"
+import { OrbitSelectionPanel } from "@/components/orbit-selection-panel"
 
 // ─── Supabase ─────────────────────────────────────────────────────────────────
 const supabase = createClient(
@@ -307,7 +308,6 @@ export default function LeadTerminalPage({ params }: { params: Promise<{ id: str
   const [memories, setMemories] = useState<MemoryItem[]>([])
   const [insights, setInsights] = useState<AiInsight[]>([])
   const [messages, setMessages] = useState<Message[]>([])
-  const [interactions, setInteractions] = useState<PropertyInteraction[]>([])
   const [reminders, setReminders] = useState<Reminder[]>([])
   const [aiSuggestion, setAiSuggestion] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -320,14 +320,13 @@ export default function LeadTerminalPage({ params }: { params: Promise<{ id: str
   // ── Fetch all data ────────────────────────────────────────────────────────
   const fetchAll = useCallback(async () => {
     const [
-      leadRes, cogRes, memRes, insRes, msgRes, interRes, remRes
+      leadRes, cogRes, memRes, insRes, msgRes, remRes
     ] = await Promise.all([
       supabase.from("leads").select("id,name,phone,lid,photo_url,orbit_stage,action_suggested,last_interaction_at").eq("id", id).single(),
       supabase.from("lead_cognitive_state").select("*").eq("lead_id", id).maybeSingle(),
       supabase.from("memory_items").select("id,type,content,confidence,created_at").eq("lead_id", id).order("created_at", { ascending: false }).limit(40),
       supabase.from("ai_insights").select("id,content,urgency,created_at").eq("lead_id", id).order("created_at", { ascending: false }).limit(5),
       supabase.from("messages").select("id,source,content,timestamp,ai_analysis").eq("lead_id", id).order("timestamp", { ascending: true }),
-      supabase.from("property_interactions").select("id,interaction_type,timestamp,property_id").eq("lead_id", id).order("timestamp", { ascending: false }).limit(10),
       supabase.from("reminders").select("id,due_at,type,status").eq("lead_id", id).eq("status", "pending").order("due_at", { ascending: true }).limit(3),
     ])
 
@@ -338,26 +337,19 @@ export default function LeadTerminalPage({ params }: { params: Promise<{ id: str
     if (msgRes.data) setMessages(msgRes.data as Message[])
     if (remRes.data) setReminders(remRes.data as Reminder[])
 
-    // Fetch property details for interactions
-    if (interRes.data && interRes.data.length > 0) {
-      const propIds = [...new Set(interRes.data.map(i => i.property_id).filter(Boolean))] as string[]
-      const { data: props } = await supabase
-        .from("properties")
-        .select("id,title,cover_image,value,location_text,source_link")
-        .in("id", propIds)
-      const propMap = new Map((props || []).map(p => [p.id, p]))
-      const enriched = interRes.data.map(i => ({
-        ...i,
-        property: propMap.get(i.property_id || "") as any
-      }))
-      setInteractions(enriched as PropertyInteraction[])
-    }
-
-    // AI suggestion
+    // AI suggestion — extract only the action part
     const sugRes = await fetch(`/api/lead/${id}/suggest`)
     if (sugRes.ok) {
       const j = await sugRes.json()
-      if (j.suggestion) setAiSuggestion(j.suggestion)
+      if (j.suggestion) {
+        const raw: string = j.suggestion;
+        const clean = raw.includes("Próxima ação:")
+          ? raw.split("Próxima ação:")[1]?.trim() ?? raw
+          : raw.includes("action_description:")
+            ? raw.split("action_description:")[1]?.trim() ?? raw
+            : raw;
+        setAiSuggestion(clean);
+      }
     }
 
     setLoading(false)
@@ -432,8 +424,15 @@ export default function LeadTerminalPage({ params }: { params: Promise<{ id: str
   }, [fetchAll, id])
 
   // Auto-scroll to bottom on new messages
+  const isFirstPageLoad = useRef(true);
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" })
+    if (!bottomRef.current) return;
+    if (isFirstPageLoad.current && messages.length > 0) {
+      bottomRef.current.scrollIntoView({ behavior: "instant" });
+      isFirstPageLoad.current = false;
+    } else if (!isFirstPageLoad.current) {
+      bottomRef.current.scrollIntoView({ behavior: "smooth" });
+    }
   }, [messages, timelineKey])
 
   // ── Send message ────────────────────────────────────────────────────────────
@@ -679,7 +678,7 @@ export default function LeadTerminalPage({ params }: { params: Promise<{ id: str
                 </motion.div>
               ))
             )}
-            <div ref={bottomRef} />
+            <div ref={bottomRef} style={{ overflowAnchor: "none" }} />
           </div>
 
           {/* Composer */}
@@ -763,13 +762,18 @@ export default function LeadTerminalPage({ params }: { params: Promise<{ id: str
             {topInsight && (
               <div className="flex flex-col gap-2">
                 <button
-                  onClick={() => setShowModal(true)}
+                  onClick={() => {
+                    const phone = lead?.phone?.replace(/\D/g, "") || lead?.lid?.replace(/\D/g, "");
+                    if (!phone) return;
+                    const text = aiSuggestion ? encodeURIComponent(aiSuggestion) : "";
+                    window.open(`https://wa.me/${phone}${text ? `?text=${text}` : ""}`, "_blank");
+                  }}
                   className="w-full bg-[#d4af35] py-2.5 rounded-lg text-[#0a0907] font-bold text-[10px] uppercase tracking-widest hover:brightness-110 transition-all"
                 >
-                  Registrar Interação
+                  Abrir WhatsApp
                 </button>
                 <button
-                  onClick={() => setComposerText(aiSuggestion || "")}
+                  onClick={() => { if (aiSuggestion) setComposerText(aiSuggestion); }}
                   className="w-full bg-white/5 border border-white/10 py-2.5 rounded-lg text-slate-300 font-bold text-[10px] uppercase tracking-widest hover:bg-white/10 transition-all"
                 >
                   Usar Sugestão da IA
@@ -778,51 +782,8 @@ export default function LeadTerminalPage({ params }: { params: Promise<{ id: str
             )}
           </div>
 
-          {/* Escrita Inteligente */}
-          {aiSuggestion && (
-            <div className="bg-[rgba(20,20,20,0.7)] backdrop-blur-xl rounded-xl p-5 border border-white/8 flex flex-col gap-4">
-              <div className="flex items-center gap-2">
-                <Brain className="w-4 h-4 text-[#d4af35]" />
-                <h3 className="text-[10px] font-bold uppercase tracking-widest text-slate-300">Escrita Inteligente</h3>
-              </div>
-              <div className="bg-white/4 rounded-lg p-4 border border-white/5">
-                <p className="text-xs text-slate-400 italic leading-relaxed">"{aiSuggestion}"</p>
-              </div>
-              <div className="flex justify-between items-center">
-                <div className="flex gap-2">
-                  {cog?.current_state && (
-                    <span className="text-[9px] text-[#d4af35] border border-[#d4af35]/30 px-2 py-0.5 rounded-full uppercase">
-                      {cog.current_state}
-                    </span>
-                  )}
-                </div>
-                <button
-                  onClick={() => setComposerText(aiSuggestion)}
-                  className="text-[#d4af35] flex items-center gap-1 text-[10px] font-bold uppercase hover:brightness-110"
-                >
-                  Usar
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Histórico de Imóveis */}
-          <div className="bg-[rgba(20,20,20,0.7)] backdrop-blur-xl rounded-xl p-5 border border-white/8 flex-1 flex flex-col gap-4">
-            <div className="flex items-center gap-2">
-              <Building2 className="w-4 h-4 text-[#d4af35]" />
-              <h3 className="text-[10px] font-bold uppercase tracking-widest text-slate-300">Imóveis Interagidos</h3>
-            </div>
-
-            {interactions.length === 0 ? (
-              <p className="text-[11px] text-slate-600 italic">Nenhum imóvel enviado ainda</p>
-            ) : (
-              <div className="space-y-2">
-                {interactions.map(i => (
-                  <PropertyInteractionCard key={i.id} interaction={i} />
-                ))}
-              </div>
-            )}
-          </div>
+          {/* Orbit Selection — protagonista */}
+          <OrbitSelectionPanel leadId={id} />
         </aside>
       </main>
 

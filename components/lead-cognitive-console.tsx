@@ -507,6 +507,7 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
   const [interactions, setInteractions] = useState<PropertyInteraction[]>([]);
   const [aiSuggestion, setAiSuggestion] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showStageDropdown, setShowStageDropdown] = useState(false);
 
   // Composer
   const [composerText, setComposerText] = useState("");
@@ -757,35 +758,22 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
       }
     }
 
-    // Property interactions
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const propRes = await (supabase.from("property_interactions") as any)
-      .select("id,interaction_type,timestamp,property_id")
-      .eq("lead_id", leadId).order("timestamp", { ascending: false }).limit(10);
+    // Property interactions — removed (OrbitSelectionPanel renders its own data)
 
-    if (propRes.data && propRes.data.length > 0) {
-      const propIds = [...new Set((propRes.data as any[]).map((i: any) => i.property_id).filter(Boolean))] as string[];
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: props } = await (supabase.from("properties") as any)
-        .select("id,title,cover_image,value,location_text,source_link")
-        .in("id", propIds);
-      const propMap = new Map(((props || []) as any[]).map((p: any) => [p.id, p]));
-      setInteractions((propRes.data as any[]).map((i: any) => ({
-        id: i.id,
-        interaction_type: i.interaction_type,
-        timestamp: i.timestamp,
-        property: propMap.get(i.property_id || "") as PropertyInteraction["property"],
-      })));
-    } else {
-      setInteractions([]);
-    }
-
-    // AI Suggestion
+    // AI Suggestion — extract only the action part
     try {
       const sugRes = await fetch(`/api/lead/${leadId}/suggest`);
       if (sugRes.ok) {
         const j = await sugRes.json();
-        if (j.suggestion) setAiSuggestion(j.suggestion);
+        if (j.suggestion) {
+          const raw: string = j.suggestion;
+          const clean = raw.includes("Próxima ação:")
+            ? raw.split("Próxima ação:")[1]?.trim() ?? raw
+            : raw.includes("action_description:")
+              ? raw.split("action_description:")[1]?.trim() ?? raw
+              : raw;
+          setAiSuggestion(clean);
+        }
       }
     } catch { /* silent */ }
 
@@ -799,7 +787,6 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
       setMemories([]);
       setInsights([]);
       setMessages([]);
-      setInteractions([]);
       setAiSuggestion(null);
       fetchAll();
 
@@ -884,8 +871,15 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
     };
   }, [isOpen, leadId, fetchAll]);
 
+  const isFirstChatLoad = useRef(true);
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (!bottomRef.current) return;
+    if (isFirstChatLoad.current && messages.length > 0) {
+      bottomRef.current.scrollIntoView({ behavior: "instant" });
+      isFirstChatLoad.current = false;
+    } else if (!isFirstChatLoad.current) {
+      bottomRef.current.scrollIntoView({ behavior: "smooth" });
+    }
   }, [messages]);
 
   // Send message: bridge Cognitive Terminal -> WhatsApp (via Z-API) + interaction log
@@ -1060,9 +1054,39 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
                     </div>
                     <div>
                       <p className="text-sm font-semibold">{lead?.name || "—"}</p>
-                      <p className="text-[11px] text-[#d4af35]/70 font-medium uppercase tracking-wider">
-                        {humanStage(lead?.orbit_stage)}
-                      </p>
+                      <div className="relative">
+                        <button
+                          onClick={() => setShowStageDropdown(prev => !prev)}
+                          className="text-[10px] text-[#d4af35]/70 font-medium uppercase tracking-wider hover:text-[#d4af35] transition-colors cursor-pointer"
+                        >
+                          {humanStage(lead?.orbit_stage)}
+                        </button>
+                        {showStageDropdown && (
+                          <div
+                            className="absolute top-6 left-0 z-50 bg-[#0a0a0c] border border-white/10 rounded-xl shadow-2xl p-2 flex flex-col gap-0.5 min-w-[180px]"
+                            onMouseLeave={() => setShowStageDropdown(false)}
+                          >
+                            {Object.entries(STAGE_LABELS).filter(([k]) =>
+                              !["ativo","quente","frio","decidindo","negociando","explorando","comparando","fechado","perdido","novo"].includes(k)
+                            ).map(([key, label]) => (
+                              <button
+                                key={key}
+                                onClick={async () => {
+                                  const supabase = getSupabase();
+                                  await (supabase.from("leads") as any)
+                                    .update({ orbit_stage: key })
+                                    .eq("id", leadId);
+                                  setLead(prev => prev ? { ...prev, orbit_stage: key } : prev);
+                                  setShowStageDropdown(false);
+                                }}
+                                className="text-left text-[11px] px-3 py-1.5 rounded-lg hover:bg-white/5 text-slate-300 hover:text-[#d4af35] transition-colors"
+                              >
+                                {label}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -1167,40 +1191,6 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
                   )}
                 </div>
 
-                {/* Imóveis Acessados */}
-                <div className={`${glass} rounded-xl p-5 flex flex-col gap-3`}>
-                  <div className="flex items-center gap-2">
-                    <Building2 className="w-4 h-4 text-[#d4af35]" />
-                    <h3 className="text-[10px] font-bold uppercase tracking-widest text-slate-300">Imóveis Acessados</h3>
-                  </div>
-                  {interactions.length > 0 ? (
-                    <div className="space-y-2">
-                      {interactions.map(inter => (
-                        <PropertyCard key={inter.id} interaction={inter} />
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-xs text-slate-600 italic">Nenhum imóvel acessado.</p>
-                  )}
-                </div>
-
-                  {/* Mini engagement chart based on insights urgency */}
-                  <div className="flex flex-col gap-1.5 mt-1">
-                    <div className="flex justify-between items-center">
-                      <span className="text-[10px] text-slate-500">Atividade Cognitiva</span>
-                      <span className="text-[10px] text-[#d4af35] font-bold">{insights.length} eventos</span>
-                    </div>
-                    <div className="h-8 flex items-end gap-1">
-                      {(insights.length > 0 ? insights.slice(0, 6).reverse() : Array(6).fill({ urgency: 20 })).map((ins, i) => (
-                        <div key={i} className="flex-1 rounded-sm transition-all"
-                          style={{
-                            height: `${Math.max(15, (ins as AiInsight).urgency ?? 20)}%`,
-                            backgroundColor: i === 5 ? "#d4af35" : `rgba(212,175,53,${0.15 + i * 0.1})`,
-                          }}
-                        />
-                      ))}
-                    </div>
-                  </div>
               </aside>
 
               {/* ── CENTRAL AREA: Chat ── */}
@@ -1217,7 +1207,7 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
                       <MessageBubble key={msg.id + idx} msg={msg} leadPhoto={lead?.photo_url || null} leadName={lead?.name || null} />
                     ))
                   )}
-                  <div ref={bottomRef} />
+                  <div ref={bottomRef} style={{ overflowAnchor: "none" }} />
                 </div>
 
                 {/* ── Composer ── */}
@@ -1451,9 +1441,10 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
                   <div className="flex flex-col gap-2">
                     <button
                       onClick={() => {
-                        if (lead?.phone) {
-                          window.open(`https://wa.me/${lead.phone.replace(/\D/g, "")}`, "_blank");
-                        }
+                        const phone = lead?.phone?.replace(/\D/g, "") || lead?.lid?.replace(/\D/g, "");
+                        if (!phone) return;
+                        const text = aiSuggestion ? encodeURIComponent(aiSuggestion) : "";
+                        window.open(`https://wa.me/${phone}${text ? `?text=${text}` : ""}`, "_blank");
                       }}
                       className="w-full bg-[#d4af35] py-2.5 rounded-lg text-black font-bold text-[10px] uppercase tracking-widest hover:brightness-110 transition-all"
                     >
@@ -1469,61 +1460,8 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
                 </div>
               </div>
 
-                {/* Escrita Inteligente */}
-                <div className={`${glass} rounded-xl p-5`}>
-                  <div className="flex items-center gap-2 mb-4">
-                    <Zap className="w-4 h-4 text-[#d4af35]" />
-                    <h3 className="text-[10px] font-bold uppercase tracking-widest text-slate-300">Escrita Inteligente</h3>
-                  </div>
-
-                  <div className="bg-white/4 border border-white/5 rounded-lg p-3.5 mb-3 min-h-[60px]">
-                    <p className="text-xs text-slate-400 italic leading-relaxed">
-                      {aiSuggestion ? `"${aiSuggestion}"` : "Nenhuma sugestão gerada ainda."}
-                    </p>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div className="flex gap-1">
-                      {["Formal", "Conciso", "Direto"].map((tone, i) => (
-                        <button key={tone}
-                          className={`text-[10px] px-2 py-0.5 rounded-full transition-colors ${
-                            i === 1
-                              ? "bg-[#d4af35]/10 text-[#d4af35] border border-[#d4af35]/30"
-                              : "text-slate-500 hover:text-[#d4af35]"
-                          }`}
-                        >
-                          {tone}
-                        </button>
-                      ))}
-                    </div>
-                    <button
-                      onClick={handleCopy}
-                      className="text-[#d4af35] hover:brightness-110 flex items-center gap-1 transition-all"
-                    >
-                      {copied ? <CheckCheck className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                      <span className="text-[10px] font-bold uppercase">{copied ? "Copiado!" : "Copiar"}</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Histórico de Imóveis */}
-                <div className={`${glass} rounded-xl p-5 flex-1`}>
-                  <div className="flex items-center gap-2 mb-4">
-                    <Building2 className="w-4 h-4 text-[#d4af35]" />
-                    <h3 className="text-[10px] font-bold uppercase tracking-widest text-slate-300">Imóveis Interagidos</h3>
-                  </div>
-
-                  {interactions.length === 0 ? (
-                    <p className="text-xs text-slate-600 italic">Nenhum imóvel enviado ou interagido.</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {interactions.map(i => <PropertyCard key={i.id} interaction={i} />)}
-                    </div>
-                  )}
-                </div>
-
-                {/* Orbit Selection — portal do cliente */}
-                <div className="p-4 pt-0">
+                {/* Orbit Selection — protagonista */}
+                <div className="flex-1 min-h-0 p-4 pt-0">
                   {leadId && <OrbitSelectionPanel leadId={leadId} />}
                 </div>
 
