@@ -57,7 +57,7 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
 
   const handleWhatsApp = (item?: SelectionItem) => {
     // If the space has a linked operator phone, or fallback to environment variable
-    const phone = space?.operator_phone || process.env.NEXT_PUBLIC_CONSULTANT_PHONE || "5511999999999"
+    const phone = space?.operator_phone || process.env.NEXT_PUBLIC_CONSULTANT_PHONE || "555182237325"
     let text = `Olá! Estou vendo o seu espaço Orbit Selection.`
     if (item) {
       text += ` Gostaria de saber mais sobre o imóvel: ${item.title}`
@@ -196,7 +196,7 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
               {firstName[0]}
             </div>
             <a 
-              href={`https://wa.me/${space?.operator_phone || process.env.NEXT_PUBLIC_CONSULTANT_PHONE || "5511999999999"}?text=Olá, ${firstName}! Estou vendo o portal.`} 
+              href={`https://wa.me/${space?.operator_phone || process.env.NEXT_PUBLIC_CONSULTANT_PHONE || "555182237325"}?text=Olá, ${firstName}! Estou vendo o portal.`} 
               target="_blank"
               className="flex items-center gap-2 px-[14px] py-[6px] rounded-[8px] bg-[var(--match-bg)] border border-[rgba(90,122,74,0.18)] text-[var(--match)] text-xs font-medium hover:bg-[rgba(90,122,74,0.14)] transition-all ml-2"
             >
