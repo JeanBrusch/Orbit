@@ -32,15 +32,16 @@ interface ClientSelectionViewProps {
     lead: any;
     preferences: any;
     items: SelectionItem[];
+    initialInteractions?: Record<string, string[]>;
   };
   slug: string;
 }
 
 export default function ClientSelectionView({ data, slug }: ClientSelectionViewProps) {
-  const { space, lead, preferences, items } = data
+  const { space, lead, preferences, items, initialInteractions } = data
   const theme = space.theme || "paper"
   const [selectedItem, setSelectedItem] = useState<SelectionItem | null>(null)
-  const [interactions, setInteractions] = useState<Record<string, string>>({})
+  const [interactions, setInteractions] = useState<Record<string, string[]>>(initialInteractions || {})
   const [questionText, setQuestionText] = useState<Record<string, string>>({})
   const [isSubmitting, setIsSubmitting] = useState<Record<string, boolean>>({})
 
@@ -68,35 +69,48 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
 
   const handleInteraction = async (itemId: string, capsuleItemId: string, state: string) => {
     if (!lead?.id) { toast.error("Erro: sessão sem identificador de lead"); return; }
-    const prevState = interactions[itemId]
+    
+    const currentStates = interactions[itemId] || []
+    const isAdding = !currentStates.includes(state)
+    
     try {
-      // Optimistic update
-      setInteractions(prev => ({ ...prev, [itemId]: state }))
+      // Optimistic update: toggle state
+      setInteractions(prev => {
+        const entry = prev[itemId] || []
+        const next = isAdding 
+          ? [...entry, state]
+          : entry.filter(s => s !== state)
+        return { ...prev, [itemId]: next }
+      })
       
+      // If adding 'discarded', we might want to remove 'favorited'/'visited', 
+      // but user said they should be concomitant. Discard is usually exclusive though.
+      // For now, let's keep them all parallel as requested.
+
       const response = await fetch('/api/property-interactions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           leadId: lead.id,
           propertyId: itemId,
-          interaction_type: state,
+          interaction_type: state, // If it's already there, we send it anyway to refresh timestamp/intent?
+          // Note: Backend currently doesn't have a "DELETE" interaction. 
+          // We just send the action.
           source: 'client_portal'
         })
       })
 
       if (!response.ok) throw new Error("Falha ao registrar")
-      toast.success(state === 'favorited' ? "Imóvel curtido!" : state === 'visited' ? "Visita solicitada!" : "Interação registrada")
+      
+      if (isAdding) {
+        toast.success(state === 'favorited' ? "Imóvel curtido!" : state === 'visited' ? "Visita solicitada!" : "Interação registrada")
+      }
     } catch (err: any) {
       // Revert optimistic update
-      setInteractions(prev => {
-        const next = { ...prev }
-        if (prevState) {
-          next[itemId] = prevState
-        } else {
-          delete next[itemId]
-        }
-        return next
-      })
+      setInteractions(prev => ({
+        ...prev,
+        [itemId]: currentStates
+      }))
       toast.error("Erro ao registrar interação")
       console.error(err)
     }
@@ -331,13 +345,19 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
                         )}
                         <button 
                           onClick={() => handleInteraction(item.id, item.capsuleItemId, 'favorited')}
-                          className={`px-3.5 py-2.5 rounded-lg border border-[rgba(28,24,18,0.12)] transition-all ${interactions[item.id] === 'favorited' ? 'bg-rose-50 text-rose-500 border-rose-200' : 'text-[var(--ink3)] hover:bg-[rgba(28,24,18,0.05)]'}`}
+                          className={`px-3.5 py-2.5 rounded-lg border border-[rgba(28,24,18,0.12)] transition-all ${interactions[item.id]?.includes('favorited') ? 'bg-rose-50 text-rose-500 border-rose-200' : 'text-[var(--ink3)] hover:bg-[rgba(28,24,18,0.05)]'}`}
                         >
-                          <Heart size={18} className={interactions[item.id] === 'favorited' ? 'fill-current' : ''} />
+                          <Heart size={18} className={interactions[item.id]?.includes('favorited') ? 'fill-current' : ''} />
+                        </button>
+                        <button 
+                          onClick={() => handleInteraction(item.id, item.capsuleItemId, 'visited')}
+                          className={`px-3.5 py-2.5 rounded-lg border border-[rgba(28,24,18,0.12)] transition-all ${interactions[item.id]?.includes('visited') ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'text-[var(--ink3)] hover:bg-[rgba(28,24,18,0.05)]'}`}
+                        >
+                          <Calendar size={18} />
                         </button>
                         <button 
                           onClick={() => handleInteraction(item.id, item.capsuleItemId, 'discarded')}
-                          className={`px-3.5 py-2.5 rounded-lg border border-[rgba(28,24,18,0.12)] transition-all ${interactions[item.id] === 'discarded' ? 'bg-gray-100 text-gray-500 border-gray-300' : 'text-[var(--ink3)] hover:bg-[rgba(28,24,18,0.05)]'}`}
+                          className={`px-3.5 py-2.5 rounded-lg border border-[rgba(28,24,18,0.12)] transition-all ${interactions[item.id]?.includes('discarded') ? 'bg-gray-100 text-gray-500 border-gray-300' : 'text-[var(--ink3)] hover:bg-[rgba(28,24,18,0.05)]'}`}
                         >
                           <XCircle size={18} />
                         </button>
@@ -477,21 +497,21 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
                     <div className="flex gap-3">
                       <button 
                         onClick={() => handleInteraction(selectedItem.id, selectedItem.capsuleItemId, 'favorited')}
-                        className={`flex-1 py-3.5 rounded-xl border transition-all flex flex-col items-center gap-1 ${interactions[selectedItem.id] === 'favorited' ? 'bg-rose-50 border-rose-200 text-rose-500' : 'border-[rgba(28,24,18,0.12)] text-[var(--ink3)] hover:bg-[rgba(28,24,18,0.02)]'}`}
+                        className={`flex-1 py-3.5 rounded-xl border transition-all flex flex-col items-center gap-1 ${interactions[selectedItem.id]?.includes('favorited') ? 'bg-rose-50 border-rose-200 text-rose-500' : 'border-[rgba(28,24,18,0.12)] text-[var(--ink3)] hover:bg-[rgba(28,24,18,0.02)]'}`}
                       >
-                        <Heart size={20} className={interactions[selectedItem.id] === 'favorited' ? 'fill-current' : ''} />
+                        <Heart size={20} className={interactions[selectedItem.id]?.includes('favorited') ? 'fill-current' : ''} />
                         <span className="text-[10px] font-mono uppercase tracking-widest font-medium">Curtir</span>
                       </button>
                       <button 
                         onClick={() => handleInteraction(selectedItem.id, selectedItem.capsuleItemId, 'visited')}
-                        className={`flex-1 py-3.5 rounded-xl border transition-all flex flex-col items-center gap-1 ${interactions[selectedItem.id] === 'visited' ? 'bg-emerald-50 border-emerald-200 text-emerald-600' : 'border-[rgba(28,24,18,0.12)] text-[var(--ink3)] hover:bg-[rgba(28,24,18,0.02)]'}`}
+                        className={`flex-1 py-3.5 rounded-xl border transition-all flex flex-col items-center gap-1 ${interactions[selectedItem.id]?.includes('visited') ? 'bg-emerald-50 border-emerald-200 text-emerald-600' : 'border-[rgba(28,24,18,0.12)] text-[var(--ink3)] hover:bg-[rgba(28,24,18,0.02)]'}`}
                       >
                         <Calendar size={20} />
                         <span className="text-[10px] font-mono uppercase tracking-widest font-medium">Visitar</span>
                       </button>
                       <button 
                         onClick={() => handleInteraction(selectedItem.id, selectedItem.capsuleItemId, 'discarded')}
-                        className={`flex-1 py-3.5 rounded-xl border transition-all flex flex-col items-center gap-1 ${interactions[selectedItem.id] === 'discarded' ? 'bg-gray-100 border-gray-300 text-gray-500' : 'border-[rgba(28,24,18,0.12)] text-[var(--ink3)] hover:bg-[rgba(28,24,18,0.02)]'}`}
+                        className={`flex-1 py-3.5 rounded-xl border transition-all flex flex-col items-center gap-1 ${interactions[selectedItem.id]?.includes('discarded') ? 'bg-gray-100 border-gray-300 text-gray-500' : 'border-[rgba(28,24,18,0.12)] text-[var(--ink3)] hover:bg-[rgba(28,24,18,0.02)]'}`}
                       >
                         <XCircle size={20} />
                         <span className="text-[10px] font-mono uppercase tracking-widest font-medium">Ignorar</span>

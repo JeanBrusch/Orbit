@@ -70,6 +70,7 @@ async function sendInteractionEmail(opts: {
     </div>
   `
 
+  console.log('[PROP_INT] Attempting to send email...', { type: opts.interactionType, to: notifyEmail });
   try {
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -78,16 +79,18 @@ async function sendInteractionEmail(opts: {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        from: 'Orbit <notifications@orbit.house>',
+        from: 'Orbit <onboarding@resend.dev>', // Use Resend default for testing if domain not verified
         to: notifyEmail,
         subject: `${label} — ${opts.leadName}`,
         html,
       })
     })
 
+    const resData = await response.json().catch(() => ({}))
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}))
-      console.error('[PROP_INT] Resend API error:', errorData)
+      console.error('[PROP_INT] Resend API error:', resData)
+    } else {
+      console.log('[PROP_INT] Email sent successfully:', resData.id)
     }
   } catch (emailErr) {
     console.error('[PROP_INT] Email notification network error:', emailErr)
@@ -104,16 +107,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'leadId é obrigatório' }, { status: 400 })
     }
 
-    console.log("[API GET PROP_INT] Fetching for leadId:", leadId);
     const supabase = getSupabaseServer()
     const { data, error } = await supabase
       .from('property_interactions')
       .select('*')
       .eq('lead_id', leadId)
       .order('timestamp', { ascending: false })
-
-    console.log("[API GET PROP_INT] Query result length:", data?.length || 0);
-    if (error) console.error("[API GET PROP_INT] Supabase error:", error);
 
     if (error) {
       console.error('[PROP_INT] Error fetching:', error)

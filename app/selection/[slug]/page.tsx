@@ -62,6 +62,25 @@ async function getSelectionData(slug: string) {
     .select('*')
     .eq('client_space_id', space.id)
 
+  // 5. Get Historical Interactions for Persistence
+  const { data: interactionsRaw } = await supabase
+    .from('property_interactions')
+    .select('property_id, interaction_type')
+    .eq('lead_id', leadId)
+    .eq('source', 'client_portal')
+
+  const initialInteractions: Record<string, string[]> = {}
+  if (interactionsRaw) {
+    interactionsRaw.forEach(int => {
+      if (!initialInteractions[int.property_id]) {
+        initialInteractions[int.property_id] = []
+      }
+      if (!initialInteractions[int.property_id].includes(int.interaction_type)) {
+        initialInteractions[int.property_id].push(int.interaction_type)
+      }
+    })
+  }
+
   const contextMap = new Map((contexts || []).map(c => [c.property_id, c]))
 
   const items = (capsuleItems || [])
@@ -95,7 +114,8 @@ async function getSelectionData(slug: string) {
     space,
     lead: lead ? { ...lead, id: lead.id ?? leadId } : { id: leadId, name: null, photo_url: null },
     preferences: prefs,
-    items
+    items,
+    initialInteractions
   }
 }
 
