@@ -486,7 +486,7 @@ export default function LeadTerminalPage({ params }: { params: Promise<{ id: str
   // ── Render ─────────────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
+      <div className="h-[100dvh] bg-[#0a0a0a] flex items-center justify-center">
         <div className="flex gap-1.5">
           {[0, 1, 2].map(i => (
             <div key={i} className="w-1.5 h-1.5 rounded-full bg-[#d4af35]/50 animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
@@ -498,7 +498,7 @@ export default function LeadTerminalPage({ params }: { params: Promise<{ id: str
 
   if (!lead) {
     return (
-      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center text-slate-500 text-sm">
+      <div className="h-[100dvh] bg-[#0a0a0a] flex items-center justify-center text-slate-500 text-sm">
         Lead não encontrado
       </div>
     )
@@ -507,7 +507,7 @@ export default function LeadTerminalPage({ params }: { params: Promise<{ id: str
   const cog = cognitive
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-slate-100 flex flex-col overflow-hidden font-sans"
+    <div className="h-[100dvh] bg-[#0a0a0a] text-slate-100 flex flex-col overflow-hidden font-sans"
       style={{ fontFamily: "'Inter', sans-serif" }}>
 
       {/* ── Background layer ── */}
