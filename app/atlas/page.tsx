@@ -24,14 +24,15 @@ const MapModal = dynamic(() => import("@/components/atlas/MapModal"), { ssr: fal
 const EditPropertyModal = dynamic(() => import("@/components/atlas/EditPropertyModal"), { ssr: false })
 
 // ── Aesthetics & Tokens ──────────────────────────────────────────────────────
-const paper = {
-  bg: "#f5f1eb",
-  bgSecondary: "#ede8df",
-  border: "rgba(28, 24, 18, 0.08)",
-  ink: "#1c1812",
-  inkMuted: "#8a7f70",
-  gold: "#a07828",
-  goldBg: "rgba(160, 120, 40, 0.07)",
+const theme = {
+  bg: "#05060a",
+  bgSecondary: "#0b1220",
+  border: "rgba(46, 197, 255, 0.15)",
+  glass: "rgba(15, 23, 42, 0.65)",
+  ink: "#e6eef6",
+  inkMuted: "#94a3b8",
+  accent: "#2ec5ff",
+  accentBg: "rgba(46, 197, 255, 0.1)",
 }
 
 // ── Components ───────────────────────────────────────────────────────────────
@@ -52,52 +53,52 @@ function PropertyCard({
       layout
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`group relative bg-white border ${isSelected ? 'border-[#a07828] ring-1 ring-[#a07828]/20' : 'border-[rgba(28,24,18,0.07)]'} rounded-xl overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer`}
+      className={`group relative bg-[#0b1220] border ${isSelected ? 'border-[#2ec5ff] ring-1 ring-[#2ec5ff]/30 shadow-[0_0_15px_rgba(46,197,255,0.15)]' : 'border-[rgba(46,197,255,0.1)]'} rounded-xl overflow-hidden hover:shadow-[0_4px_20px_rgba(46,197,255,0.08)] hover:border-[#2ec5ff]/40 transition-all duration-300 cursor-pointer`}
       onClick={() => onToggleSelect(property)}
     >
-      <div className="aspect-[16/10] overflow-hidden bg-[#ede8df]">
+      <div className="aspect-[16/10] overflow-hidden bg-[#05060a]/50">
         {property.cover_image ? (
           <img 
             src={property.cover_image} 
             alt={property.title} 
-            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 opacity-90 group-hover:opacity-100"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-[#8a7f70]">
+          <div className="w-full h-full flex items-center justify-center text-[#94a3b8]">
             <Building2 className="h-8 w-8 opacity-20" />
           </div>
         )}
         
-        <div className="absolute top-3 left-3 px-2 py-1 rounded-full bg-white/90 backdrop-blur-sm border border-black/5 text-[9px] font-mono uppercase tracking-wider text-[#a07828]">
+        <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-[#05060a]/60 backdrop-blur-md border border-[#2ec5ff]/20 text-[9px] font-mono uppercase tracking-wider text-[#2ec5ff] shadow-sm">
           Curadoria Orbit
         </div>
 
         {isSelected && (
-          <div className="absolute inset-0 bg-[#a07828]/10 flex items-center justify-center">
-            <div className="bg-[#a07828] text-white p-2 rounded-full shadow-lg">
-              <Check className="h-4 w-4" />
+          <div className="absolute inset-0 bg-[#2ec5ff]/10 flex items-center justify-center backdrop-blur-[1px]">
+            <div className="bg-[#2ec5ff] text-[#05060a] p-2.5 rounded-full shadow-[0_0_15px_rgba(46,197,255,0.4)]">
+              <Check className="h-4 w-4 stroke-[3px]" />
             </div>
           </div>
         )}
       </div>
 
-      <div className="p-4">
-        <div className="flex justify-between items-start mb-1">
-          <h3 className="font-serif text-lg text-[#1c1812] leading-tight group-hover:text-[#a07828] transition-colors">
+      <div className="p-5">
+        <div className="flex justify-between items-start mb-2">
+          <h3 className="font-sans text-[15px] font-medium text-[#e6eef6] leading-tight group-hover:text-[#2ec5ff] transition-colors pr-2">
             {property.title || property.internal_name || "Sem título"}
           </h3>
-          <span className="text-sm font-serif font-medium text-[#1c1812]">
+          <span className="text-sm font-sans font-medium text-[#e6eef6] whitespace-nowrap">
             {property.value ? `R$ ${(property.value / 1000000).toFixed(1)}M` : "Sob consulta"}
           </span>
         </div>
         
-        <p className="text-[11px] text-[#8a7f70] mb-2 flex items-center gap-1">
-          <MapIcon className="h-3 w-3" />
+        <p className="text-[11px] text-[#94a3b8] mb-3 flex items-center gap-1.5 font-medium">
+          <MapIcon className="h-3 w-3 text-[#2ec5ff]/70" />
           {property.location_text || "Localização não informada"}
         </p>
 
         {property.payment_conditions && (
-          <div className="mb-3 px-2 py-1 bg-[#a07828]/5 border border-[#a07828]/10 rounded text-[9px] text-[#a07828] font-mono italic">
+          <div className="mb-4 px-2.5 py-1.5 bg-[#2ec5ff]/5 border border-[#2ec5ff]/15 rounded-md text-[10px] text-[#2ec5ff] font-sans font-medium">
             {typeof property.payment_conditions === 'object' 
               ? (property.payment_conditions.custom || JSON.stringify(property.payment_conditions))
               : property.payment_conditions
@@ -105,15 +106,15 @@ function PropertyCard({
           </div>
         )}
 
-        <div className="flex items-center gap-2 mt-4 pt-4 border-t border-[rgba(28,24,18,0.05)]">
-          <Button variant="ghost" size="sm" className="h-8 text-[10px] uppercase tracking-widest font-mono text-[#8a7f70] hover:text-[#1c1812]">
+        <div className="flex items-center gap-2 pt-4 border-t border-[rgba(46,197,255,0.1)]">
+          <Button variant="ghost" size="sm" className="h-8 px-2 text-[10px] uppercase tracking-widest font-mono text-[#94a3b8] hover:text-[#e6eef6] hover:bg-white/5">
             Ver Detalhes
           </Button>
-          <div className="ml-auto flex gap-1">
+          <div className="ml-auto flex gap-1.5">
             <Button 
               size="icon" 
               variant="ghost" 
-              className={`h-8 w-8 rounded-full border border-black/5 ${isSelected ? 'bg-[#a07828] text-white hover:bg-[#a07828]/90' : ''}`}
+              className={`h-8 w-8 rounded-full border ${isSelected ? 'border-[#2ec5ff] bg-[#2ec5ff] text-[#05060a] hover:bg-[#2ec5ff]/90 shadow-[0_0_10px_rgba(46,197,255,0.3)]' : 'border-[rgba(46,197,255,0.1)] text-[#94a3b8] hover:border-[#2ec5ff]/40 hover:text-[#2ec5ff] hover:bg-[#2ec5ff]/5'}`}
               onClick={(e) => {
                 e.stopPropagation()
                 onToggleSelect(property)
@@ -125,7 +126,7 @@ function PropertyCard({
               <Button 
                 size="icon" 
                 variant="ghost" 
-                className="h-8 w-8 rounded-full border border-black/5 hover:text-[#a07828]"
+                className="h-8 w-8 rounded-full border border-[rgba(46,197,255,0.1)] text-[#94a3b8] hover:border-[#2ec5ff]/40 hover:text-[#2ec5ff] hover:bg-[#2ec5ff]/5"
                 onClick={(e) => {
                   e.stopPropagation()
                   onEdit(property)
@@ -482,50 +483,52 @@ function AtlasManagerContent() {
 
   if (propsLoading || leadsLoading) {
     return (
-      <div className="min-h-screen bg-[#f5f1eb] flex items-center justify-center">
+      <div className="min-h-screen bg-[#05060a] flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
-          <Loader2 className="h-8 w-8 animate-spin text-[#a07828]" />
-          <span className="font-mono text-[10px] uppercase tracking-widest text-[#8a7f70]">Carregando Acervo...</span>
+          <Loader2 className="h-8 w-8 animate-spin text-[#2ec5ff]" />
+          <span className="font-mono text-[10px] uppercase tracking-widest text-[#94a3b8]">Carregando Manager...</span>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-[#f5f1eb] text-[#1c1812] relative overflow-hidden font-sans selection:bg-[#a07828]/20 flex flex-col h-screen">
+    <div className="min-h-screen bg-[#05060a] text-[#e6eef6] relative overflow-hidden font-sans flex flex-col h-screen dark">
+      {/* Decorative Glows */}
+      <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-[#2ec5ff]/5 blur-[120px] rounded-full pointer-events-none" />
+      <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-[#2ec5ff]/5 blur-[120px] rounded-full pointer-events-none" />
+      
       {/* Grain */}
       <div className="fixed inset-0 z-50 pointer-events-none" style={grainStyle} />
 
       {/* Modern Unified Header */}
-      <header className="h-20 border-b border-[rgba(28,24,18,0.05)] bg-[#f5f1eb]/80 backdrop-blur-md flex items-center px-10 gap-8 sticky top-0 z-30 shrink-0">
-        <div className="flex items-center gap-3 pr-8 border-r border-[rgba(28,24,18,0.1)]">
+      <header className="h-[72px] border-b border-[rgba(46,197,255,0.15)] bg-[#0b1220]/80 backdrop-blur-xl flex items-center px-8 gap-6 sticky top-0 z-30 shrink-0">
+        <div className="flex items-center gap-4 pr-6 border-r border-[rgba(46,197,255,0.15)]">
           <Button 
             variant="ghost" 
-            className="h-10 px-3 rounded-xl bg-white/50 border border-[rgba(28,24,18,0.1)] hover:bg-white transition-all shadow-sm gap-1.5"
+            className="h-9 px-3 rounded-xl bg-white/5 border border-[rgba(46,197,255,0.1)] hover:bg-white/10 hover:border-[rgba(46,197,255,0.2)] text-[#94a3b8] hover:text-[#e6eef6] transition-all gap-1.5"
             onClick={() => window.history.back()}
           >
             <ChevronLeft className="h-4 w-4" />
-            <span className="text-[10px] font-mono uppercase tracking-widest font-bold text-[#1c1812]">Voltar</span>
           </Button>
-          <div className="w-10 h-10 rounded-xl bg-[#1c1812] flex items-center justify-center text-[#f5f1eb] shadow-lg shadow-black/10">
-            <Compass className="h-5 w-5" />
+          <div className="w-9 h-9 rounded-xl bg-[#2ec5ff]/10 border border-[#2ec5ff]/20 flex items-center justify-center text-[#2ec5ff] shadow-[0_0_15px_rgba(46,197,255,0.15)]">
+            <Compass className="h-4 w-4" />
           </div>
           <div>
-            <h1 className="font-serif text-xl tracking-tight">Atlas Manager</h1>
-            <p className="font-mono text-[9px] uppercase tracking-widest text-[#a07828]">Intelligence Hub</p>
+            <h1 className="font-sans font-semibold text-lg tracking-tight text-[#e6eef6] leading-none mb-1">Atlas Manager</h1>
+            <p className="font-mono text-[9px] uppercase tracking-[0.2em] text-[#2ec5ff]/80 font-bold">Intelligence Hub</p>
           </div>
         </div>
 
-        <nav className="flex items-center gap-1 p-1 bg-[#ede8df] rounded-lg border border-[rgba(28,24,18,0.05)]">
+        <nav className="flex items-center gap-1 p-1 bg-white/5 rounded-lg border border-[rgba(46,197,255,0.1)]">
           {[
             { id: 'curadoria', label: 'Curadoria', icon: Sparkles },
-            { id: 'acervo', label: 'Acervo', icon: Building2 },
             { id: 'selections', label: 'Selections', icon: Sparkles },
           ].map((tab) => (
             <button
-              key={tab.id}
+               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-[11px] font-mono uppercase tracking-wider transition-all ${activeTab === tab.id ? 'bg-white text-[#1c1812] shadow-sm border border-[rgba(28,24,18,0.08)]' : 'text-[#8a7f70] hover:text-[#1c1812]'}`}
+              className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-[11px] font-mono uppercase tracking-wider transition-all ${activeTab === tab.id ? 'bg-[#2ec5ff]/10 text-[#2ec5ff] shadow-sm border border-[#2ec5ff]/20' : 'text-[#94a3b8] hover:text-[#e6eef6] hover:bg-white/5'}`}
             >
               <tab.icon className="h-3.5 w-3.5" />
               {tab.label}
@@ -533,8 +536,8 @@ function AtlasManagerContent() {
           ))}
         </nav>
 
-        <div className="flex-1 max-w-xl relative group">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8a7f70] transition-colors group-focus-within:text-[#a07828]" />
+        <div className="flex-1 max-w-xl relative group ml-2">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-[#94a3b8] transition-colors group-focus-within:text-[#2ec5ff]" />
           <form onSubmit={handleNaturalSearch}>
             <div className="relative">
               <Input 
@@ -543,22 +546,25 @@ function AtlasManagerContent() {
                   setNaturalSearch(e.target.value)
                   if (!e.target.value) setFilteredIds(null)
                 }}
-                placeholder="Busca Natural: 'Apartamento 3 dorms no centro com piscina'..."
-                className="w-full pl-12 h-11 bg-[#ede8df] border-none rounded-2xl text-sm placeholder:text-[#8a7f70]/60 focus:ring-2 focus:ring-[#a07828]/20 transition-all font-serif italic"
+                placeholder="Busca Semântica Cognitive: 'Apartamento 3 dorms com varanda'..."
+                className="w-full pl-12 h-10 bg-[#05060a]/50 border border-[rgba(46,197,255,0.1)] rounded-xl text-sm text-[#e6eef6] placeholder:text-[#94a3b8]/50 focus:border-[#2ec5ff]/40 focus:ring-1 focus:ring-[#2ec5ff]/40 transition-all font-sans"
               />
               {isSearchingNatural && (
                 <div className="absolute right-12 top-1/2 -translate-y-1/2">
-                  <Loader2 className="h-4 w-4 animate-spin text-[#a07828]" />
+                  <Loader2 className="h-4 w-4 animate-spin text-[#2ec5ff]" />
                 </div>
               )}
             </div>
           </form>
           {naturalSearch && (
             <button 
-              onClick={() => setNaturalSearch("")}
-              className="absolute right-4 top-1/2 -translate-y-1/2 p-1 hover:bg-black/5 rounded-full"
+              onClick={() => {
+                setNaturalSearch("")
+                setFilteredIds(null)
+              }}
+              className="absolute right-4 top-1/2 -translate-y-1/2 p-1 hover:bg-white/10 rounded-full transition-colors"
             >
-              <X className="h-3 w-3 text-[#8a7f70]" />
+              <X className="h-3 w-3 text-[#94a3b8]" />
             </button>
           )}
         </div>
@@ -570,25 +576,25 @@ function AtlasManagerContent() {
               setIsIngestModalOpen(true)
             }}
             variant="ghost"
-            className="h-10 px-4 border border-[rgba(28,24,18,0.1)] rounded-xl flex items-center gap-2 hover:bg-black/5 transition-all"
+            className="h-10 px-4 border border-[rgba(46,197,255,0.15)] rounded-xl flex items-center gap-2 hover:bg-[#2ec5ff]/5 hover:border-[#2ec5ff]/30 text-[#e6eef6] transition-all shadow-sm"
           >
-            <Link2 className="h-4 w-4 text-[#a07828]" />
-            <span className="text-[10px] font-mono uppercase tracking-widest font-bold text-[#8a7f70]">Cadastro por Link</span>
+            <Link2 className="h-4 w-4 text-[#2ec5ff]" />
+            <span className="text-[10px] font-mono uppercase tracking-widest font-bold">Cadastro URL</span>
           </Button>
 
           <Button 
             onClick={() => setIsVoiceModalOpen(true)}
-            className="h-10 px-5 bg-[#a07828] hover:bg-[#8a651e] text-white rounded-xl flex items-center gap-2 shadow-lg shadow-[#a07828]/20 transition-all group"
+            className="h-10 px-5 bg-[#2ec5ff] hover:bg-[#2ec5ff]/90 text-[#05060a] rounded-xl flex items-center gap-2 shadow-[0_0_20px_rgba(46,197,255,0.25)] transition-all group border border-[#2ec5ff]/20 font-bold"
           >
             <Mic className="h-4 w-4 group-hover:scale-110 transition-transform" />
-            <span className="text-[10px] font-mono uppercase tracking-widest font-bold">Cadastro por Voz</span>
+            <span className="text-[10px] font-mono uppercase tracking-widest">Cadastro Voz</span>
           </Button>
         </div>
       </header>
 
       <div className="flex-1 flex overflow-hidden">
         {/* Main Side View */}
-        <main className="flex-1 overflow-y-auto p-10 custom-scrollbar bg-white/30">
+        <main className="flex-1 overflow-y-auto p-10 custom-scrollbar relative z-10">
           <AnimatePresence mode="wait">
             {activeTab === 'curadoria' && (
               <motion.div 
@@ -598,35 +604,35 @@ function AtlasManagerContent() {
                 exit={{ opacity: 0, y: -10 }}
                 className="max-w-7xl mx-auto space-y-8"
               >
-                <div className="flex items-center justify-between border-b border-[rgba(28,24,18,0.05)] pb-6">
+                <div className="flex items-center justify-between border-b border-[rgba(46,197,255,0.15)] pb-6">
                   <div>
-                    <h2 className="font-serif text-3xl">Curadoria Inteligente</h2>
-                    <p className="text-sm text-[#8a7f70] mt-1 font-serif italic">Ativos recomendados para leads estratégicos.</p>
+                    <h2 className="font-sans font-medium text-2xl text-[#e6eef6]">Curadoria Inteligente</h2>
+                    <p className="text-xs text-[#94a3b8] mt-1 font-sans">Ativos recomendados para leads estratégicos da Orbit.</p>
                   </div>
                   
                   <div className="flex items-center gap-3">
                     <div className="relative">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#8a7f70]" />
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#94a3b8]" />
                       <Input 
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        placeholder="Filtrar por texto..."
-                        className="pl-9 h-9 w-48 text-xs bg-white border border-[rgba(28,24,18,0.1)] rounded-lg shadow-sm"
+                        placeholder="Filtrar base..."
+                        className="pl-9 h-9 w-48 text-xs bg-[#0b1220] border border-[rgba(46,197,255,0.2)] rounded-lg text-[#e6eef6] placeholder:text-[#94a3b8]/60 focus:border-[#2ec5ff]/40 shadow-sm transition-all"
                       />
                     </div>
-                    <Button variant="outline" size="sm" className="h-9 px-4 gap-2 text-xs border-[rgba(28,24,18,0.1)] hover:bg-[#ede8df]">
-                      <Filter className="h-3.5 w-3.5" />
+                    <Button variant="outline" size="sm" className="h-9 px-4 gap-2 text-xs border-[rgba(46,197,255,0.2)] text-[#e6eef6] bg-[#0b1220] hover:bg-white/5 hover:border-[#2ec5ff]/40 transition-colors">
+                      <Filter className="h-4 w-4 text-[#94a3b8]" />
                       Filtros
                     </Button>
-                    <div className="w-px h-8 bg-[rgba(28,24,18,0.1)] mx-2" />
+                    <div className="w-px h-8 bg-[rgba(46,197,255,0.15)] mx-2" />
                     <Button 
                       onClick={() => setIsMapModalOpen(true)}
                       variant="outline" 
                       size="sm" 
-                      className="h-9 px-4 gap-2 bg-white border border-[#a07828]/20 text-[10px] font-mono uppercase tracking-wider text-[#a07828] hover:bg-[#a07828]/5"
+                      className="h-9 px-4 gap-2 bg-[#2ec5ff]/10 border border-[#2ec5ff]/30 text-[10px] font-mono uppercase tracking-wider text-[#2ec5ff] hover:bg-[#2ec5ff]/20 hover:border-[#2ec5ff]/50 shadow-[0_0_10px_rgba(46,197,255,0.1)] transition-all"
                     >
                       <MapIcon className="h-3.5 w-3.5" />
-                      Mapa
+                      Visualizar no Mapa
                     </Button>
                   </div>
                 </div>
@@ -648,41 +654,7 @@ function AtlasManagerContent() {
               </motion.div>
             )}
 
-            {activeTab === 'acervo' && (
-              <motion.div 
-                key="acervo"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className="max-w-7xl mx-auto space-y-8"
-              >
-                 <div className="flex items-center justify-between border-b border-[rgba(28,24,18,0.05)] pb-6">
-                  <div>
-                    <h2 className="font-serif text-3xl">Acervo Completo</h2>
-                    <p className="text-sm text-[#8a7f70] mt-1 font-serif italic">{properties.length} registros no sistema.</p>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {properties.map(prop => (
-                    <div key={prop.id} className="p-3 bg-white rounded-xl border border-[rgba(28,24,18,0.05)] shadow-sm hover:shadow-md transition-shadow group">
-                      <div className="aspect-square rounded-lg bg-[#f5f1eb] overflow-hidden mb-3 relative">
-                        {prop.cover_image && <img src={prop.cover_image} className="w-full h-full object-cover" />}
-                        <button 
-                          onClick={() => togglePropertySelection(prop)}
-                          className={`absolute bottom-2 right-2 p-1.5 rounded-lg border shadow-sm transition-all ${selectedPropertyIds.has(prop.id) ? 'bg-[#a07828] text-white border-[#a07828]' : 'bg-white/90 text-[#8a7f70] border-black/5 hover:bg-white'}`}
-                        >
-                          {selectedPropertyIds.has(prop.id) ? <Check size={14} /> : <Plus size={14} />}
-                        </button>
-                      </div>
-                      <p className="font-serif text-sm truncate leading-tight">{prop.title || prop.internal_name}</p>
-                      <p className="text-[10px] text-[#a07828] font-bold mt-1 uppercase tracking-tighter">
-                        {prop.value ? `R$ ${(prop.value / 1000).toFixed(0)}k` : 'Sob consulta'}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </motion.div>
-            )}
+
 
             {activeTab === 'selections' && (
               <motion.div 
@@ -699,81 +671,79 @@ function AtlasManagerContent() {
         </main>
 
         {/* Orbit Selection Sidebar */}
-        <aside className="w-80 bg-white border-l border-[rgba(28,24,18,0.08)] flex flex-col relative z-20 shadow-[-10px_0_40px_rgba(0,0,0,0.03)] selection:bg-[#a07828]/10 shrink-0">
-          <div className="p-6 border-b border-[rgba(28,24,18,0.05)] bg-[#fdfaf5]">
+        <aside className="w-80 bg-[#0b1220] border-l border-[rgba(46,197,255,0.12)] flex flex-col relative z-20 shadow-[-10px_0_40px_rgba(0,0,0,0.3)] shrink-0">
+          <div className="p-6 border-b border-[rgba(46,197,255,0.12)] bg-[#05060a]/60">
             <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 rounded-lg bg-[#a07828]/10 text-[#a07828]">
+              <div className="flex items-center gap-2.5">
+                <div className="p-1.5 rounded-lg bg-[#2ec5ff]/10 border border-[#2ec5ff]/20 text-[#2ec5ff]">
                   <ShoppingCart className="h-4 w-4" />
                 </div>
-                <h2 className="font-serif text-lg tracking-tight">Orbit Selection</h2>
+                <h2 className="font-sans font-semibold text-[#e6eef6] text-base tracking-tight">Orbit Selection</h2>
               </div>
               {selectedPropertyIds.size > 0 && (
                 <button 
                   onClick={() => setSelectedPropertyIds(new Set())}
-                  className="text-[9px] font-mono uppercase tracking-widest text-red-400 hover:text-red-500"
+                  className="text-[9px] font-mono uppercase tracking-widest text-red-400/70 hover:text-red-400 transition-colors"
                 >
                   Limpar
                 </button>
               )}
             </div>
             
-            <div className="p-4 bg-white/50 rounded-xl border border-[#a07828]/10 shadow-[inner_0_2px_4px_rgba(0,0,0,0.02)]">
+            <div className="p-4 bg-[#2ec5ff]/5 rounded-xl border border-[#2ec5ff]/15">
               <div className="flex justify-between items-baseline mb-1">
-                <span className="font-mono text-[9px] uppercase tracking-wider text-[#8a7f70]">Carrinho Ativo</span>
-                <span className="font-serif text-2xl text-[#a07828]">{selectedPropertyIds.size}</span>
+                <span className="font-mono text-[9px] uppercase tracking-wider text-[#94a3b8]">Carrinho Ativo</span>
+                <span className="font-sans font-bold text-2xl text-[#2ec5ff]">{selectedPropertyIds.size}</span>
               </div>
-              <p className="text-[10px] text-[#8a7f70] font-serif italic">Imóveis prontos para curadoria</p>
+              <p className="text-[10px] text-[#94a3b8] font-sans">Imóveis prontos para curadoria</p>
             </div>
           </div>
 
           <div className="flex-1 overflow-y-auto p-6 space-y-8 custom-scrollbar">
             {/* Target Lead Selection */}
             <div className="space-y-4">
-              <label className="font-mono text-[9px] uppercase tracking-[0.2em] text-[#8a7f70] flex items-center gap-2">
+              <label className="font-mono text-[9px] uppercase tracking-[0.2em] text-[#94a3b8] flex items-center gap-2">
                 <Users size={10} /> 1. Lead Destinatário
               </label>
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#8a7f70]" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#94a3b8]" />
                 <Input 
                   value={leadSearch}
                   onChange={(e) => setLeadSearch(e.target.value)}
                   placeholder="Buscar lead para envio..."
-                  className="pl-9 h-10 text-xs border-[rgba(28,24,18,0.1)] focus:border-[#a07828]/30 rounded-xl bg-[#fdfaf5]"
+                  className="pl-9 h-10 text-xs border border-[rgba(46,197,255,0.15)] focus:border-[#2ec5ff]/40 rounded-xl bg-[#05060a]/50 text-[#e6eef6] placeholder:text-[#94a3b8]/50"
                 />
               </div>
 
               <div className="space-y-1.5">
                 {selectedLeadId && searchParams.get('leadId') === selectedLeadId ? (
-                  // Locked version when coming from specific lead panel
-                  <div className="w-full flex items-center gap-3 p-3 rounded-xl border border-[#a07828]/40 bg-[#a07828]/5 shadow-sm">
-                    <div className="w-9 h-9 rounded-lg bg-[#ede8df] flex items-center justify-center border border-black/5 text-[11px] font-bold text-[#1c1812]">
+                  <div className="w-full flex items-center gap-3 p-3 rounded-xl border border-[#2ec5ff]/30 bg-[#2ec5ff]/5 shadow-sm">
+                    <div className="w-9 h-9 rounded-lg bg-[#0b1220] border border-[#2ec5ff]/20 flex items-center justify-center text-[11px] font-bold text-[#2ec5ff]">
                       {leads?.find(l => l.id === selectedLeadId)?.name[0] || 'L'}
                     </div>
                     <div className="flex-1 text-left min-w-0">
-                      <p className="text-[12px] font-semibold leading-none truncate text-[#1c1812]">
+                      <p className="text-[12px] font-semibold leading-none truncate text-[#e6eef6]">
                         {leads?.find(l => l.id === selectedLeadId)?.name || 'Lead Selecionado'}
                       </p>
-                      <p className="text-[9px] text-[#a07828] mt-1 uppercase font-mono tracking-widest font-bold">Lid Ativo</p>
+                      <p className="text-[9px] text-[#2ec5ff] mt-1 uppercase font-mono tracking-widest font-bold">Lid Ativo</p>
                     </div>
-                    <Check className="h-4 w-4 text-[#a07828]" />
+                    <Check className="h-4 w-4 text-[#2ec5ff]" />
                   </div>
                 ) : (
-                  // Search results version
                   filteredLeads.map(lead => (
                     <button
                       key={lead.id}
                       onClick={() => setSelectedLeadId(lead.id)}
-                      className={`w-full flex items-center gap-3 p-2.5 rounded-xl border transition-all ${selectedLeadId === lead.id ? 'bg-[#a07828]/5 border-[#a07828]/30 shadow-sm' : 'border-transparent hover:bg-[#ede8df]/30'}`}
+                      className={`w-full flex items-center gap-3 p-2.5 rounded-xl border transition-all ${selectedLeadId === lead.id ? 'bg-[#2ec5ff]/5 border-[#2ec5ff]/25 shadow-sm' : 'border-transparent hover:bg-white/5'}`}
                     >
-                      <div className="w-8 h-8 rounded-lg bg-[#ede8df] flex items-center justify-center border border-black/5 text-[10px] font-bold text-[#1c1812]">
+                      <div className="w-8 h-8 rounded-lg bg-[#0b1220] border border-[rgba(46,197,255,0.1)] flex items-center justify-center text-[10px] font-bold text-[#e6eef6]">
                         {lead.name[0]}
                       </div>
                       <div className="flex-1 text-left min-w-0">
-                        <p className="text-[11px] font-medium leading-none truncate">{lead.name}</p>
-                        <p className="text-[9px] text-[#8a7f70] mt-1 uppercase font-mono tracking-tighter">{lead.orbitStage || 'Exploração'}</p>
+                        <p className="text-[11px] font-medium leading-none truncate text-[#e6eef6]">{lead.name}</p>
+                        <p className="text-[9px] text-[#94a3b8] mt-1 uppercase font-mono tracking-tighter">{lead.orbitStage || 'Exploração'}</p>
                       </div>
-                      {selectedLeadId === lead.id && <Check className="h-3 w-3 text-[#a07828]" />}
+                      {selectedLeadId === lead.id && <Check className="h-3 w-3 text-[#2ec5ff]" />}
                     </button>
                   ))
                 )}
@@ -783,24 +753,24 @@ function AtlasManagerContent() {
             {/* Selection Preview */}
             {selectedPropertyIds.size > 0 && (
               <div className="space-y-4">
-                <label className="font-mono text-[9px] uppercase tracking-[0.2em] text-[#8a7f70]">
+                <label className="font-mono text-[9px] uppercase tracking-[0.2em] text-[#94a3b8]">
                   2. Itens da Curadoria
                 </label>
                 <div className="space-y-2">
                   {properties.filter(p => selectedPropertyIds.has(p.id)).map(p => (
-                    <div key={p.id} className="flex items-center gap-3 p-2.5 bg-[#fdfaf5]/50 rounded-xl border border-[rgba(28,24,18,0.05)] hover:bg-[#fdfaf5] transition-colors group">
-                      <div className="w-10 h-10 rounded-lg bg-[#ede8df] overflow-hidden shrink-0 border border-black/5">
+                    <div key={p.id} className="flex items-center gap-3 p-2.5 bg-white/5 rounded-xl border border-[rgba(46,197,255,0.08)] hover:bg-white/8 hover:border-[rgba(46,197,255,0.15)] transition-colors group">
+                      <div className="w-10 h-10 rounded-lg bg-[#0b1220] overflow-hidden shrink-0 border border-[rgba(46,197,255,0.1)]">
                         {p.cover_image && <img src={p.cover_image} className="w-full h-full object-cover" />}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-[10px] font-medium truncate font-serif">{p.title || p.internal_name}</p>
-                        <p className="text-[9px] text-[#a07828] font-bold mt-0.5">
+                        <p className="text-[10px] font-medium truncate text-[#e6eef6]">{p.title || p.internal_name}</p>
+                        <p className="text-[9px] text-[#2ec5ff] font-bold mt-0.5">
                           {p.value ? `R$ ${(p.value / 1000000).toFixed(1)}M` : 'Sob consulta'}
                         </p>
                       </div>
                       <button 
                         onClick={() => togglePropertySelection(p)}
-                        className="p-1.5 opacity-0 group-hover:opacity-100 hover:text-red-500 transition-all"
+                        className="p-1.5 opacity-0 group-hover:opacity-100 hover:text-red-400 text-[#94a3b8] transition-all"
                       >
                         <X className="h-3 w-3" />
                       </button>
@@ -812,17 +782,17 @@ function AtlasManagerContent() {
           </div>
 
           {/* Action Footer */}
-          <div className="p-6 border-t border-[rgba(28,24,18,0.08)] bg-[#fdfaf5]">
+          <div className="p-6 border-t border-[rgba(46,197,255,0.12)] bg-[#05060a]/60">
             <Button
               disabled={!selectedLeadId || selectedPropertyIds.size === 0 || isSending}
               onClick={handleSendToLead}
-              className="w-full bg-[#1c1812] hover:bg-black h-12 text-xs gap-3 rounded-xl shadow-xl shadow-black/10 transition-all font-mono uppercase tracking-widest font-bold"
+              className="w-full bg-[#2ec5ff] hover:bg-[#2ec5ff]/90 text-[#05060a] h-12 text-xs gap-3 rounded-xl shadow-[0_0_20px_rgba(46,197,255,0.2)] transition-all font-mono uppercase tracking-widest font-bold disabled:opacity-40 disabled:shadow-none"
             >
               {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
               {isSending ? 'Enviando...' : `Disparar para ${selectedLeadId ? (leads?.find(l => l.id === selectedLeadId)?.name.split(' ')[0] || 'Lead') : 'Lead'}`}
             </Button>
-            <p className="text-[9px] text-[#8a7f70] text-center mt-3 font-mono leading-relaxed opacity-60">
-              O link da curadoria será gerado e enviado via WhatsApp Lead Controller.
+            <p className="text-[9px] text-[#94a3b8]/60 text-center mt-3 font-mono leading-relaxed">
+              O link da curadoria será gerado e enviado via WhatsApp.
             </p>
           </div>
         </aside>
@@ -859,39 +829,39 @@ function AtlasManagerContent() {
         )}
 
         {isIngestModalOpen && (
-          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
             <motion.div 
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              className="bg-white border border-[rgba(28,24,18,0.1)] rounded-2xl shadow-2xl w-full max-w-xl overflow-hidden flex flex-col max-h-[90vh]"
+              className="bg-[#0b1220] border border-[rgba(46,197,255,0.2)] rounded-2xl shadow-[0_0_60px_rgba(46,197,255,0.1)] w-full max-w-xl overflow-hidden flex flex-col max-h-[90vh]"
             >
-              <div className="p-6 border-b border-[rgba(28,24,18,0.05)] flex items-center justify-between bg-[#f5f1eb]">
+              <div className="p-6 border-b border-[rgba(46,197,255,0.12)] flex items-center justify-between bg-[#05060a]/60">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-[#a07828]/10 text-[#a07828]">
-                    <Sparkles size={20} />
+                  <div className="p-2 rounded-lg bg-[#2ec5ff]/10 border border-[#2ec5ff]/20 text-[#2ec5ff]">
+                    <Sparkles size={18} />
                   </div>
                   <div>
-                    <h3 className="font-serif text-xl">Revisão de Cadastro</h3>
-                    <p className="text-[10px] font-mono uppercase tracking-widest text-[#8a7f70]">IA Extraction Quality Control</p>
+                    <h3 className="font-sans font-semibold text-lg text-[#e6eef6]">Revisão de Cadastro</h3>
+                    <p className="text-[10px] font-mono uppercase tracking-widest text-[#94a3b8]">IA Extraction Quality Control</p>
                   </div>
                 </div>
-                <button onClick={() => setIsIngestModalOpen(false)} className="p-2 hover:bg-black/5 rounded-full text-[#8a7f70]">
-                  <X size={20} />
+                <button onClick={() => setIsIngestModalOpen(false)} className="p-2 hover:bg-white/5 rounded-full text-[#94a3b8] hover:text-[#e6eef6] transition-colors">
+                  <X size={18} />
                 </button>
               </div>
 
                {ingestStep === 'url' ? (
                 <form onSubmit={handleIngestSubmit} className="p-8 space-y-6">
                   <div className="space-y-3">
-                    <label className="text-[10px] font-mono uppercase tracking-widest text-[#8a7f70]">URL do Imóvel</label>
-                    <p className="text-[11px] text-[#8a7f70] font-serif italic mb-4">Insira o link do portal imobiliário para captura automática.</p>
+                    <label className="text-[10px] font-mono uppercase tracking-widest text-[#94a3b8]">URL do Imóvel</label>
+                    <p className="text-[11px] text-[#94a3b8] font-sans mb-4">Insira o link do portal imobiliário para captura automática.</p>
                     <div className="relative group">
-                      <Link2 className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-[#a07828]/40 group-focus-within:text-[#a07828] transition-colors" />
+                      <Link2 className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-[#2ec5ff]/40 group-focus-within:text-[#2ec5ff] transition-colors" />
                       <Input 
                         value={ingestUrl}
                         onChange={(e) => setIngestUrl(e.target.value)}
                         placeholder="https://www.zapimoveis.com.br/imovel/..."
-                        className="w-full pl-12 h-14 bg-[#fdfaf5] border-[rgba(28,24,18,0.1)] rounded-2xl text-xs focus:ring-[#a07828]/20"
+                        className="w-full pl-12 h-14 bg-[#05060a]/60 border border-[rgba(46,197,255,0.15)] rounded-2xl text-xs text-[#e6eef6] placeholder:text-[#94a3b8]/50 focus:border-[#2ec5ff]/40"
                       />
                     </div>
                   </div>
@@ -899,7 +869,7 @@ function AtlasManagerContent() {
                   <Button 
                     type="submit" 
                     disabled={ingestStatus === "processing" || !ingestUrl}
-                    className="w-full h-14 bg-[#1c1812] hover:bg-black text-white gap-3 font-bold uppercase tracking-widest text-[11px] rounded-2xl shadow-xl transition-all hover:scale-[1.02] disabled:opacity-50 disabled:scale-100"
+                    className="w-full h-14 bg-[#2ec5ff] hover:bg-[#2ec5ff]/90 text-[#05060a] gap-3 font-bold uppercase tracking-widest text-[11px] rounded-2xl shadow-[0_0_20px_rgba(46,197,255,0.2)] transition-all hover:scale-[1.01] disabled:opacity-40 disabled:scale-100"
                   >
                     {ingestStatus === "processing" ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
                     Capturar Dados com IA
@@ -909,76 +879,76 @@ function AtlasManagerContent() {
                 <form onSubmit={handleConfirmIngest} className="p-8 overflow-y-auto space-y-6 custom-scrollbar">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="md:col-span-2 space-y-2">
-                      <label className="text-[10px] font-mono uppercase tracking-widest text-[#8a7f70]">Título do Patrimônio</label>
+                      <label className="text-[10px] font-mono uppercase tracking-widest text-[#94a3b8]">Título do Patrimônio</label>
                       <Input 
                         value={scrapedData.title}
                         onChange={(e) => setScrapedData({...scrapedData, title: e.target.value})}
-                        className="border-[rgba(28,24,18,0.1)] h-11 rounded-xl bg-[#fdfaf5]"
+                        className="border border-[rgba(46,197,255,0.15)] h-11 rounded-xl bg-[#05060a]/60 text-[#e6eef6] focus:border-[#2ec5ff]/40"
                       />
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-[10px] font-mono uppercase tracking-widest text-[#8a7f70]">Valor (R$)</label>
+                      <label className="text-[10px] font-mono uppercase tracking-widest text-[#94a3b8]">Valor (R$)</label>
                       <Input 
                         type="number"
                         value={scrapedData.value}
                         onChange={(e) => setScrapedData({...scrapedData, value: e.target.value})}
-                        className="border-[rgba(28,24,18,0.1)] h-11 rounded-xl bg-[#fdfaf5]"
+                        className="border border-[rgba(46,197,255,0.15)] h-11 rounded-xl bg-[#05060a]/60 text-[#e6eef6] focus:border-[#2ec5ff]/40"
                       />
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-[10px] font-mono uppercase tracking-widest text-[#8a7f70]">URL da Imagem</label>
+                      <label className="text-[10px] font-mono uppercase tracking-widest text-[#94a3b8]">URL da Imagem</label>
                       <Input 
                         value={scrapedData.image}
                         onChange={(e) => setScrapedData({...scrapedData, image: e.target.value})}
                         placeholder="https://..."
-                        className="border-[rgba(28,24,18,0.1)] h-11 rounded-xl bg-[#fdfaf5]"
+                        className="border border-[rgba(46,197,255,0.15)] h-11 rounded-xl bg-[#05060a]/60 text-[#e6eef6] placeholder:text-[#94a3b8]/40 focus:border-[#2ec5ff]/40"
                       />
                     </div>
 
                     <div className="md:col-span-2 space-y-2">
-                      <label className="text-[10px] font-mono uppercase tracking-widest text-[#8a7f70]">Condições de Pagamento</label>
+                      <label className="text-[10px] font-mono uppercase tracking-widest text-[#94a3b8]">Condições de Pagamento</label>
                       <Input 
                         value={scrapedData.payment}
                         onChange={(e) => setScrapedData({...scrapedData, payment: e.target.value})}
                         placeholder="Ex: Aceita permuta, 30% entrada..."
-                        className="border-[rgba(28,24,18,0.1)] h-11 rounded-xl bg-[#fdfaf5]"
+                        className="border border-[rgba(46,197,255,0.15)] h-11 rounded-xl bg-[#05060a]/60 text-[#e6eef6] placeholder:text-[#94a3b8]/40 focus:border-[#2ec5ff]/40"
                       />
                     </div>
 
                     <div className="grid grid-cols-3 gap-3 md:col-span-2">
-                      <div className="p-3 bg-[#f5f1eb] rounded-xl border border-[rgba(28,24,18,0.05)] text-center">
-                        <span className="text-[8px] font-mono uppercase text-[#8a7f70]">Dorms</span>
-                        <p className="text-sm font-bold">{scrapedData.bedrooms || '-'}</p>
+                      <div className="p-3 bg-[#2ec5ff]/5 rounded-xl border border-[rgba(46,197,255,0.1)] text-center">
+                        <span className="text-[8px] font-mono uppercase text-[#94a3b8]">Dorms</span>
+                        <p className="text-sm font-bold text-[#e6eef6]">{scrapedData.bedrooms || '-'}</p>
                       </div>
-                      <div className="p-3 bg-[#f5f1eb] rounded-xl border border-[rgba(28,24,18,0.05)] text-center">
-                        <span className="text-[8px] font-mono uppercase text-[#8a7f70]">Suítes</span>
-                        <p className="text-sm font-bold">{scrapedData.suites || '-'}</p>
+                      <div className="p-3 bg-[#2ec5ff]/5 rounded-xl border border-[rgba(46,197,255,0.1)] text-center">
+                        <span className="text-[8px] font-mono uppercase text-[#94a3b8]">Suítes</span>
+                        <p className="text-sm font-bold text-[#e6eef6]">{scrapedData.suites || '-'}</p>
                       </div>
-                      <div className="p-3 bg-[#f5f1eb] rounded-xl border border-[rgba(28,24,18,0.05)] text-center">
-                        <span className="text-[8px] font-mono uppercase text-[#8a7f70]">Área</span>
-                        <p className="text-sm font-bold">{scrapedData.area_privativa ? `${scrapedData.area_privativa}m²` : '-'}</p>
+                      <div className="p-3 bg-[#2ec5ff]/5 rounded-xl border border-[rgba(46,197,255,0.1)] text-center">
+                        <span className="text-[8px] font-mono uppercase text-[#94a3b8]">Área</span>
+                        <p className="text-sm font-bold text-[#e6eef6]">{scrapedData.area_privativa ? `${scrapedData.area_privativa}m²` : '-'}</p>
                       </div>
                     </div>
                   </div>
 
-                  <div className="pt-6 border-t border-[rgba(28,24,18,0.05)] flex gap-3">
+                  <div className="pt-6 border-t border-[rgba(46,197,255,0.1)] flex gap-3">
                     <Button 
                       type="button" 
                       variant="ghost" 
                       onClick={() => setIngestStep("url")}
-                      className="flex-1 h-12 text-xs font-mono uppercase tracking-widest rounded-xl"
+                      className="flex-1 h-12 text-xs font-mono uppercase tracking-widest rounded-xl text-[#94a3b8] hover:text-[#e6eef6] hover:bg-white/5"
                     >
                       Voltar
                     </Button>
                     <Button 
                       type="submit" 
                       disabled={ingestStatus === "processing"}
-                      className="flex-[2] h-12 bg-[#1c1812] hover:bg-black text-white gap-2 font-bold uppercase tracking-widest text-[10px] rounded-xl shadow-lg"
+                      className="flex-[2] h-12 bg-[#2ec5ff] hover:bg-[#2ec5ff]/90 text-[#05060a] gap-2 font-bold uppercase tracking-widest text-[10px] rounded-xl shadow-[0_0_15px_rgba(46,197,255,0.2)]"
                     >
                       {ingestStatus === "processing" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                      Validar e Inserir no Acervo
+                      Validar e Inserir na Curadoria
                     </Button>
                   </div>
                 </form>
@@ -1008,8 +978,8 @@ function AtlasManagerContent() {
       <style jsx global>{`
         .custom-scrollbar::-webkit-scrollbar { width: 5px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(160, 120, 40, 0.1); border-radius: 99px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(160, 120, 40, 0.2); }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(46, 197, 255, 0.15); border-radius: 99px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(46, 197, 255, 0.3); }
       `}</style>
     </div>
   )
@@ -1088,48 +1058,48 @@ function SelectionsHistory() {
     toast.success("Link copiado para o clipboard!")
   }
 
-  if (loading) return <div className="flex justify-center p-20"><Loader2 className="animate-spin text-[#a07828]" /></div>
+  if (loading) return <div className="flex justify-center p-20"><Loader2 className="animate-spin text-[#2ec5ff]" /></div>
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between border-b border-[rgba(28,24,18,0.05)] pb-6">
+      <div className="flex items-center justify-between border-b border-[rgba(46,197,255,0.15)] pb-6">
         <div>
-          <h2 className="font-serif text-3xl">Histórico de Selections</h2>
-          <p className="text-sm text-[#8a7f70] mt-1 font-serif italic">Administre os portais curados enviados para seus leads.</p>
+          <h2 className="font-sans font-medium text-2xl text-[#e6eef6]">Histórico de Selections</h2>
+          <p className="text-sm text-[#94a3b8] mt-1 font-sans">Administre os portais curados enviados para seus leads.</p>
         </div>
-        <Button variant="ghost" onClick={fetchCapsules} className="h-8 w-8 p-0">
+        <Button variant="ghost" onClick={fetchCapsules} className="h-8 w-8 p-0 text-[#94a3b8] hover:text-[#2ec5ff] hover:bg-white/5">
           <Loader2 className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
         </Button>
       </div>
 
       <div className="grid grid-cols-1 gap-4">
         {capsules.length === 0 ? (
-          <div className="text-center p-20 border-2 border-dashed border-[rgba(28,24,18,0.05)] rounded-2xl">
-            <Link2 className="h-10 w-10 text-[#8a7f70]/20 mx-auto mb-4" />
-            <p className="text-[#8a7f70] font-serif italic">Nenhuma seleção enviada ainda.</p>
+          <div className="text-center p-20 border-2 border-dashed border-[rgba(46,197,255,0.08)] rounded-2xl">
+            <Link2 className="h-10 w-10 text-[#94a3b8]/20 mx-auto mb-4" />
+            <p className="text-[#94a3b8] font-sans">Nenhuma seleção enviada ainda.</p>
           </div>
         ) : capsules.map(cap => (
-          <div key={cap.id} className="p-6 bg-white rounded-2xl border border-[rgba(28,24,18,0.05)] shadow-sm flex items-center justify-between hover:border-[#a07828]/20 transition-all group">
+          <div key={cap.id} className="p-6 bg-[#0b1220] rounded-2xl border border-[rgba(46,197,255,0.1)] flex items-center justify-between hover:border-[#2ec5ff]/25 hover:shadow-[0_0_20px_rgba(46,197,255,0.05)] transition-all group">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-[#fdfaf5] border border-[#a07828]/10 flex items-center justify-center text-[#a07828]">
-                <Users size={20} />
+              <div className="w-12 h-12 rounded-full bg-[#2ec5ff]/10 border border-[#2ec5ff]/20 flex items-center justify-center text-[#2ec5ff]">
+                <Users size={18} />
               </div>
               <div>
-                <h4 className="font-serif text-lg leading-none">{cap.leads?.name || 'Lead s/ nome'}</h4>
+                <h4 className="font-sans font-semibold text-[#e6eef6] leading-none">{cap.leads?.name || 'Lead s/ nome'}</h4>
                 <div className="flex items-center gap-3 mt-2">
-                  <span className="text-[9px] font-mono uppercase tracking-widest text-[#a07828] bg-[#a07828]/5 px-2 py-0.5 rounded">
+                  <span className="text-[9px] font-mono uppercase tracking-widest text-[#2ec5ff] bg-[#2ec5ff]/10 px-2 py-0.5 rounded border border-[#2ec5ff]/20">
                     {cap.leads?.capsule_items?.[0]?.count || 0} Imóveis
                   </span>
-                  <span className="text-[10px] text-[#8a7f70] font-mono">
+                  <span className="text-[10px] text-[#94a3b8] font-mono">
                     {new Date(cap.created_at).toLocaleDateString('pt-BR')}
                   </span>
                 </div>
                 {cap.stats && (
                   <div className="flex gap-3 mt-3 text-[10px] font-mono font-medium" title="Interações no Portal">
-                    <span className="flex items-center gap-1.5 text-[#8a7f70]"><Eye size={12} /> {cap.stats.views} views</span>
+                    <span className="flex items-center gap-1.5 text-[#94a3b8]"><Eye size={12} /> {cap.stats.views} views</span>
                     <span className="flex items-center gap-1.5 text-rose-400"><Heart size={12} /> {cap.stats.likes}</span>
-                    <span className="flex items-center gap-1.5 text-emerald-500"><Calendar size={12} /> {cap.stats.visits}</span>
-                    {cap.stats.discards > 0 && <span className="flex items-center gap-1.5 text-[#8a7f70] opacity-50"><X size={12} /> {cap.stats.discards}</span>}
+                    <span className="flex items-center gap-1.5 text-emerald-400"><Calendar size={12} /> {cap.stats.visits}</span>
+                    {cap.stats.discards > 0 && <span className="flex items-center gap-1.5 text-[#94a3b8]/50"><X size={12} /> {cap.stats.discards}</span>}
                   </div>
                 )}
               </div>
@@ -1138,33 +1108,33 @@ function SelectionsHistory() {
             <div className="flex items-center gap-2">
               <button 
                 onClick={() => handleCopyLink(cap.slug)}
-                className="p-2.5 rounded-xl bg-[#f5f1eb] text-[#8a7f70] hover:text-[#a07828] transition-colors"
+                className="p-2.5 rounded-xl bg-white/5 border border-[rgba(46,197,255,0.1)] text-[#94a3b8] hover:text-[#2ec5ff] hover:border-[#2ec5ff]/25 transition-colors"
                 title="Copiar Link"
               >
-                <Link2 size={16} />
+                <Link2 size={15} />
               </button>
               <a 
                 href={`/selection/${cap.slug}`} 
                 target="_blank"
-                className="p-2.5 rounded-xl bg-[#f5f1eb] text-[#8a7f70] hover:text-[#1c1812] transition-colors"
+                className="p-2.5 rounded-xl bg-white/5 border border-[rgba(46,197,255,0.1)] text-[#94a3b8] hover:text-[#2ec5ff] hover:border-[#2ec5ff]/25 transition-colors"
                 title="Visualizar Portal"
               >
-                <ExternalLink size={16} />
+                <ExternalLink size={15} />
               </a>
               <Button 
                 variant="ghost" 
                 onClick={() => setManagingLeadId(cap.lead_id)}
-                className="text-[10px] font-mono uppercase tracking-widest gap-2 hover:bg-[#a07828]/5 text-[#a07828] h-10 px-4"
+                className="text-[10px] font-mono uppercase tracking-widest gap-2 hover:bg-[#2ec5ff]/5 hover:text-[#2ec5ff] text-[#94a3b8] h-10 px-4 border border-[rgba(46,197,255,0.1)] rounded-xl"
               >
-                <Settings size={14} />
+                <Settings size={13} />
                 Gerenciar
               </Button>
               <button 
                 onClick={() => handleDeleteSpace(cap.id)}
-                className="p-2.5 rounded-xl bg-red-50 text-red-400 hover:text-red-600 hover:bg-red-100 transition-colors"
+                className="p-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 hover:text-red-300 hover:bg-red-500/15 transition-colors"
                 title="Excluir Portal"
               >
-                <Trash2 size={16} />
+                <Trash2 size={15} />
               </button>
             </div>
           </div>
@@ -1173,12 +1143,12 @@ function SelectionsHistory() {
 
       <AnimatePresence>
         {managingLeadId && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
             <motion.div 
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="w-full max-w-xl h-[80vh] bg-white border border-[rgba(28,24,18,0.1)] rounded-3xl shadow-2xl overflow-hidden flex flex-col"
+              className="w-full max-w-xl h-[80vh] bg-[#0b1220] border border-[rgba(46,197,255,0.2)] rounded-3xl shadow-[0_0_60px_rgba(46,197,255,0.1)] overflow-hidden flex flex-col"
             >
                <ClientSpacesManager 
                  leadId={managingLeadId} 
@@ -1197,8 +1167,8 @@ function SelectionsHistory() {
 export default function AtlasManager() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-[#f5f1eb] flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-[#a07828]" />
+      <div className="min-h-screen bg-[#05060a] flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-[#2ec5ff]" />
       </div>
     }>
       <AtlasManagerContent />

@@ -76,8 +76,170 @@ export async function generateEmbedding(text: string): Promise<number[] | null> 
   }
 }
 
-// ─── Análise com OpenAI ───────────────────────────────────────────────────────
+// ─── Tipos do RAG ─────────────────────────────────────────────────────────────
 
+interface CompatibleProperty {
+  id: string;
+  title: string | null;
+  value: number | null;
+  neighborhood: string | null;
+  city: string | null;
+  bedrooms: number | null;
+  suites: number | null;
+  area_privativa: number | null;
+  payment_conditions: any | null;
+  features: string[] | null;
+  similarity: number;
+}
+
+// ─── PASSO A: Montar vetor de perfil limpo do lead ────────────────────────────
+
+async function buildLeadProfileEmbedding(
+  rawMemory: Array<{ type: string; content: string }>
+): Promise<number[] | null> {
+  const PROFILE_TYPES = [
+    "location_preference",
+    "property_type",
+    "feature_preference",
+    "budget_range",
+    "current_search",
+    "location_focus",
+    "budget",
+    "priority",
+  ];
+
+  const relevantMemories = rawMemory
+    .filter((m) => PROFILE_TYPES.includes(m.type))
+    .map((m) => m.content)
+    .join(". ");
+
+  if (!relevantMemories.trim()) return null;
+
+  console.log(`[ORBIT RAG] Gerando vetor de perfil: "${relevantMemories.slice(0, 120)}..."`);
+  return generateEmbedding(relevantMemories);
+}
+
+// ─── PASSO B: Buscar imóveis compatíveis via pgvector ────────────────────────
+
+async function findCompatibleProperties(
+  leadId: string,
+  rawMemory: Array<{ type: string; content: string }>,
+  budgetMax?: number | null
+): Promise<CompatibleProperty[]> {
+  const supabase = getSupabase();
+  if (!supabase) return [];
+
+  // 1. Montar vetor de perfil do lead
+  const profileVector = await buildLeadProfileEmbedding(rawMemory);
+  if (!profileVector) {
+    console.log(`[ORBIT RAG] Sem memórias de perfil suficientes para lead ${leadId}. Pulando RAG.`);
+    return [];
+  }
+
+  // 2. Coletar IDs de imóveis descartados pelo lead
+  const discardedRes = await (supabase.from("memory_items") as any)
+    .select("content")
+    .eq("lead_id", leadId)
+    .eq("type", "discarded");
+
+  const discardedIds: string[] = (discardedRes?.data || [])
+    .map((m: any) => {
+      const match = m.content?.match(
+        /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i
+      );
+      return match ? match[0] : null;
+    })
+    .filter(Boolean);
+
+  console.log(
+    `[ORBIT RAG] Buscando imóveis para lead ${leadId}. Descartados: ${discardedIds.length}`
+  );
+
+  // 3. Chamar função RPC match_properties no Supabase
+  const { data, error } = await supabase.rpc("match_properties", {
+    query_embedding: profileVector,
+    match_threshold: 0.60,
+    match_count: 5,
+    exclude_ids: discardedIds.length > 0 ? discardedIds : [],
+  });
+
+  if (error) {
+    console.error(`[ORBIT RAG] Erro na busca RPC:`, error);
+    return [];
+  }
+
+  let results = (data || []) as CompatibleProperty[];
+
+  // 4. Filtro de budget — exclui imóveis acima de 120% do orçamento declarado
+  if (budgetMax && budgetMax > 0) {
+    results = results.filter(
+      (p) => !p.value || p.value <= budgetMax * 1.2
+    );
+  }
+
+  // 5. Retorna top 3
+  const top3 = results.slice(0, 3);
+  console.log(
+    `[ORBIT RAG] Top ${top3.length} imóveis compatíveis:`,
+    top3.map((p) => `${p.title} (score: ${p.similarity.toFixed(2)})`)
+  );
+
+  return top3;
+}
+
+// ─── PASSO C: Formatar imóveis como texto para o prompt ──────────────────────
+
+function formatPropertiesForPrompt(properties: CompatibleProperty[]): string {
+  if (properties.length === 0) return "Nenhum imóvel compatível encontrado no portfólio atual.";
+
+  return properties
+    .map((p, i) => {
+      const valor = p.value
+        ? `R$ ${p.value.toLocaleString("pt-BR")}`
+        : "Valor não informado";
+
+      const estrutura = [
+        p.bedrooms ? `${p.bedrooms} dorm.` : null,
+        p.suites ? `${p.suites} suítes` : null,
+        p.area_privativa ? `${p.area_privativa}m²` : null,
+      ]
+        .filter(Boolean)
+        .join(" · ");
+
+      const localizacao = [p.neighborhood, p.city].filter(Boolean).join(", ");
+
+      const condicoes = (() => {
+        const cond = p.payment_conditions as any;
+        if (!cond) return "Condições não informadas";
+        const partes = [];
+        if (cond.down_payment_percentage)
+          partes.push(`Entrada ${cond.down_payment_percentage}%`);
+        if (cond.installments) partes.push(`${cond.installments}x`);
+        if (cond.financing) partes.push("Aceita financiamento");
+        if (cond.exchange) partes.push("Estuda permuta");
+        return partes.join(" · ") || "Condições não informadas";
+      })();
+
+      const features =
+        p.features && p.features.length > 0
+          ? p.features.slice(0, 4).join(", ")
+          : null;
+
+      return [
+        `${i + 1}. ${p.title || "Imóvel sem título"} [score: ${(p.similarity * 100).toFixed(0)}%]`,
+        `   Valor: ${valor}`,
+        `   Estrutura: ${estrutura || "Não informado"}`,
+        `   Local: ${localizacao || "Não informado"}`,
+        `   Condições: ${condicoes}`,
+        features ? `   Destaques: ${features}` : null,
+      ]
+        .filter(Boolean)
+        .join("\n");
+    })
+    .join("\n\n");
+}
+
+// ─── Análise com OpenAI ───────────────────────────────────────────────────────
 async function analyzeContext(
   leadId: string,
   content: string,
@@ -87,6 +249,7 @@ async function analyzeContext(
     memory: string;
     cognitiveState: string;
     propertyInteractions: string;
+    compatibleProperties: string;
   }
 ): Promise<CoreAnalysis | null> {
   if (!process.env.OPENAI_API_KEY) {
@@ -95,60 +258,124 @@ async function analyzeContext(
   }
 
   try {
-    const prompt = `Você é o ORBIT Core, o cérebro cognitivo de um ecossistema imobiliário de luxo.
-Sua missão é interpretar a relação com o lead através de 5 camadas: messages, memory_profile, memory_context, memory_events e cognitive_state.
+    const prompt = `Você é o ORBIT Core — motor de decisão comercial imobiliário.
+Sua função não é refletir. É diagnosticar e definir o próximo movimento obrigatório.
 
-DADOS ATUAIS DO LEAD:
-- Estado Cognitivo Atual: ${context.cognitiveState}
-- Memórias Existentes: ${context.memory || "Vazia"}
-- Interações com Imóveis: ${context.propertyInteractions || "Nenhuma"}
+════════════════════════════════════════
+ESTADO ATUAL DO LEAD
+════════════════════════════════════════
+Estado Cognitivo: ${context.cognitiveState}
+Memórias Acumuladas: ${context.memory || "Vazia"}
+Interações com Imóveis: ${context.propertyInteractions || "Nenhuma"}
 
-CONTEXTO DA CONVERSA (últimas mensagens):
+════════════════════════════════════════
+PORTFÓLIO COMPATÍVEL (RAG)
+════════════════════════════════════════
+${context.compatibleProperties}
+
+════════════════════════════════════════
+CONVERSA RECENTE
+════════════════════════════════════════
 ${context.lastMessages}
 
-NOVO EVENTO A ANALISAR:
-- Tipo: ${type}
-- Conteúdo: "${content}"
+════════════════════════════════════════
+NOVO EVENTO
+════════════════════════════════════════
+Tipo: ${type}
+Conteúdo: "${content}"
 
-Sua tarefa:
-1. Extraia o estado cognitivo baseado na maturidade da decisão:
-   - latent: apenas contato inicial ou inativo.
-   - curious: faz perguntas genéricas.
-   - exploring: busca ativa, mas sem foco definido.
-   - evaluating: comparando opções, analisando detalhes.
-   - deciding: forte intenção de compra, pede visitas ou proposta.
-   - resolved: negócio fechado ou perdido.
-   - dormant: sem resposta por longo período.
+════════════════════════════════════════
+SUA TAREFA
+════════════════════════════════════════
 
-2. Identifique fatos para as 3 categorias de memória:
-   - Profile: Informações duráveis (identity, budget_range, location_preference, property_type, feature_preference).
-   - Context: Intencao atual (current_search, location_focus, budget, priority).
-   - Events: Ações concretas (property_sent, visited, discarded, price_objection, proposal_made, visit_scheduled).
+1. ESTADO COGNITIVO — qual o estágio real da decisão:
+   - latent: contato inicial ou inativo
+   - curious: perguntas genéricas, sem foco
+   - exploring: busca ativa, perfil ainda não definido
+   - evaluating: comparando opções, analisando detalhes
+   - deciding: pede visita, simulação ou proposta
+   - resolved: negócio fechado ou definitivamente perdido
+   - dormant: sem resposta por longo período
 
-3. Calcule o delta de interesse (interesse no tema) e momentum (velocidade para a decisão).
+2. MEMÓRIA TRIPARTITE — extraia fatos concretos:
+   - Profile (duradouro): identity, budget_range, location_preference, property_type, feature_preference
+   - Context (intencao atual): current_search, location_focus, budget, priority
+   - Events (ações concretas): property_sent, visited, discarded, price_objection, proposal_made, visit_scheduled
 
-Responda APENAS com um JSON puro contendo estas chaves:
+3. CONFLITO CENTRAL — identifique o travamento real.
+   Não o que o lead disse. O que está impedindo a decisão.
+   Exemplos reais: "quer 4 suítes mas orçamento cobre 3", "depende de vender imóvel próprio primeiro",
+   "cônjuge não esteve presente em nenhuma interação", "comparando com produto que já viu e não esquece"
+
+4. O QUE NÃO FAZER — uma restrição específica para este lead agora.
+   Exemplos: "não enviar imóvel sem confirmar visita presencial",
+   "não fazer follow-up genérico — já recebeu 3 sem resposta",
+   "não mencionar preço antes de qualificar orçamento real"
+
+5. PRÓXIMA JOGADA — uma ação só, com canal e critério de sucesso.
+   Formato obrigatório: "[canal] · [ação específica com imóvel ou objetivo] · [o que confirma que funcionou]"
+   - Se há imóveis compatíveis no portfólio acima: a ação DEVE referenciar um imóvel pelo nome
+   - Se não há imóveis compatíveis: a ação deve qualificar melhor o perfil antes de enviar qualquer coisa
+   - Nunca: "enviar opções", "perguntar preferências", "fazer follow-up"
+
+════════════════════════════════════════
+REGRAS CRÍTICAS
+════════════════════════════════════════
+- Se o lead disser que não tem interesse ou for rude: signal="negative", deltas negativos, estado "resolved" ou "dormant"
+- Se há imóvel compatível com score acima de 75%: urgency mínimo 60
+- Se lead está em "deciding" mas não visitou nada: isso é sinal de travamento, não de avanço
+- action_suggested: "needs_attention" se precisa resposta agora · "follow_up" se pode esperar · "none" se encerrado
+
+════════════════════════════════════════
+TRAVA ANTI-GENÉRICO — LEIA ANTES DE RESPONDER
+════════════════════════════════════════
+Antes de gerar o JSON, faça esta checagem interna obrigatória:
+
+TESTE 1 — action_description passa nos 3 filtros?
+  ✗ REPROVADO se contém qualquer uma destas frases:
+    "entrar em contato", "fazer follow-up", "enviar opções", "perguntar preferências",
+    "verificar interesse", "retomar contato", "acompanhar lead", "manter relacionamento",
+    "enviar informações", "apresentar imóveis", "tirar dúvidas", "checar disponibilidade"
+  ✗ REPROVADO se não contém um canal explícito (WhatsApp / Ligação / Visita)
+  ✗ REPROVADO se não contém um critério de sucesso ("se X acontecer, funcionou")
+  → Se reprovado em qualquer filtro: reescreva com dado concreto da conversa
+
+TESTE 2 — central_conflict é específico?
+  ✗ REPROVADO se for: "lead indeciso", "sem urgência", "precisa pensar",
+    "aguardando momento certo", "comparando opções", "interesse baixo"
+  → Esses são sintomas. O conflito real está uma camada abaixo.
+  → Exemplo correto: "cônjuge nunca apareceu — decisão travada em terceiro invisível"
+  → Exemplo correto: "budget real é 30% abaixo do imóvel que quer — nunca foi nomeado"
+
+TESTE 3 — what_not_to_do é acionável?
+  ✗ REPROVADO se for conselho genérico de vendas
+  ✗ REPROVADO se puder se aplicar a qualquer lead
+  → Deve ser derivado de algo que JÁ aconteceu nesta conversa específica
+  → Exemplo correto: "não ligar — lead pediu para não ser incomodado, respondeu só por texto"
+  → Exemplo correto: "não enviar Ventura — foi o segundo imóvel ignorado sem resposta"
+
+Se qualquer teste reprovar, reescreva o campo antes de gerar o JSON final.
+Resposta genérica = falha do sistema. Não existe "melhor do que nada" aqui.
+
+Responda APENAS com JSON puro:
 {
-  "intention": "resumo da intenção real",
+  "intention": "resumo da intenção real em uma frase — deve conter dado específico da conversa",
   "pain": "dor ou objeção identificada ou null",
+  "central_conflict": "travamento real uma camada abaixo do sintoma, ou null se lead novo",
+  "what_not_to_do": "restrição derivada de algo que já aconteceu nesta conversa",
   "signal": "positive|negative|neutral",
   "urgency": 0-100,
-  "interest_delta": número de -20 a 20 (use valores negativos para desinteresse/negativas),
-  "momentum_delta": número de -20 a 20 (use valores negativos se o lead esfriar),
+  "interest_delta": número de -20 a 20,
+  "momentum_delta": número de -20 a 20,
   "current_cognitive_state": "latent|curious|exploring|evaluating|deciding|resolved|dormant",
   "memory_profile": [{"type": "identity|budget_range|location_preference|property_type|feature_preference", "content": "string"}] | null,
   "memory_context": [{"type": "current_search|location_focus|budget|priority", "content": "string"}] | null,
   "memory_events": [{"type": "property_sent|visited|discarded|price_objection|proposal_made|visit_scheduled", "content": "string"}] | null,
   "action_suggested": "needs_attention|follow_up|none",
-  "action_description": "Ação específica e curta em português (ex: 'Enviar folder do Malibu', 'Perguntar sobre o prazo de mudança')"
-}
-
-IMPORTANTE: 
-- Use "needs_attention" sempre que o lead fizer uma pergunta, demonstrar interesse imediato ou o usuário precisar responder.
-- Use "follow_up" para contatos que não exigem resposta imediata mas devem ser acompanhados.
-- Use "none" para interações encerradas ou sem necessidade de ação.
-
-IMPORTANTE: Se o lead disser que não tem interesse ou for rude, use signal="negative", baixe o interesse e momentum (deltas negativos) e mude o estado para "resolved" ou "dormant".`;
+  "action_description": "[canal] · [ação com dado concreto] · [critério de sucesso mensurável]",
+  "rag_property_recommended": "título do imóvel recomendado ou null",
+  "generic_check_passed": true
+}`;
 
     const openai = getOpenAI();
     if (!openai) {
@@ -229,8 +456,27 @@ export async function processEventWithCore(
   try {
     const context = await getContext(leadId);
 
+    // Extrair budget da memória para filtro RAG
+    const budgetMemory = context.rawMemory.find(
+      (m) => m.type === "budget_range" || m.type === "budget"
+    );
+    const budgetMax = budgetMemory
+      ? parseFloat(budgetMemory.content.replace(/\D/g, "")) || null
+      : null;
 
-    const analysis = await analyzeContext(leadId, content, type, context);
+    // Buscar imóveis compatíveis (RAG)
+    const compatibleProps = await findCompatibleProperties(
+      leadId,
+      context.rawMemory,
+      budgetMax
+    );
+    const compatiblePropertiesText = formatPropertiesForPrompt(compatibleProps);
+
+    // Passar para analyzeContext
+    const analysis = await analyzeContext(leadId, content, type, {
+      ...context,
+      compatibleProperties: compatiblePropertiesText,
+    });
     if (!analysis) {
       console.error(`[ORBIT CORE] Falha ao obter análise para leadId=${leadId}`);
       return;

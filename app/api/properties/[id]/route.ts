@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getSupabaseServer } from '@/lib/supabase-server'
 import { resolvePreviewImage } from '@/lib/resolve-preview-image'
+import { generateEmbedding } from '@/lib/orbit-core'
 
 export async function DELETE(
   request: Request,
@@ -143,7 +144,60 @@ export async function PUT(
     }
 
     const previewWasResolved = coverImageUrl !== existingProperty.cover_image
+
+    // Regenerate Embedding if core structural or descriptive fields are being updated
+    let newEmbedding = undefined
+    const triggersEmbeddingRegen = [
+      'title', 'neighborhood', 'city', 'area_privativa', 'bedrooms', 
+      'suites', 'features', 'value', 'payment_conditions'
+    ].some(key => Object.keys(otherUpdates).includes(key))
+
+    if (triggersEmbeddingRegen) {
+      console.log('[PUT /api/properties] Regenerating embedding due to field updates...')
+      
+      // We need the merged data of existing + updates to generate a full context
+      const { data: fullProp } = await supabase.from('properties').select('*').eq('id', id).single()
+      const merged = { ...fullProp, ...otherUpdates }
+
+      const cleanFeatures = typeof merged.features === 'string' 
+        ? merged.features 
+        : (merged.features || []).join(", ")
+
+      const pCond = merged.payment_conditions || {}
+      let financialContext = ""
+      if (merged.value) financialContext += `Valor: R$ ${merged.value}. `
+      if (pCond.financing) financialContext += `Aceita Financiamento. `
+      if (pCond.exchange) financialContext += `Estuda Permuta. `
+      
+      let locationContext = ""
+      if (merged.neighborhood) locationContext += `No bairro ${merged.neighborhood}`
+      if (merged.city) locationContext += `, em ${merged.city}. `
+      
+      let structuralContext = ""
+      if (merged.bedrooms) structuralContext += `${merged.bedrooms} quartos `
+      if (merged.suites) structuralContext += `(${merged.suites} suítes). `
+      if (merged.area_privativa) structuralContext += `${merged.area_privativa}m². `
+
+      const embeddingText = `
+        ${merged.title || merged.internal_name || ""}
+        ${locationContext}
+        ${structuralContext}
+        Amenidades: ${cleanFeatures}
+        ${financialContext}
+      `.replace(/\s+/g, ' ').trim()
+
+      try {
+        newEmbedding = await generateEmbedding(embeddingText)
+      } catch (embErr) {
+        console.error('[PUT /api/properties] Error generating new embedding:', embErr)
+      }
+    }
     
+    // Parse features to array if it's sent as comma-separated string from the Modal
+    if (typeof otherUpdates.features === 'string') {
+      otherUpdates.features = otherUpdates.features.split(',').map((f: string) => f.trim()).filter(Boolean)
+    }
+
     const updateData = {
       ...otherUpdates,
       ...(newSourceLink && { source_link: newSourceLink }),
@@ -151,6 +205,7 @@ export async function PUT(
         cover_image: coverImageUrl,
         preview_captured_at: new Date().toISOString()
       }),
+      ...(newEmbedding && { property_embedding: newEmbedding }),
     }
 
     const { data: updatedProperty, error: updateError } = await supabase

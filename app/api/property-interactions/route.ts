@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Erro ao registrar interação' }, { status: 500 })
     }
 
-    // 2. If it's a question, also create a record in the messages table
+    // 2. If it's a question, also create a record in the messages table and ai_insights
     if (itype === 'property_question') {
       const { error: msgError } = await supabase
         .from('messages')
@@ -86,13 +86,29 @@ export async function POST(request: NextRequest) {
         console.error('[PROP_INT] Error creating message:', msgError)
         return NextResponse.json({ error: 'Erro ao registrar pergunta no histórico' }, { status: 500 })
       }
+
+      await supabase.from('ai_insights').insert({
+        lead_id: leadId,
+        type: 'suggestion',
+        content: `Pergunta do cliente no portal sobre imóvel ${propertyTitle || propertyId}: "${text}"`,
+        urgency: 5
+      })
     }
 
     // 3. Process with Core (Async)
-    if (itype !== 'sent' && itype !== 'viewed') {
+    // Sinais fortes de portal são enviados para o Core: property_question, favorited, portal_opened
+    const coreEvents = ['property_question', 'favorited', 'portal_opened', 'discarded', 'visited']
+    if (coreEvents.includes(itype)) {
       const coreType = 'property_reaction'
-      const content = `Interacao com imovel: ${itype} (propertyId: ${propertyId})`
-      processEventWithCore(leadId, content, coreType).catch(() => {})
+      let content = `Interacao com imovel: ${itype} (propertyId: ${propertyId})`
+      if (itype === 'property_question') {
+        content = `Lead fez uma pergunta no portal sobre o imóvel ${propertyTitle || propertyId}: "${text}"`
+      } else if (itype === 'portal_opened') {
+        content = `Lead acessou o link do Portal Selection (propertyId de entrada: ${propertyId})`
+      }
+      processEventWithCore(leadId, content, coreType).catch((err) => {
+        console.error('[PROP_INT] Error triggering Orbit Core:', err)
+      })
     }
 
     return NextResponse.json(interaction, { status: 201 })

@@ -24,6 +24,7 @@ export default function EditPropertyModal({ isOpen, onClose, property, onSave }:
   const [formData, setFormData] = useState<any>({})
   const [marker, setMarker] = useState<{lat: number, lng: number} | null>(null)
   const [saving, setSaving] = useState(false)
+  const [uploadingImage, setUploadingImage] = useState(false)
 
   useEffect(() => {
     if (property) {
@@ -34,6 +35,10 @@ export default function EditPropertyModal({ isOpen, onClose, property, onSave }:
         neighborhood: property.neighborhood || "",
         city: property.city || "",
         cover_image: property.cover_image || "",
+        bedrooms: property.bedrooms || "",
+        suites: property.suites || "",
+        area_privativa: property.area_privativa || "",
+        features: (property.features || []).join(", "),
       })
       if (property.lat && property.lng) {
         setMarker({ lat: property.lat, lng: property.lng })
@@ -47,9 +52,51 @@ export default function EditPropertyModal({ isOpen, onClose, property, onSave }:
     e.preventDefault()
     setSaving(true)
     try {
-      await onSave({ ...property, ...formData, lat: marker?.lat || null, lng: marker?.lng || null })
+      const updatedData = { ...property, ...formData, lat: marker?.lat || null, lng: marker?.lng || null }
+      
+      // Save location if marker changed
+      if (marker && (marker.lat !== property.lat || marker.lng !== property.lng)) {
+        try {
+          await fetch(`/api/properties/${property.id}/location`, {
+             method: 'PATCH',
+             headers: { 'Content-Type': 'application/json' },
+             body: JSON.stringify({ lat: marker.lat, lng: marker.lng })
+          })
+        } catch (locationErr) {
+          console.error("Failed to update location via PATCH", locationErr)
+        }
+      }
+
+      await onSave(updatedData)
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setUploadingImage(true)
+    try {
+      const form = new FormData()
+      form.append('file', file)
+
+      const res = await fetch('/api/objects/atlas/upload', {
+        method: 'POST',
+        body: form
+      })
+
+      if (!res.ok) throw new Error('Falha no upload')
+      
+      const data = await res.json()
+      setFormData(prev => ({ ...prev, cover_image: data.url }))
+      toast.success("Imagem enviada com sucesso")
+    } catch (err) {
+      console.error(err)
+      toast.error("Erro ao enviar imagem")
+    } finally {
+      setUploadingImage(false)
     }
   }
 
@@ -103,9 +150,38 @@ export default function EditPropertyModal({ isOpen, onClose, property, onSave }:
                   <Input value={formData.city} onChange={e => setFormData({...formData, city: e.target.value})} className="h-11 rounded-xl bg-[#fdfaf5]" />
                 </div>
               </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-1.5Context">
+                  <label className="text-[10px] font-mono uppercase tracking-widest text-[#8a7f70]">Quartos</label>
+                  <Input type="number" value={formData.bedrooms} onChange={e => setFormData({...formData, bedrooms: e.target.value})} className="h-11 rounded-xl bg-[#fdfaf5]" />
+                </div>
+                <div className="space-y-1.5Context">
+                  <label className="text-[10px] font-mono uppercase tracking-widest text-[#8a7f70]">Suítes</label>
+                  <Input type="number" value={formData.suites} onChange={e => setFormData({...formData, suites: e.target.value})} className="h-11 rounded-xl bg-[#fdfaf5]" />
+                </div>
+                <div className="space-y-1.5Context">
+                  <label className="text-[10px] font-mono uppercase tracking-widest text-[#8a7f70]">Área (m²)</label>
+                  <Input type="number" value={formData.area_privativa} onChange={e => setFormData({...formData, area_privativa: e.target.value})} className="h-11 rounded-xl bg-[#fdfaf5]" />
+                </div>
+              </div>
               <div className="space-y-1.5">
-                <label className="text-[10px] font-mono uppercase tracking-widest text-[#8a7f70]">Imagem de Capa (URL)</label>
-                <Input value={formData.cover_image} onChange={e => setFormData({...formData, cover_image: e.target.value})} className="h-11 rounded-xl bg-[#fdfaf5] text-xs" />
+                <label className="text-[10px] font-mono uppercase tracking-widest text-[#8a7f70]">Destaques (Separados por vírgula)</label>
+                <Input value={formData.features} onChange={e => setFormData({...formData, features: e.target.value})} className="h-11 rounded-xl bg-[#fdfaf5]" />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-mono uppercase tracking-widest text-[#8a7f70]">Imagem de Capa</label>
+                <div className="flex gap-2 items-center">
+                  <Input 
+                    type="file" 
+                    accept="image/*" 
+                    onChange={handleImageUpload} 
+                    disabled={uploadingImage}
+                    className="h-11 rounded-xl bg-[#fdfaf5] text-xs file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-[#a07828]/10 file:text-[#a07828] hover:file:bg-[#a07828]/20" 
+                  />
+                  {uploadingImage && <Loader2 className="h-5 w-5 animate-spin text-[#a07828]" />}
+                </div>
+                <Input value={formData.cover_image} onChange={e => setFormData({...formData, cover_image: e.target.value})} className="h-11 rounded-xl bg-[#fdfaf5] text-xs mt-2" placeholder="Ou cole a URL direta..." />
               </div>
 
               <div className="pt-4 flex gap-3">

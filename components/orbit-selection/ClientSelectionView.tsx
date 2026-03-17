@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react"
 import { motion } from "framer-motion"
-import { Star, Phone, X, MapPin, Maximize2, Share2, Sparkles, Heart, XCircle, Calendar, Send, CheckCircle2, MessageSquare } from "lucide-react"
+import { Star, Phone, X, MapPin, Maximize2, Share2, Sparkles, Heart, XCircle, Calendar, Send, CheckCircle2, MessageSquare, ExternalLink } from "lucide-react"
 import { getSupabase } from "@/lib/supabase"
 import { toast } from "sonner"
 import { AnimatePresence } from "framer-motion"
@@ -260,10 +260,6 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
                       ) : (
                         <div className="w-full h-full bg-gradient-to-br from-[#e8ddd2] to-[#cfc3b0] flex items-center justify-center text-5xl">🏠</div>
                       )}
-                      <div className="absolute top-3.5 left-3.5 px-2.5 py-1 rounded-full bg-white/90 backdrop-blur-md border border-[rgba(90,122,74,0.2)] flex items-center gap-1.5 font-mono text-[10px] font-medium text-[var(--match)]">
-                        <div className="w-1 h-1 rounded-full bg-[var(--match)]" />
-                        92% MATCH
-                      </div>
                     </div>
                     
                     <div className="p-[20px_22px_22px]">
@@ -305,6 +301,16 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
                         >
                           Ver Detalhes
                         </button>
+                        {item.url && (
+                          <a 
+                            href={item.url}
+                            target="_blank"
+                            className="px-3.5 py-2.5 rounded-lg border border-[rgba(28,24,18,0.12)] text-[var(--ink3)] hover:bg-[rgba(28,24,18,0.05)] transition-all flex items-center justify-center"
+                            title="Acessar link externo"
+                          >
+                            <ExternalLink size={18} />
+                          </a>
+                        )}
                         <button 
                           onClick={() => handleInteraction(item.id, item.capsuleItemId, 'favorited')}
                           className={`px-3.5 py-2.5 rounded-lg border border-[rgba(28,24,18,0.12)] transition-all ${interactions[item.id] === 'favorited' ? 'bg-rose-50 text-rose-500 border-rose-200' : 'text-[var(--ink3)] hover:bg-[rgba(28,24,18,0.05)]'}`}
@@ -504,6 +510,16 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
                       <Phone size={18} />
                       Conversar pelo WhatsApp
                     </button>
+                    {selectedItem?.url && (
+                      <a 
+                        href={selectedItem.url}
+                        target="_blank"
+                        className="mt-3 w-full py-4 rounded-xl bg-white border border-[rgba(28,24,18,0.1)] text-[var(--ink2)] text-sm font-medium hover:bg-[rgba(28,24,18,0.02)] transition-all flex items-center justify-center gap-2 shadow-sm"
+                      >
+                        <ExternalLink size={18} />
+                        Acessar Página Original
+                      </a>
+                    )}
                   </div>
                 </div>
               </motion.div>

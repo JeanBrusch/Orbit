@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { 
   Users, Link2, Settings, MessageSquare, 
-  Video, Star, Check, Loader2, AlertCircle,
+  Video, Star, Check, Loader2, AlertCircle, X,
   Copy, ExternalLink, Trash2, Building2, Pencil 
 } from "lucide-react"
 import { getSupabase } from "@/lib/supabase"
@@ -205,10 +205,14 @@ export default function ClientSpacesManager({ leadId, onClose }: ClientSpacesMan
           </div>
           <button 
             onClick={onClose} 
-            className="p-2 rounded-xl text-[#8a7f70] hover:bg-black/5 transition-colors"
+            className="flex items-center gap-2 px-3 py-2 rounded-xl text-[10px] font-mono uppercase tracking-widest font-bold text-[#8a7f70] hover:bg-black/5 hover:text-[#1c1812] transition-colors"
           >
-            <Trash2 size={18} />
+            <X size={14} /> Voltar ao Atlas
           </button>
+        </div>
+
+        <div className="mb-4 p-3 bg-white/50 border border-[rgba(28,24,18,0.05)] rounded-xl flex items-center justify-center gap-2 text-[10px] font-mono uppercase tracking-widest text-[#8a7f70] italic">
+          <MessageSquare size={12} /> Painel de Métricas de Engajamento em Breve...
         </div>
 
         <div className="flex p-1 bg-[#ede8df]/50 rounded-xl border border-[rgba(28,24,18,0.05)]">
