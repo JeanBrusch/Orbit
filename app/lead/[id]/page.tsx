@@ -7,7 +7,8 @@ import { motion, AnimatePresence } from "framer-motion"
 import {
   ArrowLeft, ArrowUp, Plus, Play, Loader2, Check, Brain,
   Phone, Home, Users, Calendar, FileText, Mic, Bell,
-  Zap, Star, Clock, Building2, ExternalLink, Menu, User, MapPin, X, MessageSquare
+  Zap, Star, Clock, Building2, ExternalLink, Menu, User, MapPin, X, MessageSquare,
+  Search, Send
 } from "lucide-react"
 import { ManualInteractionModal } from "@/components/lead-brain/manual-interaction-modal"
 import { OrbitSelectionPanel } from "@/components/orbit-selection-panel"
@@ -19,6 +20,16 @@ const supabase = createClient(
 )
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+interface AtlasProperty {
+  id: string
+  title: string | null
+  internal_name: string | null
+  cover_image: string | null
+  value: number | null
+  location_text: string | null
+  source_link: string | null
+}
+
 interface Lead {
   id: string
   name: string | null
@@ -306,6 +317,13 @@ export default function LeadTerminalPage({ params }: { params: Promise<{ id: str
   const [isMobileLeftSheetOpen, setIsMobileLeftSheetOpen] = useState(false)
   const [isMobileRightSheetOpen, setIsMobileRightSheetOpen] = useState(false)
 
+  // Property linking state
+  const [linkedProperty, setLinkedProperty] = useState<AtlasProperty | null>(null)
+  const [isAtlasSearchVisible, setIsAtlasSearchVisible] = useState(false)
+  const [atlasSearch, setAtlasSearch] = useState("")
+  const [allProperties, setAllProperties] = useState<AtlasProperty[]>([])
+  const [filteredProperties, setFilteredProperties] = useState<AtlasProperty[]>([])
+
   // Data states
   const [lead, setLead] = useState<Lead | null>(null)
   const [cognitive, setCognitive] = useState<CognitiveState | null>(null)
@@ -315,6 +333,31 @@ export default function LeadTerminalPage({ params }: { params: Promise<{ id: str
   const [reminders, setReminders] = useState<Reminder[]>([])
   const [aiSuggestion, setAiSuggestion] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+
+  // Fetch properties for property linking
+  useEffect(() => {
+    supabase
+      .from('properties')
+      .select('id,title,internal_name,cover_image,value,location_text,source_link')
+      .order('created_at', { ascending: false })
+      .limit(60)
+      .then(({ data }) => { if (data) setAllProperties(data as AtlasProperty[]) })
+  }, [])
+
+  useEffect(() => {
+    if (!atlasSearch.trim()) {
+      setFilteredProperties(allProperties.slice(0, 10))
+    } else {
+      const q = atlasSearch.toLowerCase()
+      setFilteredProperties(
+        allProperties.filter(p =>
+          p.title?.toLowerCase().includes(q) ||
+          p.internal_name?.toLowerCase().includes(q) ||
+          p.location_text?.toLowerCase().includes(q)
+        ).slice(0, 15)
+      )
+    }
+  }, [atlasSearch, allProperties])
 
   // Composer state
   const [composerText, setComposerText] = useState("")
@@ -725,23 +768,120 @@ export default function LeadTerminalPage({ params }: { params: Promise<{ id: str
 
           {/* Composer */}
           <div className="p-3 lg:p-5 border-t border-white/8 bg-[#0a0a0a] lg:bg-[#0a0a0a]/50 backdrop-blur-md pb-[max(env(safe-area-inset-bottom),16px)] lg:pb-5">
-            
-            {/* Horizontal action bar */}
-            <div className="flex items-center gap-2 overflow-x-auto custom-scrollbar-hide mb-3 pb-1">
-              {/* AI suggestion chip */}
-              {aiSuggestion && (
+
+            {/* ── Linked property preview + send ── */}
+            {linkedProperty ? (
+              <div className="mb-3 rounded-xl p-3 relative overflow-hidden border border-[#d4af35]/50 bg-[#14120c]" style={{ boxShadow: '0 0 20px rgba(212,175,53,0.08)' }}>
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-12 shrink-0 rounded-lg overflow-hidden bg-white/5">
+                    {linkedProperty.cover_image
+                      ? <img src={linkedProperty.cover_image} alt={linkedProperty.title || ''} className="w-full h-full object-cover" />
+                      : <div className="w-full h-full flex items-center justify-center"><Building2 className="w-4 h-4 text-slate-600" /></div>
+                    }
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] font-bold text-[#d4af35] uppercase tracking-wider">Em Foco</p>
+                    <p className="text-sm font-medium text-white truncate">{linkedProperty.title || linkedProperty.internal_name || 'Imóvel'}</p>
+                    {linkedProperty.value && (
+                      <p className="text-[11px] text-emerald-400 font-mono">
+                        {linkedProperty.value >= 1_000_000
+                          ? `R$ ${(linkedProperty.value / 1_000_000).toFixed(1)}M`
+                          : `R$ ${Math.round(linkedProperty.value / 1_000)}k`}
+                      </p>
+                    )}
+                  </div>
+                  <button onClick={() => setLinkedProperty(null)} className="text-slate-500 hover:text-white transition-colors shrink-0">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
                 <button
-                  onClick={() => setComposerText(aiSuggestion)}
-                  className="flex items-center gap-1.5 shrink-0 bg-[#d4af35]/10 hover:bg-[#d4af35]/20 border border-[#d4af35]/30 rounded-full px-3 py-1.5 text-xs transition-colors text-[#d4af35] font-medium"
+                  onClick={async () => {
+                    if (!linkedProperty || !sendTo) return
+                    const propName = linkedProperty.title || linkedProperty.internal_name || 'Imóvel selecionado'
+                    const msg = composerText.trim()
+                      || `Olá ${lead?.name?.split(' ')[0] || ''}! Encontrei esse imóvel para você: ${propName}${linkedProperty.source_link ? ' - ' + linkedProperty.source_link : ''}`
+                    setComposerText(msg)
+                    setLinkedProperty(null)
+                  }}
+                  className="mt-3 w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold bg-[#d4af35] text-[#0a0907] hover:brightness-110 transition-all"
                 >
-                  <Star className="w-3 h-3" /> Usar Sugestão Inteligente
+                  <Send className="w-4 h-4" /> Usar no Composer
                 </button>
-              )}
-              
-              <button onClick={() => setShowModal(true)} className="flex items-center gap-1.5 shrink-0 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full px-3 py-1.5 text-xs text-slate-300 transition-colors">
-                <Plus className="w-3 h-3" /> Registrar Interação Manual
-              </button>
-            </div>
+              </div>
+            ) : (
+              <>
+                {/* ── Atlas property search panel ── */}
+                {isAtlasSearchVisible && (
+                  <div className="mb-3 bg-[rgba(20,20,20,0.8)] border border-white/10 rounded-xl overflow-hidden animate-in slide-in-from-top-2 duration-200">
+                    <div className="flex items-center gap-2 px-3 py-2 border-b border-white/8">
+                      <Search className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <input
+                        autoFocus
+                        value={atlasSearch}
+                        onChange={e => setAtlasSearch(e.target.value)}
+                        placeholder="Buscar imóvel por nome ou localização..."
+                        className="flex-1 bg-transparent border-none outline-none text-xs text-slate-200 placeholder-slate-600"
+                      />
+                      <button onClick={() => { setIsAtlasSearchVisible(false); setAtlasSearch('') }} className="text-slate-500 hover:text-white transition-colors">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                    <div className="max-h-[200px] overflow-y-auto p-2 space-y-1" style={{ scrollbarWidth: 'thin' }}>
+                      {filteredProperties.length === 0 ? (
+                        <p className="text-xs text-center py-4 text-slate-600 italic">Nenhum imóvel encontrado</p>
+                      ) : (
+                        filteredProperties.map(p => (
+                          <div
+                            key={p.id}
+                            onClick={() => { setLinkedProperty(p); setIsAtlasSearchVisible(false); setAtlasSearch('') }}
+                            className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/8 cursor-pointer transition-all border border-transparent hover:border-white/10 group"
+                          >
+                            <div className="h-9 w-11 rounded-md bg-black/40 overflow-hidden shrink-0">
+                              {p.cover_image && <img src={p.cover_image} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h5 className="text-[11px] font-medium text-slate-200 truncate">{p.title || p.internal_name}</h5>
+                              {p.location_text && <p className="text-[9px] text-slate-500 truncate">{p.location_text}</p>}
+                              {p.value && (
+                                <p className="text-[10px] font-mono text-emerald-400/80 mt-0.5">
+                                  {p.value >= 1_000_000
+                                    ? `R$ ${(p.value / 1_000_000).toFixed(1)}M`
+                                    : `R$ ${Math.round(p.value / 1_000)}k`}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Horizontal action bar ── */}
+                <div className="flex items-center gap-2 overflow-x-auto custom-scrollbar-hide mb-3 pb-1">
+                  {/* AI suggestion chip */}
+                  {aiSuggestion && (
+                    <button
+                      onClick={() => setComposerText(aiSuggestion)}
+                      className="flex items-center gap-1.5 shrink-0 bg-[#d4af35]/10 hover:bg-[#d4af35]/20 border border-[#d4af35]/30 rounded-full px-3 py-1.5 text-xs transition-colors text-[#d4af35] font-medium"
+                    >
+                      <Star className="w-3 h-3" /> Sugestão IA
+                    </button>
+                  )}
+
+                  <button
+                    onClick={() => setIsAtlasSearchVisible(true)}
+                    className="flex items-center gap-1.5 shrink-0 bg-[#d4af35]/10 hover:bg-[#d4af35]/20 border border-[#d4af35]/30 rounded-full px-3 py-1.5 text-xs text-[#d4af35] font-medium transition-colors"
+                  >
+                    <Building2 className="w-3 h-3" /> Vincular Imóvel
+                  </button>
+
+                  <button onClick={() => setShowModal(true)} className="flex items-center gap-1.5 shrink-0 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full px-3 py-1.5 text-xs text-slate-300 transition-colors">
+                    <Plus className="w-3 h-3" /> Registrar Interação
+                  </button>
+                </div>
+              </>
+            )}
 
             <div className="flex items-end gap-2 lg:gap-3">
               <div className="flex-1 relative bg-white/5 border border-white/10 focus-within:border-[#d4af35]/50 rounded-2xl lg:rounded-xl transition-colors">
