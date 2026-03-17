@@ -104,12 +104,16 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'leadId é obrigatório' }, { status: 400 })
     }
 
+    console.log("[API GET PROP_INT] Fetching for leadId:", leadId);
     const supabase = getSupabaseServer()
     const { data, error } = await supabase
       .from('property_interactions')
       .select('*')
       .eq('lead_id', leadId)
       .order('timestamp', { ascending: false })
+
+    console.log("[API GET PROP_INT] Query result length:", data?.length || 0);
+    if (error) console.error("[API GET PROP_INT] Supabase error:", error);
 
     if (error) {
       console.error('[PROP_INT] Error fetching:', error)

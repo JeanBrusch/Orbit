@@ -202,11 +202,14 @@ export function OrbitSelectionPanel({ leadId }: OrbitSelectionPanelProps) {
     const url = `${window.location.origin}/selection/${spaceData.slug}`;
     setPortalUrl(url);
 
+    console.log("[OrbitSelectionPanel] Fetching for leadId:", leadId);
     // 2. Get all property interactions from client_portal via Server Route to bypass RLS
     const intRes = await fetch(`/api/property-interactions?leadId=${leadId}`)
     const intData = await intRes.json()
+    console.log("[OrbitSelectionPanel] Received interactions:", intData);
     
     const intList = ((intData.interactions || []) as any[]).filter(i => i.source === "client_portal");
+    console.log("[OrbitSelectionPanel] Filtered interactions (client_portal):", intList.length);
 
     // Stats
     const computedStats: SelectionStats = {
