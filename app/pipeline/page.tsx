@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { getSupabase } from "@/lib/supabase";
 import { TopBar } from "@/components/top-bar";
+import { OrbitProvider } from "@/components/orbit-context";
 import { useTheme } from "next-themes";
 import { Columns, RefreshCw, X, MessageSquare, Phone, MoreHorizontal, AlertTriangle, ArrowRight, ArrowUp, ArrowDown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -228,7 +229,8 @@ export default function PipelinePage() {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--orbit-bg)] text-[var(--orbit-text)] overflow-hidden flex flex-col font-sans">
+    <OrbitProvider>
+      <div className="min-h-screen bg-[var(--orbit-bg)] text-[var(--orbit-text)] overflow-hidden flex flex-col font-sans">
       <TopBar 
         totalLeads={stats.active} 
         isDark={theme === "dark"} 
@@ -477,6 +479,7 @@ export default function PipelinePage() {
         )}
       </AnimatePresence>
     </div>
+    </OrbitProvider>
   );
 }
 
