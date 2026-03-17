@@ -1,9 +1,6 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { getSupabaseServer } from '@/lib/supabase-server'
 import { resolvePreviewImage } from '@/lib/resolve-preview-image'
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
 export async function DELETE(
   request: Request,
@@ -19,7 +16,7 @@ export async function DELETE(
       )
     }
 
-    const supabase = createClient(supabaseUrl, supabaseKey)
+    const supabase = getSupabaseServer()
     
     const { data: property, error: fetchError } = await supabase
       .from('properties')
@@ -47,6 +44,7 @@ export async function DELETE(
 
     if (deleteInteractionsError) {
       console.error('Error deleting property interactions:', deleteInteractionsError)
+      return NextResponse.json({ error: 'Failed to delete property interactions', details: deleteInteractionsError.message }, { status: 500 })
     }
 
     // 2. Delete capsule items
@@ -57,6 +55,7 @@ export async function DELETE(
 
     if (deleteItemsError) {
       console.error('Error deleting capsule items:', deleteItemsError)
+      return NextResponse.json({ error: 'Failed to delete capsule items', details: deleteItemsError.message }, { status: 500 })
     }
 
     // 3. Delete embeddings
@@ -67,6 +66,7 @@ export async function DELETE(
 
     if (deleteEmbeddingsError) {
       console.error('Error deleting embeddings:', deleteEmbeddingsError)
+      return NextResponse.json({ error: 'Failed to delete embeddings', details: deleteEmbeddingsError.message }, { status: 500 })
     }
 
     const { error: deleteError } = await supabase
@@ -111,7 +111,7 @@ export async function PUT(
       )
     }
 
-    const supabase = createClient(supabaseUrl, supabaseKey)
+    const supabase = getSupabaseServer()
 
     const { data: existingProperty, error: fetchError } = await supabase
       .from('properties')

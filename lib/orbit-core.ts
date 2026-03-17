@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import { createClient } from "@supabase/supabase-js";
+import { getSupabaseServer } from "./supabase-server";
 import { Database } from "./database.types";
 
 let _openaiCache: OpenAI | null = null;
@@ -13,14 +13,12 @@ function getOpenAI() {
 
 // Always create a fresh client — serverless environments cannot reuse connections safely
 function getSupabase() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  
-  if (!url || !key) {
-    console.warn("[ORBIT CORE] Supabase credentials missing during access.");
+  try {
+    return getSupabaseServer();
+  } catch (err) {
+    console.warn("[ORBIT CORE] Supabase credentials missing during access.", err);
     return null;
   }
-  return createClient<Database>(url, key);
 }
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────

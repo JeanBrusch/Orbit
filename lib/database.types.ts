@@ -217,36 +217,7 @@ export interface Database {
           source_message_id?: string | null;
         };
       };
-      // ─── LEGACY: interactions (kept for backward compat, not written to) ─────
-      interactions: {
-        Row: {
-          id: string;
-          lead_id: string | null;
-          type: string;
-          direction: string | null;
-          content: string | null;
-          created_at: string | null;
-          idempotency_key: string | null;
-        };
-        Insert: {
-          id?: string;
-          lead_id?: string | null;
-          type: string;
-          direction?: string | null;
-          content?: string | null;
-          created_at?: string | null;
-          idempotency_key?: string | null;
-        };
-        Update: {
-          id?: string;
-          lead_id?: string | null;
-          type?: string;
-          direction?: string | null;
-          content?: string | null;
-          created_at?: string | null;
-          idempotency_key?: string | null;
-        };
-      };
+      // ─── LEGACY: interactions WAS REMOVED ──────────────────────────────────────
       properties: {
         Row: {
           id: string;

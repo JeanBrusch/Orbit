@@ -56,7 +56,8 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
   }
 
   const handleWhatsApp = (item?: SelectionItem) => {
-    const phone = "5551999999999" // TODO: Get from operator profile
+    // If the space has a linked operator phone, or fallback to environment variable
+    const phone = space?.operator_phone || process.env.NEXT_PUBLIC_CONSULTANT_PHONE || "5511999999999"
     let text = `Olá! Estou vendo o seu espaço Orbit Selection.`
     if (item) {
       text += ` Gostaria de saber mais sobre o imóvel: ${item.title}`
@@ -66,6 +67,7 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
   }
 
   const handleInteraction = async (itemId: string, capsuleItemId: string, state: string) => {
+    const prevState = interactions[itemId]
     try {
       // Optimistic update
       setInteractions(prev => ({ ...prev, [itemId]: state }))
@@ -84,6 +86,16 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
       if (!response.ok) throw new Error("Falha ao registrar")
       toast.success(state === 'favorited' ? "Imóvel curtido!" : state === 'visited' ? "Visita solicitada!" : "Interação registrada")
     } catch (err: any) {
+      // Revert optimistic update
+      setInteractions(prev => {
+        const next = { ...prev }
+        if (prevState) {
+          next[itemId] = prevState
+        } else {
+          delete next[itemId]
+        }
+        return next
+      })
       toast.error("Erro ao registrar interação")
       console.error(err)
     }
@@ -101,8 +113,36 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
           source: 'client_portal'
         })
       })
-    } catch(e) {}
+    } catch(err) {
+      console.error("Failed to track view:", err)
+    }
   }
+
+  useEffect(() => {
+    // Log portal access when component mounts
+    let isMounted = true
+    const logPortalAccess = async () => {
+      if (!lead?.id) return
+      try {
+        await fetch('/api/property-interactions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            leadId: lead.id,
+            propertyId: items[0]?.id, // Supply first item or null
+            interaction_type: 'portal_opened',
+            source: 'client_portal'
+          })
+        })
+      } catch (err) {
+        console.error("Failed to log portal access:", err)
+      }
+    }
+    
+    if (isMounted) logPortalAccess()
+    return () => { isMounted = false }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const handleAskQuestion = async (item: SelectionItem) => {
     const text = questionText[item.id]?.trim()
@@ -156,7 +196,7 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
               {firstName[0]}
             </div>
             <a 
-              href={`https://wa.me/5551999999999?text=Olá, Jean! Estou vendo o portal.`} 
+              href={`https://wa.me/${space?.operator_phone || process.env.NEXT_PUBLIC_CONSULTANT_PHONE || "5511999999999"}?text=Olá, ${firstName}! Estou vendo o portal.`} 
               target="_blank"
               className="flex items-center gap-2 px-[14px] py-[6px] rounded-[8px] bg-[var(--match-bg)] border border-[rgba(90,122,74,0.18)] text-[var(--match)] text-xs font-medium hover:bg-[rgba(90,122,74,0.14)] transition-all ml-2"
             >

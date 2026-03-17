@@ -84,6 +84,7 @@ export async function POST(request: NextRequest) {
       
       if (msgError) {
         console.error('[PROP_INT] Error creating message:', msgError)
+        return NextResponse.json({ error: 'Erro ao registrar pergunta no histórico' }, { status: 500 })
       }
     }
 

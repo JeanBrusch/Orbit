@@ -47,9 +47,19 @@ export async function GET(
     
     let token = lead.public_token
     
+    // Fetch the client space slug instead of legacy capsule token
+    const { data: space } = await supabase
+      .from('client_spaces')
+      .select('slug')
+      .eq('lead_id', id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    // If there is no client space yet we fallback to generating a lead token 
+    // Just in case other systems rely on a token. But the client portal URL requires a slug.
     if (!token) {
       token = generateLeadToken(id)
-      
       await supabase
         .from('leads')
         .update({ public_token: token })
@@ -59,7 +69,10 @@ export async function GET(
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 
       (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : '')
     
-    const capsuleUrl = `${baseUrl}/l/${token}`
+    // Instead of legacy /l/{token}, redirect to modern /selection/{slug}
+    const capsuleUrl = space?.slug 
+      ? `${baseUrl}/selection/${space.slug}`
+      : `${baseUrl}/l/${token}` // Fallback if no space is active
     
     return NextResponse.json({ 
       token,
