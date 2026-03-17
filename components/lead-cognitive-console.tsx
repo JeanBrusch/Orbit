@@ -11,6 +11,18 @@ import { getSupabase } from "@/lib/supabase";
 import { useOrbitContext } from "./orbit-context";
 import { OrbitSelectionPanel } from "@/components/orbit-selection-panel";
 
+// Mobile hook for responsive layout
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+  return isMobile;
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Lead {
   id: string;
@@ -482,6 +494,8 @@ const glass = "bg-[rgba(12,12,12,0.85)] backdrop-blur-[16px] border border-white
 export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveConsoleProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const isMobile = useIsMobile();
+  const [activeMobileTab, setActiveMobileTab] = useState<"chat" | "info">("chat");
 
   // Data
   const [lead, setLead] = useState<Lead | null>(null);
@@ -1405,17 +1419,23 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
                 </div>
               </section>
 
-              {/* ── RIGHT PANEL ── */}
-              <aside className="w-72 flex flex-col gap-4 overflow-y-auto shrink-0 custom-scrollbar">
+              {/* ── RIGHT PANEL (Hidden on mobile if "chat" is active, visible on MD) ── */}
+              <aside className={`flex flex-col gap-4 overflow-y-auto shrink-0 custom-scrollbar ${
+                isMobile 
+                  ? (activeMobileTab === "info" ? "w-full focus:outline-none p-4" : "hidden") 
+                  : "w-[280px] p-0 border-l border-white/5"
+              }`}>
 
-                {/* Próxima Melhor Ação */}
-                <div className={`${glass} border-[#d4af35]/15 border rounded-xl p-5`}>
-                  <div className="flex items-center gap-2 mb-4">
-                    <Star className="w-4 h-4 text-[#d4af35]" />
-                    <h3 className="text-[10px] font-bold uppercase tracking-widest text-slate-300">Próxima Melhor Ação</h3>
-                  </div>
+                {/* Seções da direita originais... vamos garantir padding correto */}
+                <div className="p-4 flex flex-col gap-4">
+                  {/* Próxima Melhor Ação */}
+                  <div className={`${glass} border-[#d4af35]/15 border rounded-xl p-5`}>
+                    <div className="flex items-center gap-2 mb-4">
+                      <Star className="w-4 h-4 text-[#d4af35]" />
+                      <h3 className="text-[10px] font-bold uppercase tracking-widest text-slate-300">Próxima Melhor Ação</h3>
+                    </div>
 
-                  {lead?.action_suggested ? (
+                    {lead?.action_suggested ? (
                     <div className="p-3 bg-[#d4af35]/8 border border-[#d4af35]/15 rounded-lg mb-4">
                       <p className="text-sm font-semibold text-[#d4af35] mb-1 leading-snug">
                         {cog?.current_state === "deciding" ? "🎯 Acionar Agora" : "💡 Ação Recomendada"}
@@ -1447,6 +1467,7 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
                     </button>
                   </div>
                 </div>
+              </div>
 
                 {/* Escrita Inteligente */}
                 <div className={`${glass} rounded-xl p-5`}>
@@ -1502,13 +1523,15 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
                 </div>
 
                 {/* Orbit Selection — portal do cliente */}
-                {leadId && <OrbitSelectionPanel leadId={leadId} />}
+                <div className="p-4 pt-0">
+                  {leadId && <OrbitSelectionPanel leadId={leadId} />}
+                </div>
 
               </aside>
             </main>
 
-            {/* Footer status bar */}
-            <div className="px-6 pb-3 flex items-center gap-3 shrink-0">
+            {/* Footer status bar (Hidden on mobile to save space) */}
+            <div className="hidden md:flex px-6 pb-3 items-center gap-3 shrink-0">
               <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-black/40 border border-white/5">
                 <div className="w-1.5 h-1.5 rounded-full bg-[#d4af35] animate-pulse" />
                 <span className="text-[9px] uppercase tracking-[0.2em] font-bold text-slate-500">Atlas Neural Network Linked</span>

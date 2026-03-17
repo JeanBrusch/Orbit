@@ -279,8 +279,8 @@ export function OrbitCore({
       {/* ── TYPEAHEAD DROPDOWN — rendered outside the sphere, centered below it ── */}
       {state === "listening" && suggestionsVisible && suggestions.length > 0 && (
         <div
-          className="absolute left-1/2 -translate-x-1/2 pointer-events-auto"
-          style={{ top: "calc(90px + 12px)", width: "340px", zIndex: 100 }}
+          className="absolute left-1/2 -translate-x-1/2 pointer-events-auto w-[calc(100vw-32px)] md:w-[340px]"
+          style={{ top: "calc(90px + 12px)", zIndex: 100 }}
         >
           <div className="rounded-2xl border border-white/10 bg-black/60 backdrop-blur-3xl shadow-[0_16px_60px_rgba(0,0,0,0.8)] overflow-hidden ring-1 ring-white/5">
             {/* Lead suggestions */}

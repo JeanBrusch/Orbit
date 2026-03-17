@@ -78,13 +78,17 @@ function OrbitInterfaceContent() {
   useEffect(() => {
     if (!nodesContainerRef.current || !nodesLayerRef.current) return;
 
+    const isMobile = window.innerWidth < 768;
+
     const zoom = d3.zoom<HTMLDivElement, unknown>()
-      .scaleExtent([0.8, 1.6])
+      .scaleExtent(isMobile ? [0.5, 1.2] : [0.8, 1.6])
       .filter((event) => {
         // Allow wheel zoom, allow drag only if not a button/interactive element
-        if (event.type === "wheel") return true;
-        if (event.type === "mousedown") {
+        if (event.type === "wheel") return !isMobile; // Disable trackpad zooming on mobile to prevent accidental scrolls
+        if (event.type === "mousedown" || event.type === "touchstart") {
           const target = event.target as HTMLElement;
+          // Se for scroll container do Lead Console, não previne o default
+          if (target.closest('.overflow-y-auto')) return false;
           return !target.closest("button, a, input, [role='button']");
         }
         return true;
@@ -98,10 +102,11 @@ function OrbitInterfaceContent() {
 
     select(nodesContainerRef.current).call(zoom);
 
-    // Start at identity — leads are already centred via polar layout
+    // On mobile, start zoomed out so all nodes fit on screen immediately
+    const initialScale = isMobile ? 0.65 : 1;
     select(nodesContainerRef.current).call(
       zoom.transform,
-      d3.zoomIdentity
+      d3.zoomIdentity.scale(initialScale)
     );
 
     return () => {
@@ -193,7 +198,7 @@ function OrbitInterfaceContent() {
 
       {/* ── Layer 2: Orbit rings + Core (static, NOT zoomed) ─────────────── */}
       <div className="absolute inset-0 z-[60] pointer-events-none flex items-center justify-center">
-        <div className="pointer-events-auto">
+        <div className="pointer-events-auto scale-75 md:scale-100 transition-transform origin-center translate-y-[-20%] md:translate-y-0">
           <OrbitCore
             state={coreState}
             message={coreMessage}
