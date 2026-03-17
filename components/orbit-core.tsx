@@ -274,11 +274,11 @@ export function OrbitCore({
       {state === "listening" && suggestionsVisible && suggestions.length > 0 && (
         <div
           className="absolute left-1/2 -translate-x-1/2 pointer-events-auto"
-          style={{ top: "calc(90px + 8px)", width: "320px", zIndex: 100 }}
+          style={{ top: "calc(90px + 12px)", width: "340px", zIndex: 100 }}
         >
-          <div className="rounded-2xl border border-[var(--orbit-glass-border)] bg-[rgba(8,8,16,0.96)] backdrop-blur-xl shadow-[0_8px_40px_rgba(0,0,0,0.6)] overflow-hidden">
+          <div className="rounded-2xl border border-white/10 bg-black/60 backdrop-blur-3xl shadow-[0_16px_60px_rgba(0,0,0,0.8)] overflow-hidden ring-1 ring-white/5">
             {/* Lead suggestions */}
-            <div className="p-1">
+            <div className="p-1.5">
               {suggestions.map((lead, i) => (
                 <button
                   key={lead.id}
@@ -324,19 +324,19 @@ export function OrbitCore({
 
             {/* AI Search option — always shown when there's text */}
             {inputValue.trim().length > 0 && (
-              <div className="border-t border-[rgba(255,255,255,0.05)]">
+              <div className="border-t border-white/10 p-1.5 bg-gradient-to-b from-transparent to-black/40">
                 <button
                   onClick={handleAISearch}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-[rgba(212,175,53,0.06)] focus:bg-[rgba(212,175,53,0.06)] focus:outline-none"
+                  className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left transition-all hover:bg-white/10 focus:bg-white/10 focus:outline-none ring-1 ring-inset ring-transparent hover:ring-[#d4af35]/30 group"
                 >
-                  <div className="w-6 h-6 rounded-lg bg-[#d4af35]/10 border border-[#d4af35]/20 flex items-center justify-center shrink-0">
-                    <Sparkles className="w-3 h-3 text-[#d4af35]" />
+                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#d4af35]/20 to-[#d4af35]/5 border border-[#d4af35]/30 flex items-center justify-center shrink-0 shadow-[0_0_15px_rgba(212,175,53,0.15)] group-hover:shadow-[0_0_20px_rgba(212,175,53,0.3)] transition-shadow">
+                    <Sparkles className="w-4 h-4 text-[#d4af35]" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-[11px] font-medium text-[#d4af35]">Busca cognitiva com IA</p>
-                    <p className="text-[10px] text-[var(--orbit-text-muted)] truncate">"{inputValue.trim()}"</p>
+                    <p className="text-[12px] font-semibold text-[#d4af35] tracking-wide">Busca Cognitiva</p>
+                    <p className="text-[10px] text-zinc-400 truncate opacity-90 mt-0.5">"{inputValue.trim()}"</p>
                   </div>
-                  <ArrowRight className="w-3 h-3 text-[#d4af35]/50 shrink-0" />
+                  <ArrowRight className="w-4 h-4 text-[#d4af35]/40 shrink-0 group-hover:text-[#d4af35]/80 transition-colors group-hover:translate-x-0.5" />
                 </button>
               </div>
             )}
@@ -348,21 +348,21 @@ export function OrbitCore({
       {state === "listening" && !suggestionsVisible && !loadingSuggestions && inputValue.trim().length >= 2 && suggestions.length === 0 && (
         <div
           className="absolute left-1/2 -translate-x-1/2 pointer-events-auto"
-          style={{ top: "calc(90px + 8px)", width: "320px", zIndex: 100 }}
+          style={{ top: "calc(90px + 12px)", width: "340px", zIndex: 100 }}
         >
-          <div className="rounded-2xl border border-[var(--orbit-glass-border)] bg-[rgba(8,8,16,0.96)] backdrop-blur-xl shadow-[0_8px_40px_rgba(0,0,0,0.6)] overflow-hidden">
+          <div className="rounded-2xl border border-white/10 bg-black/60 backdrop-blur-3xl shadow-[0_16px_60px_rgba(0,0,0,0.8)] overflow-hidden ring-1 ring-white/5 p-1.5">
             <button
               onClick={handleAISearch}
-              className="w-full flex items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-[rgba(212,175,53,0.06)]"
+              className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left transition-all hover:bg-white/10 focus:bg-white/10 focus:outline-none ring-1 ring-inset ring-transparent hover:ring-[#d4af35]/30 group"
             >
-              <div className="w-7 h-7 rounded-lg bg-[#d4af35]/10 border border-[#d4af35]/20 flex items-center justify-center shrink-0">
-                <Sparkles className="w-3.5 h-3.5 text-[#d4af35]" />
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#d4af35]/20 to-[#d4af35]/5 border border-[#d4af35]/30 flex items-center justify-center shrink-0 shadow-[0_0_15px_rgba(212,175,53,0.15)] group-hover:shadow-[0_0_20px_rgba(212,175,53,0.3)] transition-shadow">
+                <Sparkles className="w-4 h-4 text-[#d4af35]" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-[11px] font-medium text-[#d4af35]">Buscar com IA</p>
-                <p className="text-[10px] text-[var(--orbit-text-muted)] truncate">"{inputValue.trim()}"</p>
+                <p className="text-[12px] font-semibold text-[#d4af35] tracking-wide">Busca Cognitiva</p>
+                <p className="text-[10px] text-zinc-400 truncate opacity-90 mt-0.5">"{inputValue.trim()}"</p>
               </div>
-              <ArrowRight className="w-3 h-3 text-[#d4af35]/50 shrink-0" />
+              <ArrowRight className="w-4 h-4 text-[#d4af35]/40 shrink-0 group-hover:text-[#d4af35]/80 transition-colors group-hover:translate-x-0.5" />
             </button>
           </div>
         </div>

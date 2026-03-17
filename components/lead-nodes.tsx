@@ -751,16 +751,23 @@ const LeadNodeItem = memo(({
     return            "opacity-20 scale-[0.80] grayscale"            // > 30 dias: quasi-invisível e menor
   }
 
-  const activityOpacity = orbitViewStatus.isUnrelated
-    ? "opacity-40 scale-[0.95]"
-    : getFadeDepth(node.daysSinceInteraction, !!node.needsAttention);
+  let activityOpacity = ""
+  if (orbitViewStatus.active) {
+    if (orbitViewStatus.isRelated) {
+      // Powerful glow for highlighted search results
+      activityOpacity = "scale-105 drop-shadow-[0_0_15px_rgba(212,175,53,0.5)] z-50 brightness-110 opacity-100"
+    } else {
+      // Significant dimming for unrelated leads to create contrast
+      activityOpacity = "opacity-15 grayscale scale-90"
+    }
+  } else {
+    // Normal depth-fade behavior when search isn't active
+    activityOpacity = getFadeDepth(node.daysSinceInteraction, !!node.needsAttention)
+  }
 
   return (
     <div
-      className={`pointer-events-auto absolute transition-all duration-700 ${node.needsAttention ? 'animate-pulse z-40' : ''} ${isResponding && hasHighlights && !isHighlighted
-          ? "scale-95 opacity-40"
-          : activityOpacity
-        } ${!isResponding && !node.isNew ? "animate-node-float" : ""} ${node.cycleStage === "decidindo" || hasFollowUpDue
+      className={`pointer-events-auto absolute transition-all duration-[600ms] ease-[cubic-bezier(0.16,1,0.3,1)] ${node.needsAttention ? 'animate-pulse z-40' : ''} ${activityOpacity} ${!isResponding && !node.isNew ? "animate-node-float" : ""} ${node.cycleStage === "decidindo" || hasFollowUpDue
           ? "animate-hot-lead-pulse"
           : ""
         } ${node.isNew ? "animate-lead-emerge" : ""} ${orbitViewStatus.isRelated ? "z-30" : ""}`}
@@ -768,7 +775,7 @@ const LeadNodeItem = memo(({
         top: node.position.top,
         left: node.position.left,
         animationDelay: `${node.delay}s`,
-        transitionDelay: isResponding ? `${highlightDelay}s` : "0s",
+        transitionDelay: orbitViewStatus.active && orbitViewStatus.isRelated ? `${highlightDelay}s` : "0s",
       }}
       onMouseEnter={() => onMouseEnter(node.id)}
       onMouseLeave={() => onMouseLeave()}
