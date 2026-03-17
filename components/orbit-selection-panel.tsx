@@ -202,19 +202,11 @@ export function OrbitSelectionPanel({ leadId }: OrbitSelectionPanelProps) {
     const url = `${window.location.origin}/selection/${spaceData.slug}`;
     setPortalUrl(url);
 
-    // 2. Get all property interactions from client_portal
-    const { data: interactions } = await (supabase
-      .from("property_interactions") as any)
-      .select("interaction_type, property_id, timestamp")
-      .eq("lead_id", leadId)
-      .eq("source", "client_portal")
-      .order("timestamp", { ascending: false });
-
-    const intList = (interactions || []) as Array<{
-      interaction_type: string;
-      property_id: string;
-      timestamp: string;
-    }>;
+    // 2. Get all property interactions from client_portal via Server Route to bypass RLS
+    const intRes = await fetch(`/api/property-interactions?leadId=${leadId}`)
+    const intData = await intRes.json()
+    
+    const intList = ((intData.interactions || []) as any[]).filter(i => i.source === "client_portal");
 
     // Stats
     const computedStats: SelectionStats = {
