@@ -9,6 +9,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { getSupabase } from "@/lib/supabase";
 import { useOrbitContext } from "./orbit-context";
+import { OrbitSelectionPanel } from "@/components/orbit-selection-panel";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Lead {
@@ -1499,6 +1500,10 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
                     </div>
                   )}
                 </div>
+
+                {/* Orbit Selection — portal do cliente */}
+                {leadId && <OrbitSelectionPanel leadId={leadId} />}
+
               </aside>
             </main>
 
