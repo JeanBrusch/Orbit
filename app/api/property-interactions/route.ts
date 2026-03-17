@@ -108,11 +108,16 @@ export async function GET(request: NextRequest) {
     }
 
     const supabase = getSupabaseServer()
-    const { data, error } = await supabase
-      .from('property_interactions')
-      .select('*')
-      .eq('lead_id', leadId)
-      .order('timestamp', { ascending: false })
+    let query = supabase.from('property_interactions').select('*')
+
+    if (leadId.includes(',')) {
+      const ids = leadId.split(',').map((id: string) => id.trim())
+      query = query.in('lead_id', ids)
+    } else {
+      query = query.eq('lead_id', leadId)
+    }
+
+    const { data, error } = await query.order('timestamp', { ascending: false })
 
     if (error) {
       console.error('[PROP_INT] Error fetching:', error)

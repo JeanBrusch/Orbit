@@ -1020,14 +1020,14 @@ function SelectionsHistory() {
     
     if (capsulesData && capsulesData.length > 0) {
       const leadIds = capsulesData.map((c: any) => c.lead_id)
-      const { data: interactionsData } = await (supabase
-        .from('property_interactions') as any)
-        .select('lead_id, interaction_type')
-        .in('lead_id', leadIds)
-        .eq('source', 'client_portal')
+      
+      // Use Server API to bypass RLS for metrics unification
+      const intRes = await fetch(`/api/property-interactions?leadId=${leadIds.join(',')}`)
+      const intData = await intRes.json()
+      const interactionsData = intData.interactions || []
 
       const statsByLead = leadIds.reduce((acc: any, id: string) => {
-        const leadInts = interactionsData?.filter((i: any) => i.lead_id === id) || [];
+        const leadInts = interactionsData.filter((i: any) => i.lead_id === id);
         acc[id] = {
           views: leadInts.filter((i: any) => i.interaction_type === 'viewed').length,
           likes: leadInts.filter((i: any) => i.interaction_type === 'favorited').length,

@@ -9,7 +9,8 @@ import {
   LogOut, 
   Activity,
   CircleDot,
-  UserPlus
+  UserPlus,
+  Columns
 } from "lucide-react";
 import { WhatsAppInbox } from "./whatsapp-inbox";
 import { Button } from "./ui/button";
@@ -125,6 +126,15 @@ export function TopBar({ totalLeads, isDark, onThemeToggle, onLogout }: TopBarPr
           
           <div className="w-px h-4 bg-[var(--orbit-glass-border)] mx-0.5 md:mx-1 hidden sm:block" />
           
+          <Link
+            href="/pipeline"
+            className="flex items-center gap-1.5 px-2 md:px-3 py-1.5 rounded-lg hover:bg-[var(--orbit-glow)]/10 text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)] transition-all duration-300 text-[10px] font-medium"
+            title="Pipeline de Leads"
+          >
+            <Columns className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Pipeline</span>
+          </Link>
+
           <Link
             href="/telemetry"
             className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-[var(--orbit-glow)]/10 text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)] transition-all duration-300 text-[10px] font-medium"

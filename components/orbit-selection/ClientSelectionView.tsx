@@ -153,8 +153,10 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
   }
 
   useEffect(() => {
-    // Log portal access when component mounts
     if (!lead?.id || !items[0]?.id) return
+    
+    const startTime = Date.now()
+    
     const logPortalAccess = async () => {
       try {
         await fetch('/api/property-interactions', {
@@ -171,7 +173,22 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
         console.error("Failed to log portal access:", err)
       }
     }
+    
     logPortalAccess()
+
+    // Track session duration on unmount/background
+    return () => {
+      const duration = Math.round((Date.now() - startTime) / 1000)
+      if (duration > 5) { // Only log if they stayed more than 5s
+        navigator.sendBeacon('/api/property-interactions', JSON.stringify({
+          leadId: lead.id,
+          propertyId: items[0].id,
+          interaction_type: 'portal_session',
+          source: 'client_portal',
+          text: `Duração: ${duration}s`
+        }))
+      }
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lead?.id])
 
@@ -552,6 +569,7 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
                       <a 
                         href={selectedItem.url}
                         target="_blank"
+                        rel="noopener noreferrer"
                         onClick={() => trackExternalLink(selectedItem.id)}
                         className="mt-3 w-full py-4 rounded-xl bg-white border border-[rgba(28,24,18,0.1)] text-[var(--ink2)] text-sm font-medium hover:bg-[rgba(28,24,18,0.02)] transition-all flex items-center justify-center gap-2 shadow-sm"
                       >

@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import {
   ArrowLeft, ArrowUp, Plus, Play, Loader2, Check, Brain,
   Phone, Home, Users, Calendar, FileText, Mic, Bell,
-  Zap, Star, Clock, Building2, ExternalLink
+  Zap, Star, Clock, Building2, ExternalLink, Menu, User, MapPin, X, MessageSquare
 } from "lucide-react"
 import { ManualInteractionModal } from "@/components/lead-brain/manual-interaction-modal"
 import { OrbitSelectionPanel } from "@/components/orbit-selection-panel"
@@ -302,6 +302,10 @@ export default function LeadTerminalPage({ params }: { params: Promise<{ id: str
   const bottomRef = useRef<HTMLDivElement>(null)
   const [showModal, setShowModal] = useState(false)
 
+  // Mobile state
+  const [isMobileLeftSheetOpen, setIsMobileLeftSheetOpen] = useState(false)
+  const [isMobileRightSheetOpen, setIsMobileRightSheetOpen] = useState(false)
+
   // Data states
   const [lead, setLead] = useState<Lead | null>(null)
   const [cognitive, setCognitive] = useState<CognitiveState | null>(null)
@@ -513,45 +517,45 @@ export default function LeadTerminalPage({ params }: { params: Promise<{ id: str
       }} />
 
       {/* ── TOP BAR ────────────────────────────────────────────────────────── */}
-      <header className="relative z-10 px-6 pt-4 pb-3">
-        <div className="max-w-[1600px] mx-auto bg-[rgba(20,20,20,0.8)] backdrop-blur-xl rounded-xl px-5 py-3 flex items-center justify-between shadow-2xl border border-white/8">
+      <header className="relative z-10 lg:px-6 lg:pt-4 lg:pb-3 pb-0">
+        <div className="max-w-[1600px] mx-auto bg-[#0a0a0a] lg:bg-[rgba(20,20,20,0.8)] lg:backdrop-blur-xl rounded-none lg:rounded-xl px-4 py-3 lg:px-5 flex items-center justify-between shadow-none lg:shadow-2xl border-b border-white/10 lg:border lg:border-white/8">
 
           {/* Left: back + lead info */}
-          <div className="flex items-center gap-5">
+          <div className="flex items-center gap-3 lg:gap-5 flex-1 min-w-0">
             <button onClick={() => router.push("/")}
-              className="w-9 h-9 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-slate-400 hover:text-white transition-colors">
+              className="w-8 h-8 lg:w-9 lg:h-9 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-slate-400 hover:text-white transition-colors shrink-0">
               <ArrowLeft className="w-4 h-4" />
             </button>
 
-            <div className="w-px h-7 bg-white/10" />
+            <div className="w-px h-7 bg-white/10 hidden lg:block" />
 
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <div className="w-10 h-10 rounded-full border border-[#d4af35]/30 overflow-hidden bg-[#d4af35]/10 flex items-center justify-center text-sm font-bold text-[#d4af35]">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="relative shrink-0">
+                <div className="w-8 h-8 lg:w-10 lg:h-10 rounded-full border border-[#d4af35]/30 overflow-hidden bg-[#d4af35]/10 flex items-center justify-center text-xs lg:text-sm font-bold text-[#d4af35]">
                   {lead.photo_url
                     ? <img src={lead.photo_url} alt="" className="w-full h-full object-cover" />
                     : getInitials(lead.name)
                   }
                 </div>
-                <div className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-[#121212]" />
+                <div className="absolute bottom-0 right-0 w-2 h-2 lg:w-2.5 lg:h-2.5 rounded-full bg-emerald-500 border-2 border-[#121212]" />
               </div>
-              <div>
-                <p className="text-sm font-bold">{lead.name || "Lead"}</p>
-                <p className="text-[10px] text-[#d4af35]/80 font-semibold uppercase tracking-wider">
-                  {lead.orbit_stage || "Sem estágio"} · {formatRelative(lead.last_interaction_at)}
+              <div className="min-w-0">
+                <p className="text-sm font-bold truncate">{lead.name || "Lead"}</p>
+                <p className="text-[10px] text-[#d4af35]/80 font-semibold uppercase tracking-wider truncate">
+                  {lead.orbit_stage || "Sem estágio"} <span className="hidden lg:inline">· {formatRelative(lead.last_interaction_at)}</span>
                 </p>
               </div>
             </div>
 
-            <div className="w-px h-7 bg-white/10" />
-            <div>
+            <div className="w-px h-7 bg-white/10 hidden lg:block" />
+            <div className="hidden lg:block">
               <p className="text-[9px] text-slate-500 uppercase tracking-widest font-bold">ORBIT 3.0</p>
               <p className="text-[9px] text-slate-600 uppercase tracking-tight">Cognitive Real Estate Terminal</p>
             </div>
           </div>
 
           {/* Center: 4 cognitive rings */}
-          <div className="flex items-center gap-6">
+          <div className="hidden lg:flex items-center gap-6">
             <CognitiveRing value={cog?.interest_score ?? 0} label="Interesse" color="#d4af35" />
             <CognitiveRing value={cog?.momentum_score ?? 0} label="Momentum" color="#d4af35" />
             <CognitiveRing value={cog?.risk_score ?? 0} label="Risco" color="#ef4444" />
@@ -559,14 +563,24 @@ export default function LeadTerminalPage({ params }: { params: Promise<{ id: str
           </div>
 
           {/* Right: actions */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 lg:gap-2 shrink-0">
+            {/* Mobile toggles */}
+            <div className="flex lg:hidden items-center gap-1 mr-1">
+              <button onClick={() => setIsMobileLeftSheetOpen(true)} className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-slate-400">
+                <User className="w-4 h-4" />
+              </button>
+              <button onClick={() => setIsMobileRightSheetOpen(true)} className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-slate-400">
+                <Building2 className="w-4 h-4" />
+              </button>
+            </div>
+
             {reminders.length > 0 && (
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-400/10 border border-amber-400/20 rounded-lg text-[10px] text-amber-400 font-bold">
+              <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-amber-400/10 border border-amber-400/20 rounded-lg text-[10px] text-amber-400 font-bold">
                 <Bell className="w-3 h-3" />
                 {new Date(reminders[0].due_at).toLocaleString("pt-BR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
               </div>
             )}
-            <button className="w-9 h-9 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-slate-400 hover:text-white transition-colors">
+            <button className="hidden lg:flex w-9 h-9 rounded-lg bg-white/5 hover:bg-white/10 items-center justify-center text-slate-400 hover:text-white transition-colors">
               <Bell className="w-4 h-4" />
             </button>
           </div>
@@ -574,10 +588,38 @@ export default function LeadTerminalPage({ params }: { params: Promise<{ id: str
       </header>
 
       {/* ── MAIN 3-COLUMN GRID ─────────────────────────────────────────────── */}
-      <main className="relative z-10 flex-1 flex gap-4 px-6 pb-5 min-h-0 overflow-hidden">
+      <main className="relative z-10 flex-1 flex flex-col lg:flex-row gap-0 lg:gap-4 px-0 lg:px-6 pb-0 lg:pb-5 min-h-0 overflow-hidden">
 
         {/* ── LEFT PANEL: Context Intelligence ──────────────────────────── */}
-        <aside className="w-72 flex flex-col gap-4 overflow-y-auto pr-1" style={{ scrollbarWidth: "thin", scrollbarColor: "#d4af35/20 transparent" }}>
+        <aside className={`w-full lg:w-72 flex flex-col gap-4 overflow-y-auto bg-[#0a0a0a] lg:bg-transparent px-4 lg:px-0 pt-4 lg:pt-0 pb-[max(5rem,env(safe-area-inset-bottom))] lg:pb-0 pr-4 lg:pr-1 fixed lg:relative inset-0 z-[100] lg:z-0 transition-transform duration-300 ${isMobileLeftSheetOpen ? 'translate-y-0' : 'translate-y-full lg:translate-y-0'}`} style={{ scrollbarWidth: "thin", scrollbarColor: "#d4af35/20 transparent" }}>
+          
+          {/* Mobile Header for Drawer */}
+          <div className="lg:hidden flex items-center justify-between pb-4 border-b border-white/10 mb-2 sticky top-0 bg-[#0a0a0a] z-10">
+            <h2 className="font-bold text-white flex items-center gap-2"><User className="w-4 h-4"/> Perfil Cognitivo</h2>
+            <button onClick={() => setIsMobileLeftSheetOpen(false)} className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center">
+              <X className="w-5 h-5"/>
+            </button>
+          </div>
+          
+          {/* Mobile Score Recap */}
+          <div className="lg:hidden grid grid-cols-4 gap-2 mb-2">
+            <div className="flex flex-col items-center justify-center p-2 rounded-lg bg-[#d4af35]/10 border border-white/5">
+              <span className="text-[8px] font-bold uppercase tracking-widest text-slate-400 mb-1">Int</span>
+              <span className="text-lg font-black text-[#d4af35]">{cog?.interest_score ?? 0}</span>
+            </div>
+            <div className="flex flex-col items-center justify-center p-2 rounded-lg bg-[#d4af35]/10 border border-white/5">
+              <span className="text-[8px] font-bold uppercase tracking-widest text-slate-400 mb-1">Mom</span>
+              <span className="text-lg font-black text-[#d4af35]">{cog?.momentum_score ?? 0}</span>
+            </div>
+            <div className="flex flex-col items-center justify-center p-2 rounded-lg bg-red-500/10 border border-white/5">
+              <span className="text-[8px] font-bold uppercase tracking-widest text-slate-400 mb-1">Risc</span>
+              <span className="text-lg font-black text-red-500">{cog?.risk_score ?? 0}</span>
+            </div>
+            <div className="flex flex-col items-center justify-center p-2 rounded-lg bg-[#d4af35]/10 border border-white/5">
+              <span className="text-[8px] font-bold uppercase tracking-widest text-slate-400 mb-1">Clar</span>
+              <span className="text-lg font-black text-[#d4af35]">{cog?.clarity_level ?? 0}</span>
+            </div>
+          </div>
 
           {/* Memória do Cliente */}
           <div className="bg-[rgba(20,20,20,0.7)] backdrop-blur-xl rounded-xl p-5 border border-white/8 flex flex-col gap-4">
@@ -682,64 +724,68 @@ export default function LeadTerminalPage({ params }: { params: Promise<{ id: str
           </div>
 
           {/* Composer */}
-          <div className="p-5 border-t border-white/8 bg-[#0a0a0a]/50 backdrop-blur-md">
-            {/* AI suggestion chips */}
-            {aiSuggestion && (
-              <div className="mb-3 flex flex-wrap gap-2">
-                <span className="text-[9px] text-slate-500 font-bold uppercase pt-1.5 mr-1">Sugestão IA:</span>
+          <div className="p-3 lg:p-5 border-t border-white/8 bg-[#0a0a0a] lg:bg-[#0a0a0a]/50 backdrop-blur-md pb-[max(env(safe-area-inset-bottom),16px)] lg:pb-5">
+            
+            {/* Horizontal action bar */}
+            <div className="flex items-center gap-2 overflow-x-auto custom-scrollbar-hide mb-3 pb-1">
+              {/* AI suggestion chip */}
+              {aiSuggestion && (
                 <button
                   onClick={() => setComposerText(aiSuggestion)}
-                  className="bg-white/5 hover:bg-[#d4af35]/10 border border-white/10 hover:border-[#d4af35]/30 rounded-full px-4 py-1.5 text-xs transition-colors text-slate-300 hover:text-[#d4af35]"
+                  className="flex items-center gap-1.5 shrink-0 bg-[#d4af35]/10 hover:bg-[#d4af35]/20 border border-[#d4af35]/30 rounded-full px-3 py-1.5 text-xs transition-colors text-[#d4af35] font-medium"
                 >
-                  "{aiSuggestion.slice(0, 60)}{aiSuggestion.length > 60 ? "..." : ""}"
+                  <Star className="w-3 h-3" /> Usar Sugestão Inteligente
                 </button>
-              </div>
-            )}
-
-            <div className="flex items-center gap-3">
-              {/* Manual interaction button */}
-              <button
-                onClick={() => setShowModal(true)}
-                title="Registrar interação manual"
-                className="w-10 h-10 rounded-full bg-white/5 hover:bg-[#d4af35]/10 border border-white/10 hover:border-[#d4af35]/30 flex items-center justify-center text-slate-400 hover:text-[#d4af35] transition-all"
-              >
-                <Plus className="w-4 h-4" />
+              )}
+              
+              <button onClick={() => setShowModal(true)} className="flex items-center gap-1.5 shrink-0 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full px-3 py-1.5 text-xs text-slate-300 transition-colors">
+                <Plus className="w-3 h-3" /> Registrar Interação Manual
               </button>
+            </div>
 
-              <div className="flex-1 relative">
-                <input
-                  type="text"
+            <div className="flex items-end gap-2 lg:gap-3">
+              <div className="flex-1 relative bg-white/5 border border-white/10 focus-within:border-[#d4af35]/50 rounded-2xl lg:rounded-xl transition-colors">
+                <textarea
                   value={composerText}
                   onChange={e => setComposerText(e.target.value)}
                   onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend() } }}
-                  placeholder="Digite sua mensagem inteligente..."
-                  className="w-full bg-white/5 border border-white/10 focus:border-[#d4af35]/50 rounded-xl px-4 py-3 text-sm focus:outline-none placeholder-slate-500 transition-colors"
+                  placeholder="Mensagem..."
+                  className="w-full bg-transparent px-4 py-3 text-sm focus:outline-none placeholder-slate-500 min-h-[44px] max-h-[120px] resize-none overflow-y-auto"
+                  rows={Math.min(4, Math.max(1, composerText.split('\n').length))}
                 />
               </div>
 
               <button
                 onClick={handleSend}
                 disabled={!composerText.trim() || sendStatus !== "idle"}
-                className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
+                className={`w-11 h-11 shrink-0 rounded-full flex items-center justify-center transition-all ${
                   sendStatus === "done" ? "bg-emerald-500/20 text-emerald-400" :
                   composerText.trim() ? "bg-[#d4af35] text-[#0a0907] shadow-[0_0_15px_rgba(212,175,53,0.3)]" :
                   "bg-white/5 text-slate-600"
                 }`}
               >
-                {sendStatus === "sending" ? <Loader2 className="w-4 h-4 animate-spin" /> :
-                 sendStatus === "done" ? <Check className="w-4 h-4" /> :
-                 <ArrowUp className="w-4 h-4" />}
+                {sendStatus === "sending" ? <Loader2 className="w-5 h-5 animate-spin" /> :
+                 sendStatus === "done" ? <Check className="w-5 h-5" /> :
+                 <ArrowUp className="w-5 h-5" />}
               </button>
             </div>
 
-            <p className="text-[9px] text-center text-slate-700 mt-2 tracking-widest uppercase">
+            <p className="hidden lg:block text-[9px] text-center text-slate-700 mt-2 tracking-widest uppercase">
               {sendTo ? `Enviando via WhatsApp · ${lead?.phone || 'LID'}` : "Sem número ou LID · não é possível enviar pelo WhatsApp"}
             </p>
           </div>
         </section>
 
         {/* ── RIGHT PANEL: Action Console ────────────────────────────────── */}
-        <aside className="w-72 flex flex-col gap-4 overflow-y-auto" style={{ scrollbarWidth: "thin", scrollbarColor: "#d4af35/20 transparent" }}>
+        <aside className={`w-full lg:w-72 flex flex-col gap-4 overflow-y-auto bg-[#0a0a0a] lg:bg-transparent px-4 lg:px-0 pt-4 lg:pt-0 pb-[max(5rem,env(safe-area-inset-bottom))] lg:pb-0 fixed lg:relative inset-0 z-[100] lg:z-0 transition-transform duration-300 ${isMobileRightSheetOpen ? 'translate-y-0' : 'translate-y-full lg:translate-y-0'}`} style={{ scrollbarWidth: "thin", scrollbarColor: "#d4af35/20 transparent" }}>
+          
+          {/* Mobile Header for Drawer */}
+          <div className="lg:hidden flex items-center justify-between pb-4 border-b border-white/10 mb-2 sticky top-0 bg-[#0a0a0a] z-10">
+            <h2 className="font-bold text-white flex items-center gap-2"><Building2 className="w-4 h-4"/> Console de Ação</h2>
+            <button onClick={() => setIsMobileRightSheetOpen(false)} className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center">
+              <X className="w-5 h-5"/>
+            </button>
+          </div>
 
           {/* Próxima Melhor Ação */}
           <div className="bg-[rgba(20,20,20,0.7)] backdrop-blur-xl rounded-xl p-5 border border-[#d4af35]/20 flex flex-col gap-4">

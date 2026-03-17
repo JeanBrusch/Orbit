@@ -221,6 +221,15 @@ export function OrbitSelectionPanel({ leadId }: OrbitSelectionPanelProps) {
     };
     setStats(computedStats);
 
+    // Find Most Viewed Property
+    const viewCounts: Record<string, number> = {};
+    intList.filter(i => i.interaction_type === "viewed").forEach(i => {
+      viewCounts[i.property_id] = (viewCounts[i.property_id] || 0) + 1;
+    });
+    const mostViewedId = Object.entries(viewCounts).sort((a,b) => b[1] - a[1])[0]?.[0];
+    (computedStats as any).mostViewedId = mostViewedId;
+    (computedStats as any).mostViewedCount = viewCounts[mostViewedId] || 0;
+
     // Last portal open
     const openEvent = intList.find(i => i.interaction_type === "portal_opened");
     setLastOpen(openEvent?.timestamp || null);
@@ -415,6 +424,27 @@ export function OrbitSelectionPanel({ leadId }: OrbitSelectionPanelProps) {
         <div className="flex items-center gap-1.5 text-[10px] text-slate-600">
           <X className="w-3 h-3" />
           <span>{stats.discards} imóve{stats.discards > 1 ? "is" : "l"} descartado{stats.discards > 1 ? "s" : ""}</span>
+        </div>
+      )}
+
+      {/* Most Viewed Highlight */}
+      {(stats as any)?.mostViewedId && (
+        <div className="px-3 py-2.5 rounded-lg bg-blue-500/5 border border-blue-500/10 flex items-center justify-between group/mv">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded flex items-center justify-center bg-blue-500/10 text-blue-400">
+              <Sparkles size={12} />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-[8px] font-mono text-blue-400/70 uppercase">Top Interesse</span>
+              <span className="text-[10px] text-slate-300 font-medium truncate max-w-[140px]">
+                {properties.find(p => p.id === (stats as any).mostViewedId)?.title || "Imóvel em destaque"}
+              </span>
+            </div>
+          </div>
+          <div className="text-right">
+            <span className="text-[10px] font-bold text-blue-400">{(stats as any).mostViewedCount}x</span>
+            <span className="text-[8px] block text-slate-600 font-mono">VIEWS</span>
+          </div>
         </div>
       )}
 
