@@ -139,6 +139,8 @@ export interface Database {
           current_state: 'latent' | 'curious' | 'exploring' | 'evaluating' | 'deciding' | 'resolved' | 'dormant';
           last_human_action_at: string | null;
           last_ai_analysis_at: string | null;
+          central_conflict: string | null;
+          what_not_to_do: string | null;
         };
         Insert: {
           lead_id: string;
@@ -149,6 +151,8 @@ export interface Database {
           current_state?: 'latent' | 'curious' | 'exploring' | 'evaluating' | 'deciding' | 'resolved' | 'dormant';
           last_human_action_at?: string | null;
           last_ai_analysis_at?: string | null;
+          central_conflict?: string | null;
+          what_not_to_do?: string | null;
         };
         Update: {
           lead_id?: string;
@@ -159,6 +163,8 @@ export interface Database {
           current_state?: 'latent' | 'curious' | 'exploring' | 'evaluating' | 'deciding' | 'resolved' | 'dormant';
           last_human_action_at?: string | null;
           last_ai_analysis_at?: string | null;
+          central_conflict?: string | null;
+          what_not_to_do?: string | null;
         };
       };
       ai_insights: {

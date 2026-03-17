@@ -33,10 +33,13 @@ export type EventType =
 interface CoreAnalysis {
   intention: string;
   pain: string | null;
+  central_conflict: string | null;
+  what_not_to_do: string | null;
   signal: "positive" | "negative" | "neutral";
   urgency: number; // 0-100
   interest_delta: number; // -20 a 20
   momentum_delta: number; // -20 a 20
+  risk_delta: number;
   // Memória Tripartite
   memory_profile: { type: string, content: string }[] | null;
   memory_context: { type: string, content: string }[] | null;
@@ -45,6 +48,44 @@ interface CoreAnalysis {
   action_suggested: string;
   action_description: string;
 }
+
+// ─── Decaimento temporal de scores ───────────────────────────────────────────
+// Aplica penalidade progressiva baseada em dias sem interação humana.
+// Momentum decai mais rápido (ciclo de decisão curto).
+// Interest decai mais devagar (desejo persiste mais).
+
+function applyTemporalDecay(
+  interestScore: number,
+  momentumScore: number,
+  lastHumanActionAt: string | null
+): { interest: number; momentum: number } {
+  if (!lastHumanActionAt) {
+    return { interest: interestScore, momentum: momentumScore }
+  }
+
+  const daysSinceLastContact = Math.max(
+    0,
+    (Date.now() - new Date(lastHumanActionAt).getTime()) / (1000 * 60 * 60 * 24)
+  )
+
+  // Sem decaimento nos primeiros 2 dias
+  if (daysSinceLastContact <= 2) {
+    return { interest: interestScore, momentum: momentumScore }
+  }
+
+  // Momentum: -3 por dia após 2 dias de silêncio (ciclo rápido)
+  // Interest:  -1 por dia após 5 dias de silêncio (desejo dura mais)
+  const momentumPenalty = Math.min(40, (daysSinceLastContact - 2) * 3)
+  const interestPenalty = daysSinceLastContact > 5
+    ? Math.min(20, (daysSinceLastContact - 5) * 1)
+    : 0
+
+  return {
+    interest: Math.max(0, interestScore - interestPenalty),
+    momentum: Math.max(0, momentumScore - momentumPenalty),
+  }
+}
+
 
 // ─── Geração de Embedding ─────────────────────────────────────────────────────
 
@@ -318,6 +359,13 @@ SUA TAREFA
    - Se não há imóveis compatíveis: a ação deve qualificar melhor o perfil antes de enviar qualquer coisa
    - Nunca: "enviar opções", "perguntar preferências", "fazer follow-up"
 
+6. RISCO — ajuste do risco de perda do lead (-10 a +10):
+   +10: lead vai embora, disse não, silêncio longo + competing offer confirmado
+   +5:  sem resposta por mais de 7 dias, objeção de preço sem contrapartida
+   0:   interação neutra ou inconclusiva
+   -5:  visita agendada, proposta aceita parcialmente
+   -10: negócio fechado, visita realizada com boa receptividade
+
 ════════════════════════════════════════
 REGRAS CRÍTICAS
 ════════════════════════════════════════
@@ -367,6 +415,7 @@ Responda APENAS com JSON puro:
   "urgency": 0-100,
   "interest_delta": número de -20 a 20,
   "momentum_delta": número de -20 a 20,
+  "risk_delta": número de -10 a 10,
   "current_cognitive_state": "latent|curious|exploring|evaluating|deciding|resolved|dormant",
   "memory_profile": [{"type": "identity|budget_range|location_preference|property_type|feature_preference", "content": "string"}] | null,
   "memory_context": [{"type": "current_search|location_focus|budget|priority", "content": "string"}] | null,
@@ -384,7 +433,7 @@ Responda APENAS com JSON puro:
     }
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-4o",
       messages: [
         { role: "system", content: "Você é o ORBIT Core. Responda apenas em JSON." },
         { role: "user", content: prompt }
@@ -501,8 +550,20 @@ export async function processEventWithCore(
     // 2. Atualizar Estado Cognitivo
     console.log(`[ORBIT CORE] Passo 2 - upsert cognitive state...`);
     const cur = context.currentState;
-    const newInterest = Math.min(100, Math.max(0, (cur?.interest_score || 50) + analysis.interest_delta));
-    const newMomentum = Math.min(100, Math.max(0, (cur?.momentum_score || 50) + analysis.momentum_delta));
+    
+    const decayed = applyTemporalDecay(
+      cur?.interest_score ?? 50,
+      cur?.momentum_score ?? 50,
+      cur?.last_human_action_at ?? null
+    );
+
+    const newInterest = Math.min(100, Math.max(0, decayed.interest + analysis.interest_delta));
+    const newMomentum = Math.min(100, Math.max(0, decayed.momentum + analysis.momentum_delta));
+    
+    const newRisk = typeof analysis.risk_delta === 'number'
+      ? Math.min(100, Math.max(0, (cur?.risk_score ?? 50) + analysis.risk_delta))
+      : cur?.risk_score ?? 50;
+
     const nextState = analysis.current_cognitive_state;
     const r2 = await (getSupabase()?.from("lead_cognitive_state") as any).upsert({
       lead_id: leadId,
@@ -510,8 +571,10 @@ export async function processEventWithCore(
       momentum_score: newMomentum,
       current_state: nextState,
       last_ai_analysis_at: new Date().toISOString(),
-      risk_score: cur?.risk_score || 50,
-      clarity_level: cur?.clarity_level || 50,
+      risk_score: newRisk,
+      clarity_level: cur?.clarity_level ?? 50,
+      central_conflict: analysis.central_conflict ?? null,
+      what_not_to_do: analysis.what_not_to_do ?? null,
     });
     if (r2?.error) console.error(`[ORBIT CORE] Passo 2 ERRO:`, r2.error);
 

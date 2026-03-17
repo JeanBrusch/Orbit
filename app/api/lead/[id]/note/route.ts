@@ -33,6 +33,13 @@ export async function POST(
       return NextResponse.json({ error: "Erro ao salvar nota interna" }, { status: 500 });
     }
 
+    await supabase
+      .from('lead_cognitive_state')
+      .upsert({
+        lead_id: params.id,
+        last_human_action_at: new Date().toISOString(),
+      }, { onConflict: 'lead_id', ignoreDuplicates: false })
+
     // 2. Trigger Orbit Core analysis
     // We use "note" type which already exists in Prompt but needs to be well-handled
     processEventWithCore(leadId, content, "note", newMessage.id).catch((err) => {

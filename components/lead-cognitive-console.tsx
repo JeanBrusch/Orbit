@@ -42,6 +42,8 @@ interface CognitiveState {
   clarity_level: number;
   current_state: string | null;
   last_ai_analysis_at: string | null;
+  central_conflict?: string | null;
+  what_not_to_do?: string | null;
 }
 
 interface MemoryItem {
@@ -707,7 +709,7 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
         .select("id,name,phone,photo_url,orbit_stage,action_suggested,last_interaction_at")
         .eq("id", leadId).single(),
       supabase.from("lead_cognitive_state")
-        .select("interest_score,momentum_score,risk_score,clarity_level,current_state,last_ai_analysis_at")
+        .select("interest_score,momentum_score,risk_score,clarity_level,current_state,last_ai_analysis_at,central_conflict,what_not_to_do")
         .eq("lead_id", leadId).maybeSingle(),
       supabase.from("memory_items")
         .select("id,type,content,confidence")
@@ -1188,6 +1190,25 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
                     </div>
                   ) : (
                     <p className="text-xs text-slate-600 italic">Sem insights recentes.</p>
+                  )}
+
+                  {/* NOVO: Conflito Central e What Not To Do */}
+                  {(cog?.central_conflict || cog?.what_not_to_do) && (
+                    <div className="mt-2 space-y-2 border-t border-white/5 pt-3">
+                      {cog.central_conflict && (
+                        <div className="bg-red-500/5 border border-red-500/20 p-2.5 rounded-lg space-y-1">
+                          <p className="text-[9px] font-bold text-red-500 uppercase tracking-widest">Conflito Central</p>
+                          <p className="text-[11px] text-red-200 leading-snug">{cog.central_conflict}</p>
+                        </div>
+                      )}
+                      
+                      {cog.what_not_to_do && (
+                        <div className="bg-orange-500/5 border border-orange-500/20 p-2.5 rounded-lg space-y-1">
+                          <p className="text-[9px] font-bold text-orange-500 uppercase tracking-widest">O Que Não Fazer</p>
+                          <p className="text-[11px] text-orange-200 leading-snug">{cog.what_not_to_do}</p>
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
 

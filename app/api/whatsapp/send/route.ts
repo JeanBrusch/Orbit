@@ -69,6 +69,13 @@ export async function POST(request: NextRequest) {
           console.log('[SEND] Message saved in historical table:', idempotencyKey)
           
           await supabase
+            .from('lead_cognitive_state')
+            .upsert({
+              lead_id: leadId,
+              last_human_action_at: new Date().toISOString(),
+            }, { onConflict: 'lead_id', ignoreDuplicates: false })
+
+          await supabase
             .from('leads')
             .update({ 
               last_interaction_at: new Date().toISOString() 
