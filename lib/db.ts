@@ -6,6 +6,7 @@ export function getPool(): Pool {
   if (!pool) {
     pool = new Pool({
       connectionString: process.env.DATABASE_URL,
+      max: 3, // Limite de conexões para evitar esgotar o banco (Supabase Free)
       ssl: process.env.DATABASE_URL?.includes('ssl') ? { rejectUnauthorized: false } : false,
     })
   }

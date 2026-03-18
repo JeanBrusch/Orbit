@@ -1,15 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-
-// Usa SERVICE_ROLE_KEY para leitura no storage (bypass de RLS).
-// Fallback para ANON_KEY se não configurado ainda.
-function getStorageClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
-  const key =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  return createClient(url, key)
-}
+import { getSupabaseServer } from '@/lib/supabase-server'
 
 const STORAGE_BUCKET = 'atlas'
 
@@ -27,7 +17,7 @@ export async function GET(
       )
     }
 
-    const supabase = getStorageClient()
+    const supabase = getSupabaseServer()
 
     // Gera URL assinada com 1h de validade (imagens privadas)
     const { data, error } = await supabase.storage

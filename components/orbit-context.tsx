@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, useState, useCallback, useRef, useMemo, type ReactNode } from "react"
+import { createContext, useContext, useState, useCallback, useEffect, useRef, useMemo, type ReactNode } from "react"
 import { getSupabase } from "@/lib/supabase"
 
 // Location visibility for public views
@@ -233,6 +233,10 @@ interface OrbitContextValue {
   activeAdminView: "menu" | "lead" | "conversation"
   setActiveAdminView: (view: "menu" | "lead" | "conversation") => void
 
+  // Pending leads (Realtime)
+  pendingLeadsCount: number
+  refetchPendingCount: () => Promise<void>
+
   // Property Ingestion Pipeline (Pocket Listing is the ONLY source)
   ingestedProperties: IngestedProperty[] // All ingested properties
   ingestPropertyFromUrl: (url: string) => Promise<IngestedProperty> // Start ingestion pipeline
@@ -379,6 +383,48 @@ export function OrbitProvider({ children }: { children: ReactNode }) {
     leadName?: string
     onPropertySelected?: (property: Property) => void
   } | null>(null)
+
+  const [pendingLeadsCount, setPendingLeadsCount] = useState(0)
+  const pendingChannelRef = useRef<any>(null)
+
+  const fetchPendingCount = useCallback(async () => {
+    try {
+      const supabase = getSupabase()
+      const { count } = await supabase
+        .from("leads")
+        .select("*", { count: "exact", head: true })
+        .eq("state", "pending")
+      setPendingLeadsCount(count || 0)
+    } catch (err) {
+      console.error("[ORBIT CONTEXT] Error fetching pending count:", err)
+    }
+  }, [])
+
+  // Centralized Realtime for Pending Leads (Layer 1)
+  useEffect(() => {
+    fetchPendingCount()
+
+    const supabase = getSupabase()
+    const channel = supabase
+      .channel("orbit-pending-global")
+      .on(
+        "postgres_changes" as any,
+        { event: "*", schema: "public", table: "leads" },
+        (payload: any) => {
+          // Reatuaiza se houver mudança de estado para pending ou de um pending
+          if (payload.new?.state === "pending" || payload.old?.state === "pending") {
+            fetchPendingCount()
+          }
+        }
+      )
+      .subscribe()
+
+    pendingChannelRef.current = channel
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [fetchPendingCount])
 
   // Admin-added items
   const [newLeads, setNewLeads] = useState<string[]>([])
@@ -1214,6 +1260,7 @@ export function OrbitProvider({ children }: { children: ReactNode }) {
 
     // Operational Memory
     updateLeadNotes,
+    logCallOutcome,
     logContactOutcome,
     setFollowUpReminder,
     clearFollowUpReminder,
@@ -1232,6 +1279,7 @@ export function OrbitProvider({ children }: { children: ReactNode }) {
     // Admin
     addLead,
     newLeads,
+    setNewLeads,
     atlasProperties,
     isAdminDrawerOpen,
     setIsAdminDrawerOpen,
@@ -1254,6 +1302,10 @@ export function OrbitProvider({ children }: { children: ReactNode }) {
     orbitView,
     activateOrbitView,
     deactivateOrbitView,
+
+    // Pending leads
+    pendingLeadsCount,
+    refetchPendingCount: fetchPendingCount,
   }), [
     selectedLeadId,
     isLeadPanelOpen,
@@ -1268,10 +1320,6 @@ export function OrbitProvider({ children }: { children: ReactNode }) {
     linkPropertyToLead,
     getLinkedProperty,
     updateLeadNotes,
-    logContactOutcome,
-    setFollowUpReminder,
-    clearFollowUpReminder,
-    getLeadsWithActiveFollowUp,
     isAtlasMapActive,
     isCapsuleActive,
     isFocusModeActive,
@@ -1296,6 +1344,8 @@ export function OrbitProvider({ children }: { children: ReactNode }) {
     orbitView,
     activateOrbitView,
     deactivateOrbitView,
+    pendingLeadsCount,
+    fetchPendingCount,
   ])
 
   return (

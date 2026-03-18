@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { X, Phone, Home, Users, Calendar, FileText, Loader2, Check, PhoneMissed, PhoneOff } from "lucide-react"
-import { createClient } from "@supabase/supabase-js"
+import { getSupabase } from "@/lib/supabase"
 import { processEventWithCore } from "@/lib/orbit-core"
 
 const INTERACTION_TYPES = [
@@ -39,47 +39,40 @@ export function ManualInteractionModal({ leadId, leadPhone, onClose, onSaved }: 
     setStatus("saving")
 
     try {
-      const supabase = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-      )
+      const supabase = getSupabase()
 
       const effectiveSummary = selectedType === 'call' && callNotAnswered
         ? (summary.trim() || "Ligação não atendida")
         : summary.trim()
 
-      const content = JSON.stringify({
-        type: selectedType,
-        summary: effectiveSummary,
-        next_contact_at: nextContactAt || null,
-        is_attention: isAttention,
-        ...(selectedType === 'call' && { call_not_answered: callNotAnswered }),
-      })
-
-      const { data: msg, error } = await supabase
-        .from('messages')
+      const { data: msgData, error: msgError } = await (supabase as any)
+        .from("messages")
         .insert({
           lead_id: leadId,
-          source: 'operator',
-          content,
+          source: "operator",
+          content: effectiveSummary,
           timestamp: new Date().toISOString(),
-          idempotency_key: `manual:${leadId}:${Date.now()}`
+          idempotency_key: crypto.randomUUID(),
         })
-        .select('id')
+        .select()
         .single()
 
-      if (!error && msg?.id) {
-        processEventWithCore(leadId, effectiveSummary, 'note', msg.id).catch(() => {})
+      if (msgError) throw msgError
+
+      if (msgData?.id) {
+        processEventWithCore(leadId, effectiveSummary, 'note', msgData.id).catch(() => {})
       }
 
-      // Save reminder if next contact date was set
+      // 2. Schedule reminder if needed
       if (nextContactAt) {
-        await supabase.from('reminders').insert({
-          lead_id: leadId,
-          due_at: nextContactAt,
-          type: 'follow_up',
-          status: 'pending'
-        })
+        const { error: remError } = await (supabase as any)
+          .from("reminders")
+          .insert({
+            lead_id: leadId,
+            due_at: nextContactAt,
+            type: selectedType,
+            status: "pending",
+          })
       }
 
       setStatus("done")
@@ -151,7 +144,7 @@ export function ManualInteractionModal({ leadId, leadPhone, onClose, onSaved }: 
                   className={`flex items-center gap-2 text-xs font-medium transition-colors w-full px-3 py-2 rounded-lg border ${
                     callNotAnswered
                       ? 'bg-red-500/10 border-red-500/30 text-red-400'
-                      : 'bg-transparent border-white/8 text-slate-500 hover:text-slate-300'
+                      : 'bg-transparent border-white/8 text-slate-500 hover:text-slate-400'
                   }`}
                 >
                   <PhoneOff className="w-3.5 h-3.5" />

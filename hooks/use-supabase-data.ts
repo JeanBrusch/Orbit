@@ -140,164 +140,80 @@ export function useSupabaseLeads(options: Options = {}) {
 
   const fetchLeads = useCallback(async (forceLoading = false) => {
     try {
-      if (forceLoading || leadsRef.current.length === 0) {
+      if (forceLoading || (leadsRef.current && leadsRef.current.length === 0)) {
         setLoading(true)
       }
 
       const supabase = getSupabase()
 
-      const { data, error: fetchError } = await supabase
-        .from('leads_center')
-        .select('*')
-        .not('estado_atual', 'in', '("pending","blocked","ignored")')
-        .order('created_at', { ascending: false })
+      // RPC consolidada: 4 queries em 1 (leads_center + leads + cognitive + notes flag)
+      const { data, error: fetchError } = await supabase.rpc('get_orbit_leads')
 
       if (fetchError) throw fetchError
 
-      const rows = (data || []) as LeadCenterRow[]
+      const rows = (data || []) as any[]
 
-      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-      const leadIds = rows
-        .map(r => r.lead_id)
-        .filter(id => id && uuidRegex.test(id)) as string[]
-
-      let orbitDataMap: Record<string, OrbitDataEntry> = {}
-
-      if (leadIds.length > 0) {
-        // chunkSize 3 para evitar URI Too Long (400) no Supabase REST
-        const chunkSize = 3
-        const idChunks = Array.from({ length: Math.ceil(leadIds.length / chunkSize) }, (_, i) =>
-          leadIds.slice(i * chunkSize, i * chunkSize + chunkSize)
-        )
-
-        const chunkPromises = idChunks.map(async (chunk) => {
-          const [leadsRes, cognitiveRes] = await Promise.all([
-            supabase
-              .from('leads')
-              .select('id, orbit_stage, orbit_visual_state, action_suggested, last_event_type, cycle_stage, followup_active, followup_remaining')
-              .in('id', chunk),
-            supabase
-              .from('lead_cognitive_state')
-              .select('*')
-              .in('lead_id', chunk),
-          ])
-
-          return {
-            leadsData: leadsRes.data || [],
-            cognitiveData: cognitiveRes.data || [],
-          }
-        })
-
-        const chunksResults = await Promise.all(chunkPromises)
-
-        let allLeadsData: any[] = []
-        let allCognitiveData: any[] = []
-
-        chunksResults.forEach(res => {
-          allLeadsData = allLeadsData.concat(res.leadsData)
-          allCognitiveData = allCognitiveData.concat(res.cognitiveData)
-        })
-
-        // Popula orbitDataMap com dados da tabela leads (fonte real, atualizável pela API)
-        for (const lead of allLeadsData) {
-          orbitDataMap[lead.id] = {
-            ...orbitDataMap[lead.id],
-            orbit_stage: lead.orbit_stage || null,
-            orbit_visual_state: lead.orbit_visual_state || null,
-            action_suggested: lead.action_suggested || null,
-            last_event_type: lead.last_event_type || null, // controla a luz verde
-            cycle_stage: lead.cycle_stage || null,
-            followup_active: lead.followup_active ?? false,
-            followup_remaining: lead.followup_remaining ?? 0,
-            followup_done_today: lead.followup_done_today ?? false,
-          }
-        }
-
-        // Enriquece com dados cognitivos sem sobrescrever last_event_type
-        for (const state of allCognitiveData) {
-          if (state.lead_id) {
-            const existing: OrbitDataEntry = orbitDataMap[state.lead_id] || {
-              orbit_stage: null,
-              orbit_visual_state: null,
-              action_suggested: null,
-              last_event_type: null,
-              cycle_stage: null,
-              followup_active: false,
-              followup_remaining: 0,
-              followup_done_today: false,
-            }
-            orbitDataMap[state.lead_id] = {
-              ...existing,
-              interest_score: state.interest_score,
-              momentum_score: state.momentum_score,
-              risk_score: state.risk_score,
-              clarity_level: state.clarity_level,
-              current_state: state.current_state,
-              last_ai_analysis_at: state.last_ai_analysis_at,
-            }
-          }
-        }
-      }
-
-      const mappedLeads: OrbitLead[] = rows.map((lead, index) => {
-        const badgeInfo = mapStateToBadge(lead.estado_atual, lead.acao_sugerida)
-        const orbitData = lead.lead_id ? orbitDataMap[lead.lead_id] : undefined
-
+      const mappedLeads: OrbitLead[] = rows.map((row, index) => {
+        // Mapeamento compatível com o restante do sistema
+        const badgeInfo = mapStateToBadge(row.estado_atual, row.acao_sugerida)
+        
         return {
-          id: lead.lead_id || `lead-${index}`,
-          name: lead.name || 'Sem nome',
-          role: lead.origin || 'Lead',
-          avatar: getInitials(lead.name),
+          id: row.lead_id,
+          name: row.name || 'Sem nome',
+          role: row.origin || 'Lead',
+          avatar: getInitials(row.name),
+          status: row.estado_atual || 'lead',
+          badge: badgeInfo.badge,
+          badgeColor: badgeInfo.badgeColor,
+          interest: row.interest_score || 0,
+          momentum: row.momentum_score || 0,
+          photo_url: row.photo_url,
+          
+          // UI Layout props
           position: generatePosition(index, rows.length),
-          ...badgeInfo,
-          delay: index * 0.3,
-          emotionalState: mapStateToEmotionalState(lead.estado_atual),
+          delay: index * 0.1,
+          emotionalState: mapStateToEmotionalState(row.estado_atual),
           keywords: [
-            lead.estado_atual || '',
-            lead.acao_sugerida || '',
-            lead.origin || '',
-            lead.last_event_type || '',
+            row.estado_atual || '',
+            row.acao_sugerida || '',
+            row.origin || '',
+            row.last_event_type || '',
           ].filter(Boolean),
-          phone: lead.phone || undefined,
-          lid: lead.lid || undefined,
-          photoUrl: lead.photo_url || undefined,
-          origin: lead.origin || undefined,
-          state: lead.estado_atual || undefined,
-          actionSuggested: lead.acao_sugerida || undefined,
-          lastEventType: lead.last_event_type || undefined,
-          lastInteractionAt: lead.ultima_interacao_at || undefined,
-          hasCapsuleActive: lead.tem_capsula_ativa || false,
-          daysSinceInteraction: lead.dias_sem_interacao || undefined,
-          orbitStage: orbitData?.orbit_stage,
-          orbitVisualState: orbitData?.orbit_visual_state,
-          // Lê da tabela leads (orbitDataMap), não da view leads_center
-          // A view não é atualizável — a API /api/lead/[id]/read zera leads.last_event_type
-          needsAttention: orbitData?.last_event_type === 'received',
-          cycleStage: orbitData?.cycle_stage || 'sem_ciclo',
-          followupActive: orbitData?.followup_active || false,
-          followupRemaining: orbitData?.followup_remaining || 0,
-          followupDoneToday: orbitData?.followup_done_today || false,
-          interestScore: orbitData?.interest_score,
-          momentumScore: orbitData?.momentum_score,
-          riskScore: orbitData?.risk_score,
-          clarityLevel: orbitData?.clarity_level,
-          currentState: orbitData?.current_state as any,
-          lastAiAnalysisAt: orbitData?.last_ai_analysis_at,
-          hasMatureNotes: false, // internal_notes não existe — desativado
+
+          cognitiveState: {
+            interest_score: row.interest_score,
+            momentum_score: row.momentum_score,
+            risk_score: row.risk_score,
+            clarity_level: row.clarity_level,
+            current_state: row.current_state,
+            last_ai_analysis_at: row.last_ai_analysis_at,
+          },
+          orbitStage: row.orbit_stage,
+          orbitVisualState: row.orbit_visual_state,
+          lastEventType: row.last_event_type,
+          has_mature_notes: row.has_mature_notes,
+          followup_active: row.followup_active,
+          followup_remaining: row.followup_remaining,
+          followup_done_today: row.followup_done_today,
+          cycle_stage: row.cycle_stage,
+          
+          // Compatibilidade com campos legados usados no Orbit
+          interestScore: row.interest_score,
+          momentumScore: row.momentum_score,
+          riskScore: row.risk_score,
+          clarityLevel: row.clarity_level,
+          needsAttention: row.last_event_type === 'received',
+          lastInteractionAt: row.ultima_interacao_at,
+          currentState: row.current_state,
+          lastAiAnalysisAt: row.last_ai_analysis_at,
         }
       })
 
       setLeads(mappedLeads)
-
-      const urgentLeads = mappedLeads.filter(l => l.needsAttention)
-      if (urgentLeads.length > 0) {
-        console.log(`[FETCH] ${urgentLeads.length} lead(s) com atenção:`, urgentLeads.map(l => ({ name: l.name, id: l.id })))
-      }
-
       setError(null)
     } catch (err) {
-      console.error('Error fetching leads:', err)
-      setError(err instanceof Error ? err : new Error('Failed to fetch leads'))
+      console.error('Error in useSupabaseLeads:', err)
+      setError(err instanceof Error ? err : new Error('Unknown error fetching leads'))
     } finally {
       setLoading(false)
     }
@@ -305,11 +221,6 @@ export function useSupabaseLeads(options: Options = {}) {
 
   useEffect(() => {
     fetchLeads(true)
-
-    let interval: any;
-    if (!options.disableInterval) {
-      interval = setInterval(() => fetchLeads(false), 10000)
-    }
 
     if (options.disableRealtime) return;
 
@@ -346,7 +257,6 @@ export function useSupabaseLeads(options: Options = {}) {
     document.addEventListener('visibilitychange', handleVisibilityChange)
 
     return () => {
-      if (interval) clearInterval(interval)
       if (!options.disableRealtime) {
         supabase.removeChannel(channel)
       }

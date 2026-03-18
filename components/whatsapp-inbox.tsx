@@ -53,18 +53,6 @@ export function WhatsAppInbox({ externalCount, onCountChange }: WhatsAppInboxPro
   const channelRef = useRef<any>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Sinc badge com externalCount
-  useEffect(() => {
-    if (externalCount !== undefined) {
-      // Se count aumentou → nova mensagem → notificação visual
-      if (externalCount > prevCountRef.current) {
-        triggerNewMessageAlert();
-      }
-      prevCountRef.current = externalCount;
-      setBadgeCount(externalCount);
-    }
-  }, [externalCount]);
-
   // Notificação visual ao receber nova mensagem
   const triggerNewMessageAlert = useCallback(() => {
     toast({
@@ -77,9 +65,7 @@ export function WhatsAppInbox({ externalCount, onCountChange }: WhatsAppInboxPro
     try {
       if (!audioRef.current) {
         audioRef.current = new Audio(
-          "data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAA" +
-          "EAAQAQAAABAAAIABAAABACAAQAAAAAAAAABAAAAAAAAAAAAAAA" +
-          "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+          "data:audio/wav;base64,UGRpZ2l0YWwgQXVkaW8gV2F2ZSBGaWxlCg=="
         );
         audioRef.current.volume = 0.3;
       }
@@ -152,40 +138,24 @@ export function WhatsAppInbox({ externalCount, onCountChange }: WhatsAppInboxPro
     }
   }, [onCountChange]);
 
-  // Realtime subscription — sempre ativa, independente do painel estar aberto
+  // Sinc badge com externalCount
   useEffect(() => {
-    // Fetch inicial
-    fetchPending();
-
-    // Polling a cada 15s como fallback
-    const interval = setInterval(fetchPending, 15000);
-
-    // Realtime
-    const supabase = getSupabase();
-    const channel = supabase
-      .channel("whatsapp-inbox-realtime")
-      .on(
-        "postgres_changes" as any,
-        { event: "*", schema: "public", table: "leads" },
-        (payload: any) => {
-          // Nova mensagem pending chega → reload
-          const newState = payload.new?.state;
-          const oldState = payload.old?.state;
-
-          // INSERT de pending OU UPDATE para pending
-          if (newState === "pending" || oldState === "pending") {
-            fetchPending();
-          }
+    if (externalCount !== undefined) {
+      // Se count mudou (especialmente se aumentou) → reload da lista
+      if (externalCount !== prevCountRef.current) {
+        if (externalCount > prevCountRef.current) {
+          triggerNewMessageAlert();
         }
-      )
-      .subscribe();
+        fetchPending();
+      }
+      prevCountRef.current = externalCount;
+      setBadgeCount(externalCount);
+    }
+  }, [externalCount, fetchPending, triggerNewMessageAlert]);
 
-    channelRef.current = channel;
-
-    return () => {
-      clearInterval(interval);
-      supabase.removeChannel(channel);
-    };
+  // Notificação inicial
+  useEffect(() => {
+    fetchPending();
   }, [fetchPending]);
 
   // Quando abre o painel, sempre recarrega
@@ -204,9 +174,9 @@ export function WhatsAppInbox({ externalCount, onCountChange }: WhatsAppInboxPro
 
     try {
       const supabase = getSupabase();
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("leads")
-        .update({ state: newState } as any)
+        .update({ state: newState })
         .eq("id", leadId);
 
       if (error) throw error;
@@ -226,7 +196,8 @@ export function WhatsAppInbox({ externalCount, onCountChange }: WhatsAppInboxPro
         },
       };
 
-      toast(toastConfigs[newState]);
+      const config = toastConfigs[newState as keyof typeof toastConfigs];
+      if (config) toast(config);
     } catch (err) {
       console.error("Error updating lead state:", err);
       // Reverte em caso de erro

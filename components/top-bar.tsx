@@ -26,46 +26,11 @@ interface TopBarProps {
 }
 
 export function TopBar({ totalLeads, isDark, onThemeToggle, onLogout }: TopBarProps) {
-  const [pendingCount, setPendingCount] = useState(0);
-  const channelRef = useRef<any>(null);
-
-  const fetchCount = async () => {
-    try {
-      const supabase = getSupabase();
-      const { count } = await supabase
-        .from("leads")
-        .select("*", { count: "exact", head: true })
-        .eq("state", "pending");
-      setPendingCount(count || 0);
-    } catch {}
-  };
-
-  useEffect(() => {
-    fetchCount();
-
-    // Polling a cada 15s como fallback garantido
-    const interval = setInterval(fetchCount, 15000);
-
-    // Supabase Realtime — reage imediatamente a qualquer INSERT/UPDATE na tabela leads
-    const supabase = getSupabase();
-    const channel = supabase
-      .channel("topbar-pending-realtime")
-      .on(
-        "postgres_changes" as any,
-        { event: "*", schema: "public", table: "leads" },
-        () => fetchCount()
-      )
-      .subscribe();
-
-    channelRef.current = channel;
-
-    return () => {
-      clearInterval(interval);
-      supabase.removeChannel(channel);
-    };
-  }, []);
-
-  const { setIsAdminDrawerOpen, setActiveAdminView } = useOrbitContext();
+  const { 
+    setIsAdminDrawerOpen, 
+    setActiveAdminView,
+    pendingLeadsCount,
+  } = useOrbitContext();
 
   const handleNewLead = () => {
     setActiveAdminView("lead");
@@ -121,8 +86,8 @@ export function TopBar({ totalLeads, isDark, onThemeToggle, onLogout }: TopBarPr
 
           <div className="w-px h-4 bg-[var(--orbit-glass-border)] mx-0.5 md:mx-1" />
 
-          {/* WhatsAppInbox recebe o count do TopBar (fonte única de verdade) */}
-          <WhatsAppInbox externalCount={pendingCount} onCountChange={setPendingCount} />
+          {/* WhatsAppInbox recebe o count do Contexto via TopBar ou direto */}
+          <WhatsAppInbox externalCount={pendingLeadsCount} />
           
           <div className="w-px h-4 bg-[var(--orbit-glass-border)] mx-0.5 md:mx-1 hidden sm:block" />
           

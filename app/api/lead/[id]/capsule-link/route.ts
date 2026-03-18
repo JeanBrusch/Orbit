@@ -1,10 +1,7 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { createClient } from '@supabase/supabase-js'
+import { getSupabaseServer } from "@/lib/supabase-server"
 import { generateLeadToken } from '@/lib/lead-token'
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
 export async function GET(
   request: Request,
@@ -30,7 +27,7 @@ export async function GET(
       )
     }
     
-    const supabase = createClient(supabaseUrl, supabaseKey)
+    const supabase = getSupabaseServer() as any
     
     const { data: lead } = await supabase
       .from('leads')

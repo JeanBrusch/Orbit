@@ -1,5 +1,5 @@
-import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { getSupabaseServer } from "@/lib/supabase-server"
+import { NextRequest, NextResponse } from 'next/server'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -20,7 +20,7 @@ export async function PATCH(
       )
     }
 
-    const supabase = createClient(supabaseUrl, supabaseKey)
+    const supabase = getSupabaseServer() as any
     
     const { data, error } = await supabase
       .from('properties')

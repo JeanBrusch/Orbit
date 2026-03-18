@@ -1,9 +1,6 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
 import { verifyLeadToken } from '@/lib/lead-token'
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+import { getSupabaseServer } from '@/lib/supabase-server'
 
 interface PublicPropertyCard {
   id: string
@@ -37,7 +34,7 @@ export async function GET(
       )
     }
     
-    const supabase = createClient(supabaseUrl, supabaseKey)
+    const supabase = getSupabaseServer() as any
     
     const { data: leads, error: leadsError } = await supabase
       .from('leads')
