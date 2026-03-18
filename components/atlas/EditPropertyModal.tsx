@@ -169,7 +169,15 @@ export default function EditPropertyModal({ isOpen, onClose, property, onSave, o
               </div>
               <div>
                 <label className={labelClass}>Valor Nominal</label>
-                <input type="number" value={formData.value} onChange={e => setFormData({...formData, value: e.target.value})} className={inputClass} />
+                <input 
+                  type="text" 
+                  value={formData.value ? Number(formData.value).toLocaleString('pt-BR') : ""} 
+                  onChange={e => {
+                    const rawValue = e.target.value.replace(/\D/g, '');
+                    setFormData({...formData, value: rawValue ? Number(rawValue) : ""});
+                  }} 
+                  className={inputClass} 
+                />
               </div>
               <div>
                 <label className={labelClass}>Localidade Resumida</label>

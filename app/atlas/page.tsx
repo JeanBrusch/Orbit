@@ -55,7 +55,7 @@ function PropertyCard({
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       className={`group relative bg-[var(--orbit-bg)] border ${isSelected ? 'border-[var(--orbit-glow)] ring-1 ring-[var(--orbit-glow)]/30 shadow-[var(--orbit-shadow)]' : 'border-[var(--orbit-line)]'} rounded-xl overflow-hidden hover:shadow-[var(--orbit-shadow-hover)] hover:border-[var(--orbit-glow)]/40 transition-all duration-300 cursor-pointer`}
-      onClick={() => onToggleSelect(property)}
+      onClick={() => onEdit && onEdit(property)}
     >
       <div className="aspect-[16/10] overflow-hidden bg-[var(--orbit-bg-secondary)]">
         {property.cover_image ? (
@@ -100,6 +100,7 @@ function PropertyCard({
 
         {property.payment_conditions && (
           <div className="mb-4 px-2.5 py-1.5 bg-[var(--orbit-glow)]/5 border border-[var(--orbit-glow)]/15 rounded-md text-[10px] text-[var(--orbit-glow)] font-sans font-medium">
+            <span className="font-bold opacity-70 flex items-center gap-1 mb-0.5"><Eye size={10} /> USO INTERNO:</span>
             {typeof property.payment_conditions === 'object' 
               ? (property.payment_conditions.custom || JSON.stringify(property.payment_conditions))
               : property.payment_conditions
@@ -108,7 +109,15 @@ function PropertyCard({
         )}
 
         <div className="flex items-center gap-2 pt-4 border-t border-[var(--orbit-line)]">
-          <Button variant="ghost" size="sm" className="h-8 px-2 text-[10px] uppercase tracking-widest font-mono text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)] hover:bg-[var(--orbit-glow)]/5">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="h-8 px-2 text-[10px] uppercase tracking-widest font-mono text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)] hover:bg-[var(--orbit-glow)]/5"
+            onClick={(e) => {
+              e.stopPropagation()
+              if (onEdit) onEdit(property)
+            }}
+          >
             Ver Detalhes
           </Button>
           <div className="ml-auto flex gap-1.5">

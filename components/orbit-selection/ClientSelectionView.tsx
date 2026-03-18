@@ -224,6 +224,8 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
 
   const firstName = lead?.name?.split(" ")[0] || "Cliente"
   const consultantName = "Jean Brusch"
+  const consultantPhone = "5551982237325" // WhatsApp: +55 51 98223-7325
+  const consultantWhatsAppUrl = `https://wa.me/${consultantPhone}`
   const currentDate = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' })
   
   // Close modal via Escape
@@ -437,7 +439,7 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
       <button className="jb-fab" onClick={() => { setChatContext(null); setIsChatOpen(true); }}>
         <svg className="jb-fab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
         <div className="jb-fab-dot"></div>
-        Falar com consultor
+        Falar com Jean Brusch
       </button>
 
       {/* DRAWER */}
@@ -473,13 +475,22 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
           {chatMessages.map((msg, i) => (
             <div className="jb-sent-msg" key={i}>
               {msg.title && <p style={{fontSize:10, color:'var(--green)', marginBottom:4, fontStyle:'normal'}}>Sobre: {msg.title}</p>}
-              <p>"{msg.text}"</p>
+              <p>&#34;{msg.text}&#34;</p>
               <p className="jb-sent-msg-meta">Mensagem enviada · resposta em breve</p>
             </div>
           ))}
         </div>
         
         <div className="jb-drawer-foot">
+          <a 
+            href={consultantWhatsAppUrl} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="jb-whatsapp-btn"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17.47 14.38c-.28-.14-1.66-.82-1.92-.91-.26-.1-.45-.14-.64.14-.2.28-.74.91-.9 1.1-.17.19-.34.2-.62.07-.28-.14-1.19-.44-2.26-1.4-.84-.74-1.4-1.66-1.56-1.94-.17-.28-.02-.43.12-.57.13-.13.28-.34.42-.51.14-.17.18-.29.28-.48.09-.19.05-.36-.02-.5-.07-.14-.64-1.54-.87-2.1-.23-.55-.46-.48-.64-.49-.17 0-.36-.01-.56-.01-.19 0-.5.07-.77.36-.26.28-1 1-.99 2.44.01 1.44 1.04 2.83 1.18 3.03.14.19 2.04 3.1 4.93 4.35.69.3 1.22.47 1.64.6.69.22 1.32.19 1.81.12.55-.08 1.7-.7 1.94-1.37.24-.67.24-1.25.17-1.37-.07-.11-.26-.18-.54-.31zM12 2a10 10 0 0 0-8.6 15.08L2 22l5.06-1.32A10 10 0 1 0 12 2z"/></svg>
+            Chamar Jean no WhatsApp
+          </a>
           <div className="jb-composer">
             <textarea 
               value={questionText}

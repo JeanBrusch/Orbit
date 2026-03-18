@@ -1286,7 +1286,9 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
                 </div>
 
                 {/* ── Composer ── */}
-                <div className="px-5 py-4 border-t border-white/[0.06] bg-black/30">
+                <div className={`px-5 py-4 border-t ${
+                  isDark ? 'border-white/[0.06] bg-black/30' : 'border-[var(--orbit-line)] bg-[var(--orbit-bg-secondary)]'
+                }`}>
                   {/* Recording indicator */}
                   {isRecording && (
                     <div className="mb-3 flex items-center gap-3 px-3 py-2 bg-red-500/10 border border-red-500/20 rounded-xl">
@@ -1349,7 +1351,9 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
                     {/* Main Interaction UI - Refactored for Modes */}
                     <div className="flex-1 flex flex-col gap-3">
                       {/* Tabs */}
-                      <div className="flex items-center gap-1 p-1 bg-white/5 border border-white/10 rounded-xl w-fit">
+                      <div className={`flex items-center gap-1 p-1 border rounded-xl w-fit ${
+                        isDark ? 'bg-white/5 border-white/10' : 'bg-[var(--orbit-bg)] border-[var(--orbit-line)]'
+                      }`}>
                         <button
                           onClick={() => setInteractionMode("whatsapp")}
                           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all ${
@@ -1428,10 +1432,12 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
                         autoCorrect="on"
                         spellCheck={true}
                         autoCapitalize="sentences"
-                        className={`bg-white/5 border rounded-xl px-4 py-2.5 text-sm focus:outline-none transition-all disabled:opacity-50 resize-none min-h-[42px] max-h-[200px] overflow-y-auto leading-relaxed ${
+                        className={`border rounded-xl px-4 py-2.5 text-sm focus:outline-none transition-all disabled:opacity-50 resize-none min-h-[42px] max-h-[200px] overflow-y-auto leading-relaxed ${
+                          isDark ? 'bg-white/5 text-slate-100 placeholder:text-slate-500' : 'bg-[var(--orbit-bg)] text-[var(--orbit-text)] placeholder:text-[var(--orbit-text-muted)]'
+                        } ${
                           interactionMode === 'note' ? 'border-[#d4af35]/40 focus:border-[#d4af35]' :
                           interactionMode === 'call' ? 'border-emerald-500/40 focus:border-emerald-500' :
-                          'border-white/10 focus:border-[#2ec5ff]/40'
+                          isDark ? 'border-white/10 focus:border-[#2ec5ff]/40' : 'border-[var(--orbit-line)] focus:border-[var(--orbit-glow)]/40'
                         }`}
                         placeholder={
                           isTranscribing ? "Processando transcrição…" :
