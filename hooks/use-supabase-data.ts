@@ -159,15 +159,13 @@ export function useSupabaseLeads(options: Options = {}) {
         
         return {
           id: row.lead_id,
+          lid: row.lead_id,
           name: row.name || 'Sem nome',
           role: row.origin || 'Lead',
           avatar: getInitials(row.name),
-          status: row.estado_atual || 'lead',
+          state: row.estado_atual || 'lead',
           badge: badgeInfo.badge,
           badgeColor: badgeInfo.badgeColor,
-          interest: row.interest_score || 0,
-          momentum: row.momentum_score || 0,
-          photo_url: row.photo_url,
           
           // UI Layout props
           position: generatePosition(index, rows.length),
@@ -180,32 +178,30 @@ export function useSupabaseLeads(options: Options = {}) {
             row.last_event_type || '',
           ].filter(Boolean),
 
-          cognitiveState: {
-            interest_score: row.interest_score,
-            momentum_score: row.momentum_score,
-            risk_score: row.risk_score,
-            clarity_level: row.clarity_level,
-            current_state: row.current_state,
-            last_ai_analysis_at: row.last_ai_analysis_at,
-          },
-          orbitStage: row.orbit_stage,
-          orbitVisualState: row.orbit_visual_state,
+          // Core fields
+          photoUrl: row.photo_url,
           lastEventType: row.last_event_type,
-          has_mature_notes: row.has_mature_notes,
-          followup_active: row.followup_active,
-          followup_remaining: row.followup_remaining,
-          followup_done_today: row.followup_done_today,
-          cycle_stage: row.cycle_stage,
+          hasMatureNotes: row.has_mature_notes,
+          lastInteractionAt: row.ultima_interacao_at,
           
-          // Compatibilidade com campos legados usados no Orbit
+          // Cognitive & Status
           interestScore: row.interest_score,
           momentumScore: row.momentum_score,
           riskScore: row.risk_score,
           clarityLevel: row.clarity_level,
-          needsAttention: row.last_event_type === 'received',
-          lastInteractionAt: row.ultima_interacao_at,
           currentState: row.current_state,
           lastAiAnalysisAt: row.last_ai_analysis_at,
+          needsAttention: row.last_event_type === 'received',
+
+          // Orbit/Cycle logic
+          orbitStage: row.orbit_stage,
+          orbitVisualState: row.orbit_visual_state,
+          cycleStage: row.cycle_stage,
+          followupActive: row.followup_active,
+          followupRemaining: row.followup_remaining,
+          followupDoneToday: row.followup_done_today,
+          hasCapsuleActive: row.tem_capsula_ativa,
+          daysSinceInteraction: row.dias_sem_interacao,
         }
       })
 
