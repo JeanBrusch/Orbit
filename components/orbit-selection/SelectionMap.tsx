@@ -8,6 +8,7 @@ interface SelectionMapProps {
   items: any[]
   theme: "paper" | "light" | "dark"
   className?: string
+  onAction?: (item: any, type: "link" | "chat") => void
 }
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN
@@ -18,7 +19,7 @@ const DARK_STYLE = "mapbox://styles/mapbox/dark-v11"
 const LIGHT_STYLE = "mapbox://styles/mapbox/light-v11"
 const SEPIA_STYLE = "mapbox://styles/mapbox/outdoors-v12" // Closer to "paper" than dark
 
-export default function SelectionMap({ items, theme, className }: SelectionMapProps) {
+export default function SelectionMap({ items, theme, className, onAction }: SelectionMapProps) {
   const [viewState, setViewState] = useState({
     longitude: XANGRILA_CENTER.longitude,
     latitude: XANGRILA_CENTER.latitude,
@@ -92,8 +93,18 @@ export default function SelectionMap({ items, theme, className }: SelectionMapPr
                 {selectedPopup.price ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(selectedPopup.price) : "Sob consulta"}
               </p>
               <div className="flex gap-1.5">
-                <button className="flex-1 py-1.5 rounded-md bg-[#d4af37]/18 border border-[#d4af37]/30 text-[#d4af37] text-[11px] font-medium hover:bg-[#d4af37]/28 transition-all">Ver Link</button>
-                <button className="flex-1 py-1.5 rounded-md bg-white/5 border border-white/10 text-white/50 text-[11px] font-medium hover:bg-white/10 hover:text-white/85 transition-all">Chat</button>
+                <button 
+                  onClick={() => onAction?.(selectedPopup, "link")}
+                  className="flex-1 py-1.5 rounded-md bg-[#d4af37]/18 border border-[#d4af37]/30 text-[#d4af37] text-[11px] font-medium hover:bg-[#d4af37]/28 transition-all"
+                >
+                  Ver Link
+                </button>
+                <button 
+                  onClick={() => onAction?.(selectedPopup, "chat")}
+                  className="flex-1 py-1.5 rounded-md bg-white/5 border border-white/10 text-white/50 text-[11px] font-medium hover:bg-white/10 hover:text-white/85 transition-all"
+                >
+                  Chat
+                </button>
               </div>
             </div>
           </Popup>

@@ -33,6 +33,8 @@ import {
   Brain,
   Search,
   MessageSquare,
+  Phone,
+  Users,
 } from "lucide-react";
 
 
@@ -1592,6 +1594,39 @@ export function LeadFocusPanel({
                                 <Building2 className="h-3 w-3 text-[var(--orbit-glow)]" />
                                 <span className="text-[10px] text-[var(--orbit-glow)] truncate italic underline decoration-[var(--orbit-glow)]/30 underline-offset-2">{parsed.propertyTitle || 'Ir para o Imóvel'}</span>
                               </a>
+                            </div>
+                          );
+                        }
+                        // Manual Interaction Parsing
+                        const manualTypes = ["call", "visit", "meeting", "note", "next_contact"];
+                        if (manualTypes.includes(parsed.type)) {
+                          const iconMap: Record<string, any> = {
+                            call: Phone,
+                            visit: Eye,
+                            meeting: Users,
+                            note: Pencil,
+                            next_contact: Clock
+                          };
+                          const labelMap: Record<string, string> = {
+                            call: "Ligação",
+                            visit: "Visita",
+                            meeting: "Reunião",
+                            note: "Nota Interna",
+                            next_contact: "Próximo Contato"
+                          };
+                          const Icon = iconMap[parsed.type] || MessageSquare;
+                          return (
+                            <div className="space-y-2 border-l-2 border-white/20 pl-3 py-2 bg-white/5 rounded-r-lg">
+                              <div className="flex items-center gap-1.5">
+                                <Icon className="h-3 w-3 text-white/40" />
+                                <span className="text-[10px] font-mono uppercase tracking-widest text-white/40 font-bold">{labelMap[parsed.type] || "Interação"}</span>
+                              </div>
+                              <p className="text-[13px] leading-relaxed text-white/90">{parsed.content || parsed.text || "Sem descrição"}</p>
+                              {parsed.outcome && (
+                                <div className="text-[10px] text-white/40 italic">
+                                  Resultado: {parsed.outcome}
+                                </div>
+                              )}
                             </div>
                           );
                         }

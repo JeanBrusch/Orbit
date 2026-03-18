@@ -166,14 +166,20 @@ function MessageBubble({ msg, leadPhoto, leadName }: { msg: Message; leadPhoto: 
   let mediaUrl: string | undefined
   let manualKind: string | undefined
   let manualNextContact: string | undefined
+  let propertyQuestion: { text: string; propertyTitle: string; propertyCover?: string; propertyId: string } | undefined
 
   try {
     const p = JSON.parse(text)
-    if (p.type && p.url) { mediaType = p.type; mediaUrl = p.url; text = p.caption || "" }
+    if (p.type === 'property_question') {
+      propertyQuestion = { text: p.text, propertyTitle: p.propertyTitle, propertyCover: p.propertyCover, propertyId: p.propertyId }
+      text = p.text
+    }
+    else if (p.type && p.url) { mediaType = p.type; mediaUrl = p.url; text = p.caption || "" }
     else if (p.type && p.summary) { manualKind = p.type; text = p.summary; manualNextContact = p.next_contact_at }
   } catch { }
 
   const signalBorder = signal === "positive" ? "border-l-emerald-500" : signal === "negative" ? "border-l-red-400" : "border-l-white/10"
+  const isClient = msg.source === "whatsapp" || msg.source === "client_portal"
 
   const MANUAL_ICONS: Record<string, any> = {
     call: { Icon: Phone, color: "text-emerald-400", label: "Ligação" },
@@ -208,8 +214,8 @@ function MessageBubble({ msg, leadPhoto, leadName }: { msg: Message; leadPhoto: 
     )
   }
 
-  // Inbound (client)
-  if (msg.source === "whatsapp") {
+  // Inbound (client / portal)
+  if (isClient) {
     return (
       <div className="flex gap-3 max-w-[80%]">
         <div className="w-8 h-8 rounded-full border border-white/10 shrink-0 overflow-hidden bg-[#d4af35]/20 flex items-center justify-center text-[10px] font-bold text-[#d4af35]">
@@ -220,6 +226,17 @@ function MessageBubble({ msg, leadPhoto, leadName }: { msg: Message; leadPhoto: 
         </div>
         <div className="flex flex-col gap-1">
           <div className={`bg-white/5 border border-white/5 border-l-2 ${signalBorder} rounded-2xl rounded-tl-none px-4 py-3 text-sm leading-relaxed`}>
+            {propertyQuestion && (
+              <div className="mb-2 p-2 rounded-lg bg-black/20 border border-white/5 flex items-center gap-3">
+                <div className="w-10 h-10 rounded shrink-0 overflow-hidden bg-white/5">
+                  {propertyQuestion.propertyCover ? <img src={propertyQuestion.propertyCover} className="w-full h-full object-cover" /> : <Building2 className="w-4 h-4 m-3 text-slate-600" />}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[9px] uppercase font-bold text-[#d4af35] tracking-widest">Dúvida sobre imóvel</p>
+                  <p className="text-[11px] text-white truncate font-medium">{propertyQuestion.propertyTitle}</p>
+                </div>
+              </div>
+            )}
             {mediaType === "audio" ? (
               <div className="flex items-center gap-3 min-w-[260px]">
                 <button className="w-8 h-8 rounded-full bg-[#d4af35] flex items-center justify-center shrink-0">
