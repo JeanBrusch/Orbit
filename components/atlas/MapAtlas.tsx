@@ -71,6 +71,12 @@ const PropertyMarker = memo(({
   onMouseEnter: (prop: MapProperty) => void;
   onMouseLeave: () => void;
 }) => {
+  const { resolvedTheme } = useTheme()
+  const isDark = resolvedTheme === 'dark'
+  
+  const markerColor = isDark ? '#d4af35' : 'var(--orbit-glow)'
+  const markerPulseColor = isDark ? 'rgba(212, 175, 53, 0.5)' : 'rgba(var(--orbit-glow-rgb), 0.5)'
+
   return (
     <Marker 
       longitude={prop.lng!} 
@@ -87,8 +93,15 @@ const PropertyMarker = memo(({
         onMouseEnter={() => onMouseEnter(prop)}
         onMouseLeave={() => onMouseLeave()}
       >
-        <div className={`absolute left-0 top-0 -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full animate-ping ${isSelected ? 'bg-[#d4af35]/50 opacity-100 duration-1000' : 'bg-[#d4af35]/30 opacity-0 group-hover:opacity-100'}`}></div>
-        <div className={`absolute left-0 top-0 -translate-x-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full border-2 border-[#0a0907] shadow-[0_0_8px_rgba(212,175,53,0.5)] transition-all duration-300 ${isSelected ? 'bg-white scale-125' : 'bg-[#d4af35] group-hover:bg-[#fcd34d] group-hover:scale-110'}`}></div>
+        <div className={`absolute left-0 top-0 -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full animate-ping transition-opacity duration-1000 ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`} style={{ backgroundColor: markerPulseColor }}></div>
+        <div 
+          className={`absolute left-0 top-0 -translate-x-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full border-2 transition-all duration-300 ${isSelected ? 'bg-white scale-125' : 'group-hover:bg-white group-hover:scale-110'}`}
+          style={{ 
+            backgroundColor: isSelected ? 'white' : markerColor,
+            borderColor: isDark ? '#0a0907' : 'white',
+            boxShadow: `0 0 8px ${markerPulseColor}`
+          }}
+        ></div>
       </div>
     </Marker>
   )
@@ -106,7 +119,8 @@ export function MapAtlas({
   isPlacing = false,
   onMapClick,
 }: MapAtlasProps) {
-  const { theme } = useTheme()
+  const { resolvedTheme } = useTheme()
+  const isDark = resolvedTheme === 'dark'
   const mapRef = useRef<any>(null)
   const isInitialLoad = useRef(true)
   const [viewState, setViewState] = useState<ViewState>({
@@ -139,10 +153,10 @@ export function MapAtlas({
     if (!mapRef.current) return
     const map = mapRef.current.getMap()
     if (map) {
-      const style = theme === "dark" || theme === "system" ? DARK_STYLE : LIGHT_STYLE
+      const style = isDark ? DARK_STYLE : LIGHT_STYLE
       map.setStyle(style)
     }
-  }, [theme])
+  }, [isDark])
 
   // Auto-fit bounds (opcional: apenas no primeiro load)
   useEffect(() => {
@@ -154,10 +168,10 @@ export function MapAtlas({
 
   if (!MAPBOX_TOKEN) {
     return (
-      <div className={`flex items-center justify-center bg-[#0a0a0a] text-zinc-400 ${className}`}>
-        <div className="text-center p-6 border border-zinc-800 rounded-xl bg-black/40 backdrop-blur-xl">
-          <p className="text-sm text-zinc-300">Token do Mapbox não configurado</p>
-          <p className="text-xs mt-2 text-zinc-500 font-mono">NEXT_PUBLIC_MAPBOX_TOKEN</p>
+      <div className={`flex items-center justify-center h-full w-full ${isDark ? 'bg-[#0a0a0a] text-zinc-400' : 'bg-[var(--orbit-bg)] text-[var(--orbit-text-muted)]'} ${className}`}>
+        <div className={`text-center p-6 border rounded-xl backdrop-blur-xl ${isDark ? 'border-zinc-800 bg-black/40' : 'border-[var(--orbit-line)] bg-white/40'}`}>
+          <p className="text-sm">Token do Mapbox não configurado</p>
+          <p className="text-xs mt-2 font-mono opacity-50">NEXT_PUBLIC_MAPBOX_TOKEN</p>
         </div>
       </div>
     )
@@ -178,13 +192,13 @@ export function MapAtlas({
   }, [])
 
   return (
-    <div className={`relative bg-[#050505] h-full w-full overflow-hidden ${className}`}>
+    <div className={`relative h-full w-full overflow-hidden ${isDark ? 'bg-[#050505]' : 'bg-[var(--orbit-bg)]'} ${className}`}>
       <Map
         ref={mapRef}
         {...viewState}
         onMove={(evt: any) => setViewState(evt.viewState)}
         mapboxAccessToken={MAPBOX_TOKEN}
-        mapStyle={DARK_STYLE}
+        mapStyle={isDark ? DARK_STYLE : LIGHT_STYLE}
         attributionControl={false}
         logoPosition="bottom-right"
         cursor={isPlacing ? "crosshair" : "grab"} // Overrides mapbox native cursor
@@ -220,20 +234,22 @@ export function MapAtlas({
             <motion.div 
               initial={{ opacity: 0, y: 5, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              className="w-44 rounded-xl bg-[#0a0907]/95 backdrop-blur-xl border border-[#d4af35]/30 shadow-2xl pointer-events-none overflow-hidden flex flex-col"
+              className={`w-44 rounded-xl backdrop-blur-xl border shadow-2xl pointer-events-none overflow-hidden flex flex-col ${
+                isDark ? 'bg-[#0a0907]/95 border-[#d4af35]/30' : 'bg-white/95 border-[var(--orbit-line)]'
+              }`}
             >
               {/* Cover Image Area */}
               <div className="h-20 w-full bg-zinc-800 bg-cover bg-center relative shrink-0" style={{ backgroundImage: hoveredProperty.coverImage ? `url(${hoveredProperty.coverImage})` : 'none' }}>
-                {!hoveredProperty.coverImage && <div className="absolute inset-0 flex items-center justify-center text-[#d4af35]/20"><Building2 className="w-5 h-5"/></div>}
-                <div className="absolute inset-0 bg-gradient-to-t from-[#0a0907] via-transparent to-transparent" />
+                {!hoveredProperty.coverImage && <div className={`absolute inset-0 flex items-center justify-center ${isDark ? 'text-[#d4af35]/20' : 'text-[var(--orbit-glow)]/20'}`}><Building2 className="w-5 h-5"/></div>}
+                <div className={`absolute inset-0 bg-gradient-to-t via-transparent to-transparent ${isDark ? 'from-[#0a0907]' : 'from-white'}`} />
               </div>
 
               {/* Details */}
               <div className="p-2.5 flex flex-col gap-1.5 relative z-10 -mt-2">
-                <p className="text-[10px] font-bold text-white line-clamp-2 leading-tight drop-shadow-md">
+                <p className={`text-[10px] font-bold line-clamp-2 leading-tight drop-shadow-md ${isDark ? 'text-white' : 'text-[var(--orbit-text)]'}`}>
                   {hoveredProperty.name || "Imóvel N/A"}
                 </p>
-                <p className="text-[10px] font-bold text-[#d4af35] uppercase tracking-wider">
+                <p className={`text-[10px] font-bold uppercase tracking-wider ${isDark ? 'text-[#d4af35]' : 'text-[var(--orbit-glow)]'}`}>
                   {formatValue(hoveredProperty.value)}
                 </p>
               </div>
@@ -263,7 +279,7 @@ export function MapAtlas({
           border-radius: 1rem !important;
         }
         .atlas-premium-popup .mapboxgl-popup-tip {
-          border-top-color: #0a0a0c !important;
+          border-top-color: ${isDark ? '#0a0a0c' : 'white'} !important;
           border-top-width: 8px !important;
         }
         .atlas-premium-popup .mapboxgl-popup-close-button {

@@ -74,9 +74,70 @@
   --sidebar-ring: oklch(0.439 0 0);
 }
 
+.light {
+  /* Backgrounds — branco com hierarquia clara */
+  --orbit-bg:            #ffffff;
+  --orbit-bg-secondary:  #f5f5f5;
+  --orbit-glass:         rgba(255,255,255,0.90);
+  --orbit-glass-border:  rgba(0,0,0,0.08);
+
+  /* Glow → Índigo frio (substitui ciano) */
+  --orbit-glow:          #4f46e5;
+  --orbit-glow-rgb:      79, 70, 229;
+
+  /* Accent → Âmbar queimado */
+  --orbit-accent:        #d97706;
+  --orbit-accent-rgb:    217, 119, 6;
+
+  /* Texto — escala de cinza com profundidade */
+  --orbit-text:          #0a0a0a;
+  --orbit-text-muted:    #6b7280;
+
+  /* Linhas — quase invisíveis, precisas */
+  --orbit-line:          rgba(0,0,0,0.07);
+
+  /* Sombras — elevação real, sem neon */
+  --orbit-shadow:        0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --orbit-shadow-hover:  0 4px 16px rgba(0,0,0,0.08), 0 2px 6px rgba(0,0,0,0.05);
+
+  /* Tailwind tokens */
+  --background:          #ffffff;
+  --foreground:          #0a0a0a;
+  --card:                #ffffff;
+  --card-foreground:     #0a0a0a;
+  --popover:             #ffffff;
+  --popover-foreground:  #0a0a0a;
+  --primary:             #4f46e5;
+  --primary-foreground:  #ffffff;
+  --secondary:           #f5f5f5;
+  --secondary-foreground:#0a0a0a;
+  --muted:               #f5f5f5;
+  --muted-foreground:    #6b7280;
+  --accent:              #d97706;
+  --accent-foreground:   #ffffff;
+  --border:              rgba(0,0,0,0.08);
+  --input:               rgba(0,0,0,0.04);
+  --ring:                #4f46e5;
+
+  /* Tipografia — trocar junto com o tema */
+  --font-sans:    'Geist', system-ui, sans-serif;
+  --font-display: 'Instrument Serif', Georgia, serif;
+  --font-mono:    'Geist Mono', monospace;
+}
+
+/* Scrollbar light — discreta */
+html.light ::-webkit-scrollbar { width: 4px; }
+html.light ::-webkit-scrollbar-track { background: transparent; }
+html.light ::-webkit-scrollbar-thumb {
+  background: rgba(0,0,0,0.12);
+  border-radius: 99px;
+}
+
+
 @theme inline {
-  --font-sans: 'Geist', 'Geist Fallback';
-  --font-mono: 'Geist Mono', 'Geist Mono Fallback';
+  --font-sans: var(--font-sans);
+  --font-display: var(--font-display);
+  --font-mono: var(--font-mono);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);

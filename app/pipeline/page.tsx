@@ -34,12 +34,12 @@ interface PipelineLead {
 }
 
 const STAGES = [
-  { key: "latent", label: "Latente", color: "#64748b" }, // slate-500
-  { key: "curious", label: "Curioso", color: "#3b82f6" }, // blue-500
-  { key: "exploring", label: "Explorando", color: "#8b5cf6" }, // violet-500
-  { key: "evaluating", label: "Avaliando", color: "#10b981" }, // emerald-500
-  { key: "deciding", label: "Decidindo", color: "#d4af35" }, // amber (orbit yellow)
-  { key: "resolved", label: "Resolvido", color: "#f43f5e" }, // rose-500
+  { key: "latent", label: "Latente", color: "#64748b", light: { bg: "#f5f5f5", text: "#6b7280", border: "rgba(0,0,0,0.08)" } },
+  { key: "curious", label: "Curioso", color: "#3b82f6", light: { bg: "#eff6ff", text: "#3b82f6", border: "rgba(59,130,246,0.15)" } },
+  { key: "exploring", label: "Explorando", color: "#8b5cf6", light: { bg: "#f5f3ff", text: "#8b5cf6", border: "rgba(139,92,246,0.15)" } },
+  { key: "evaluating", label: "Avaliando", color: "#10b981", light: { bg: "#f0fdf4", text: "#16a34a", border: "rgba(22,163,74,0.15)" } },
+  { key: "deciding", label: "Decidindo", color: "#4f46e5", light: { bg: "#eef2ff", text: "#4f46e5", border: "rgba(79,70,229,0.20)" } },
+  { key: "resolved", label: "Resolvido", color: "#f43f5e", light: { bg: "#fff1f2", text: "#e11d48", border: "rgba(225,29,72,0.15)" } },
 ] as const;
 
 type StageKey = (typeof STAGES)[number]["key"];
@@ -246,10 +246,10 @@ export default function PipelinePage() {
             <button onClick={() => router.push("/")} className="p-1.5 rounded-lg bg-[var(--orbit-glass)] border border-[var(--orbit-glass-border)] text-slate-400 hover:text-white transition-all">
               <ArrowLeft className="w-4 h-4" />
             </button>
-            <h1 className="text-lg md:text-xl font-bold flex items-center gap-2">
-              <Columns className="w-5 h-5 text-[#d4af35]" />
+            <h1 className="text-lg md:text-xl font-display font-bold flex items-center gap-2">
+              <Columns className="w-5 h-5 text-[var(--orbit-glow)]" />
               Pipeline
-              <span className="text-xs font-normal text-[var(--orbit-text-muted)] bg-[var(--orbit-glass)] px-2 py-0.5 rounded-full border border-[var(--orbit-glass-border)] ml-2 invisible sm:visible">
+              <span className="text-xs font-sans font-normal text-[var(--orbit-text-muted)] bg-[var(--orbit-bg-secondary)] px-2 py-0.5 rounded-full border border-[var(--orbit-glass-border)] ml-2 invisible sm:visible">
                 Orbit View
               </span>
             </h1>
@@ -269,15 +269,15 @@ export default function PipelinePage() {
                 onClick={() => setFilterUrgent(!filterUrgent)}
                 className={`text-[11px] font-bold px-3 py-1.5 rounded-lg border transition-all whitespace-nowrap ${
                   filterUrgent 
-                    ? "bg-red-500/20 text-red-500 border-red-500/40" 
-                    : "bg-[var(--orbit-glass)] text-[var(--orbit-text-muted)] border-[var(--orbit-glass-border)] hover:text-white"
+                    ? "bg-rose-500/10 text-rose-500 border-rose-500/20" 
+                    : "bg-[var(--orbit-bg-secondary)] text-[var(--orbit-text-muted)] border-[var(--orbit-glass-border)] hover:text-[var(--orbit-text)]"
                 }`}
               >
                 Urgentes ({leads.filter(l => l.urgency >= 4).length})
               </button>
               
-              <button onClick={fetchPipeline} className="p-1.5 rounded-lg bg-[var(--orbit-glass)] border border-[var(--orbit-glass-border)] text-slate-400 hover:text-white transition-all shrink-0">
-                <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin text-[#d4af35]" : ""}`} />
+              <button onClick={fetchPipeline} className="p-1.5 rounded-lg bg-[var(--orbit-bg-secondary)] border border-[var(--orbit-glass-border)] text-slate-400 hover:text-[var(--orbit-text)] transition-all shrink-0">
+                <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin text-[var(--orbit-glow)]" : ""}`} />
               </button>
             </div>
           </div>
@@ -295,15 +295,15 @@ export default function PipelinePage() {
                   key={stage.key}
                   onClick={() => setActiveTab(stage.key)}
                   className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-all shrink-0 ${
-                    active ? "border-[#d4af35] text-[var(--orbit-text)] bg-black/5 dark:bg-white/5" : "border-transparent text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)]"
+                    active ? "border-[var(--orbit-glow)] text-[var(--orbit-text)] bg-[var(--orbit-bg-secondary)]" : "border-transparent text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)]"
                   }`}
                 >
                   <div className="relative">
                     <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: stage.color }} />
-                    {hasUrgent && <div className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-red-500 animate-pulse border border-[var(--orbit-bg)]" />}
+                    {hasUrgent && <div className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-rose-500 animate-pulse border border-[var(--orbit-bg)]" />}
                   </div>
                   <span className="text-xs font-bold uppercase tracking-widest">{stage.label}</span>
-                  <span className="text-[10px] bg-black/10 dark:bg-white/10 px-1.5 py-0.5 rounded-md font-mono text-[var(--orbit-text)]">{count}</span>
+                  <span className="text-[10px] bg-black/5 dark:bg-white/10 px-1.5 py-0.5 rounded-md font-mono text-[var(--orbit-text)]">{count}</span>
                 </button>
               );
             })}
@@ -397,9 +397,16 @@ export default function PipelinePage() {
                       <div className="absolute bottom-0 right-0 w-4 h-4 bg-emerald-500 rounded-full border-2 border-[var(--orbit-bg)]" />
                     </div>
                     <div>
-                      <h2 className="text-lg font-bold text-[var(--orbit-text)]">{selectedLead.name}</h2>
+                      <h2 className="text-lg font-display font-medium text-[var(--orbit-text)]">{selectedLead.name}</h2>
                       <div className="flex items-center gap-2 mt-1">
-                        <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border border-[var(--orbit-glass-border)] text-[var(--orbit-text-muted)]">
+                        <span 
+                          className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border"
+                          style={{ 
+                            backgroundColor: STAGES.find(s => s.key === selectedLead.orbit_stage)?.light?.bg,
+                            color: STAGES.find(s => s.key === selectedLead.orbit_stage)?.light?.text,
+                            borderColor: STAGES.find(s => s.key === selectedLead.orbit_stage)?.light?.border
+                          }}
+                        >
                           {STAGES.find(s => s.key === selectedLead.orbit_stage)?.label || selectedLead.orbit_stage}
                         </span>
                         <span className="text-xs text-[var(--orbit-text-muted)]">• Há {formatRelativeShort(selectedLead.last_interaction_at)}</span>
@@ -420,11 +427,11 @@ export default function PipelinePage() {
 
                 {/* AI Suggestions and Conflicts */}
                 {selectedLead.action_suggested && (
-                  <div className="bg-[#d4af35]/10 border border-[#d4af35]/20 p-4 rounded-xl flex flex-col gap-2">
-                    <h4 className="text-[10px] font-bold text-[#d4af35] uppercase tracking-widest flex items-center gap-2">
+                  <div className="bg-[var(--orbit-glow)]/5 border border-[var(--orbit-glow)]/10 p-4 rounded-xl flex flex-col gap-2">
+                    <h4 className="text-[10px] font-bold text-[var(--orbit-glow)] uppercase tracking-widest flex items-center gap-2">
                       <AlertTriangle className="w-3 h-3" /> Sugestão da IA
                     </h4>
-                    <p className="text-[13px] text-[#d4af35] leading-relaxed font-medium">
+                    <p className="text-[13px] text-[var(--orbit-text)] leading-relaxed font-medium">
                       {selectedLead.action_suggested}
                     </p>
                   </div>
@@ -449,11 +456,11 @@ export default function PipelinePage() {
 
                 {/* Snippet Msg */}
                 {selectedLead.snippet && (
-                  <div className="bg-slate-50 dark:bg-white/5 border border-[var(--orbit-glass-border)] p-4 rounded-xl italic">
-                    <p className="text-[11px] font-bold uppercase tracking-widest text-[var(--orbit-text-muted)] mb-2 flex justify-between">
+                  <div className="bg-[var(--orbit-bg-secondary)] border border-[var(--orbit-glass-border)] p-4 rounded-xl italic">
+                    <p className="text-[11px] font-bold uppercase tracking-widest text-[var(--orbit-text-muted)] mb-2">
                       Última Mensagem
                     </p>
-                    <p className="text-sm text-[var(--orbit-text)] leading-relaxed border-l-2 border-[var(--orbit-text-muted)] pl-3">
+                    <p className="text-sm text-[var(--orbit-text)] leading-relaxed border-l-2 border-[var(--orbit-glow)]/30 pl-3">
                       "{selectedLead.snippet}"
                     </p>
                   </div>
@@ -465,7 +472,7 @@ export default function PipelinePage() {
               <div className="p-4 border-t border-[var(--orbit-glass-border)] bg-slate-50 dark:bg-[#1a1a1a] flex gap-3 rounded-b-3xl">
                 <button 
                   onClick={() => router.push(`/lead/${selectedLead.id}`)}
-                  className="flex-1 bg-[#d4af35] text-white dark:text-black font-bold uppercase tracking-widest text-[11px] py-3.5 rounded-xl flex items-center justify-center gap-2 shadow-[0_4px_14px_rgba(212,175,53,0.3)] transition-transform hover:scale-[1.02]"
+                  className="flex-1 bg-[var(--orbit-glow)] text-white font-bold uppercase tracking-widest text-[11px] py-3.5 rounded-xl flex items-center justify-center gap-2 shadow-[var(--orbit-shadow)] transition-transform hover:scale-[1.02]"
                 >
                   <MessageSquare className="w-4 h-4" /> Abrir Chat
                 </button>
@@ -491,10 +498,10 @@ export default function PipelinePage() {
 function StatChip({ label, value, highlight }: { label: string; value: number; highlight?: boolean }) {
   return (
     <div className={`flex flex-col px-3 py-1.5 rounded-lg border flex-shrink-0 min-w-[70px] ${
-      highlight ? "bg-[#d4af35]/10 border-[#d4af35]/30 text-[#d4af35]" : "bg-[var(--orbit-glass)] border-[var(--orbit-glass-border)] text-[var(--orbit-text-muted)]"
+      highlight ? "bg-[var(--orbit-glow)]/5 border-[var(--orbit-glow)]/20 text-[var(--orbit-glow)]" : "bg-[var(--orbit-bg-secondary)] border-[var(--orbit-glass-border)] text-[var(--orbit-text-muted)]"
     }`}>
       <span className="text-[9px] uppercase tracking-widest font-bold mb-0.5">{label}</span>
-      <span className={`text-[13px] font-black leading-none ${highlight ? "text-[#d4af35]" : "text-white"}`}>{value}</span>
+      <span className={`text-[15px] font-display font-medium leading-none ${highlight ? "text-[var(--orbit-glow)]" : "text-[var(--orbit-text)]"}`}>{value}</span>
     </div>
   );
 }
@@ -503,7 +510,7 @@ function ScoreBox({ label, value, colorClass, bgClass }: { label: string; value:
   return (
     <div className={`flex flex-col items-center justify-center p-3 rounded-xl border ${bgClass} transition-colors`}>
       <span className="text-[8px] font-bold uppercase tracking-widest text-[var(--orbit-text-muted)] mb-1">{label}</span>
-      <span className={`text-xl font-black ${colorClass}`}>{value}</span>
+      <span className={`text-xl font-display font-medium ${colorClass}`}>{value}</span>
     </div>
   );
 }
@@ -529,7 +536,7 @@ function PipelineCard({ lead, color, onClick, onChat }: { lead: PipelineLead; co
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.95 }}
       whileHover={{ y: -2 }}
-      className={`bg-[var(--orbit-glass)] backdrop-blur-md rounded-xl p-3.5 border border-[var(--orbit-glass-border)] shadow-lg cursor-pointer ${urgencyBorder} flex flex-col gap-3 relative overflow-hidden`}
+      className={`bg-[var(--orbit-bg)] rounded-xl p-3.5 border border-[var(--orbit-glass-border)] shadow-[var(--orbit-shadow)] hover:shadow-[var(--orbit-shadow-hover)] cursor-pointer ${urgencyBorder} flex flex-col gap-3 relative overflow-hidden transition-shadow duration-300`}
       onClick={onChat}
     >
       {/* HEADER: Avatar + Info */}
@@ -550,10 +557,10 @@ function PipelineCard({ lead, color, onClick, onChat }: { lead: PipelineLead; co
         </div>
         
         <div className="flex-1 min-w-0">
-          <h3 className="text-sm font-bold text-[var(--orbit-text)] truncate">{lead.name}</h3>
+          <h3 className="text-sm font-bold text-[var(--orbit-text)] truncate font-display">{lead.name}</h3>
           <div className="flex items-center gap-2 mt-0.5">
             <span className="text-[10px] text-[var(--orbit-text-muted)] font-medium">Há {formatRelativeShort(lead.last_interaction_at)}</span>
-            {isUrgent && <span className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-red-500/10 text-red-500 uppercase border border-red-500/20">Urgent</span>}
+            {isUrgent && <span className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-500 uppercase border border-rose-500/20">Urgent</span>}
           </div>
         </div>
         
@@ -579,15 +586,15 @@ function PipelineCard({ lead, color, onClick, onChat }: { lead: PipelineLead; co
         <div className="flex-1 max-w-[50%]">
           <div className="flex justify-between items-center mb-1">
             <span className="text-[8px] font-bold uppercase tracking-wider text-[var(--orbit-text-muted)]">Interesse</span>
-            <span className="text-[9px] font-black text-[#d4af35]">{lead.interest_score}</span>
+            <span className="text-[10px] font-display font-medium text-[var(--orbit-glow)]">{lead.interest_score}</span>
           </div>
-          <div className="h-1.5 w-full bg-slate-200 dark:bg-white/10 rounded-full overflow-hidden">
-            <div className="h-full bg-[#d4af35] rounded-full transition-all" style={{ width: `${Math.max(0, Math.min(100, lead.interest_score))}%` }} />
+          <div className="h-1.5 w-full bg-[var(--orbit-bg-secondary)] rounded-full overflow-hidden">
+            <div className="h-full bg-[var(--orbit-glow)] rounded-full transition-all" style={{ width: `${Math.max(0, Math.min(100, lead.interest_score))}%` }} />
           </div>
         </div>
         
         {/* Momentum Indicator */}
-        <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-black/30 border border-[var(--orbit-glass-border)] px-2 py-1 rounded-md">
+        <div className="flex items-center gap-1.5 bg-[var(--orbit-bg-secondary)] border border-[var(--orbit-glass-border)] px-2 py-1 rounded-md">
           <span className="text-[8px] font-bold uppercase tracking-wider text-[var(--orbit-text-muted)]">Mom</span>
           {momentumIcon}
         </div>
@@ -595,8 +602,8 @@ function PipelineCard({ lead, color, onClick, onChat }: { lead: PipelineLead; co
 
       {/* Action Suggested Box */}
       {lead.action_suggested && (
-        <div className="bg-[#d4af35]/10 border border-[#d4af35]/20 rounded-lg p-2.5 mt-1">
-          <p className="text-[10px] text-[#d4af35] font-medium leading-relaxed truncate group-hover:block" title={lead.action_suggested}>
+        <div className="bg-[var(--orbit-glow)]/5 border border-[var(--orbit-glow)]/10 rounded-lg p-2.5 mt-1">
+          <p className="text-[10px] text-[var(--orbit-glow)] font-medium leading-relaxed truncate group-hover:block" title={lead.action_suggested}>
             💡 {lead.action_suggested}
           </p>
         </div>

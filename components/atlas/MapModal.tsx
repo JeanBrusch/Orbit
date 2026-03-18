@@ -10,6 +10,7 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useSupabaseProperties } from "@/hooks/use-supabase-data"
+import { useTheme } from "next-themes"
 import type { MapProperty } from "@/components/atlas/MapAtlas"
 
 // ── Dynamic Mapbox ───────────────────────────────────────────────────────────
@@ -17,14 +18,18 @@ const MapAtlas = dynamic(
   () => import("@/components/atlas/MapAtlas").then((m) => m.MapAtlas),
   {
     ssr: false,
-    loading: () => (
-      <div className="flex items-center justify-center bg-[#0a0907] w-full h-full">
-        <div className="flex flex-col items-center gap-3">
-          <div className="h-8 w-8 rounded-full border-2 border-[#d4af35]/60 border-t-[#d4af35] animate-spin" />
-          <span className="text-[10px] text-[#d4af35]/60 tracking-widest uppercase font-mono">Loading Atlas...</span>
+    loading: () => {
+      const { resolvedTheme } = useTheme()
+      const isDark = resolvedTheme === 'dark'
+      return (
+        <div className={`flex items-center justify-center w-full h-full ${isDark ? 'bg-[#0a0907]' : 'bg-[var(--orbit-bg)]'}`}>
+          <div className="flex flex-col items-center gap-3">
+            <div className={`h-8 w-8 rounded-full border-2 animate-spin ${isDark ? 'border-[#d4af35]/60 border-t-[#d4af35]' : 'border-[var(--orbit-glow)]/60 border-t-[var(--orbit-glow)]'}`} />
+            <span className={`text-[10px] tracking-widest uppercase font-mono ${isDark ? 'text-[#d4af35]/60' : 'text-[var(--orbit-glow)]/60'}`}>Loading Atlas...</span>
+          </div>
         </div>
-      </div>
-    ),
+      )
+    },
   }
 )
 
@@ -35,10 +40,18 @@ interface MapModalProps {
   onToggleSelect: (prop: any) => void
 }
 
-const glass = "bg-[#14120c]/70 backdrop-blur-md border border-[#d4af35]/15 text-white"
-const glassDarker = "bg-[#0a0907]/85 backdrop-blur-xl border border-[#d4af35]/10 text-white"
-
 export default function MapModal({ isOpen, onClose, selectedIds, onToggleSelect }: MapModalProps) {
+  const { resolvedTheme } = useTheme()
+  const isDark = resolvedTheme === 'dark'
+  
+  const glass = isDark 
+    ? "bg-[#14120c]/70 backdrop-blur-md border border-[#d4af35]/15 text-white"
+    : "bg-[var(--orbit-bg)]/80 backdrop-blur-md border border-[var(--orbit-line)] text-[var(--orbit-text)]"
+    
+  const glassDarker = isDark
+    ? "bg-[#0a0907]/85 backdrop-blur-xl border border-[#d4af35]/10 text-white"
+    : "bg-[var(--orbit-bg-secondary)]/90 backdrop-blur-xl border border-[var(--orbit-line)] text-[var(--orbit-text)]"
+
   const { properties, loading: propsLoading } = useSupabaseProperties()
   const [selectedProperty, setSelectedProperty] = useState<any | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
@@ -73,7 +86,7 @@ export default function MapModal({ isOpen, onClose, selectedIds, onToggleSelect 
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[100] bg-[#0a0907] flex flex-col md:flex-row overflow-hidden"
+        className={`fixed inset-0 z-[100] ${isDark ? 'bg-[#0a0907]' : 'bg-[var(--orbit-bg)]'} flex flex-col md:flex-row overflow-hidden`}
       >
         {/* Close Button Trigger */}
         <button 
@@ -100,7 +113,7 @@ export default function MapModal({ isOpen, onClose, selectedIds, onToggleSelect 
           {/* Top Floating Search in Map */}
           <div className="absolute top-6 left-6 z-[110] w-64 hidden md:block">
             <div className={`flex items-center gap-2 px-4 py-2 rounded-full ${glass} shadow-2xl`}>
-              <Search className="h-4 w-4 text-[#d4af35]" />
+              <Search className={`h-4 w-4 ${isDark ? 'text-[#d4af35]' : 'text-[var(--orbit-glow)]'}`} />
               <input 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -112,18 +125,18 @@ export default function MapModal({ isOpen, onClose, selectedIds, onToggleSelect 
 
           <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-[110] hidden md:block">
              <div className={`px-6 py-2 rounded-full ${glass} flex items-center gap-3 animate-pulse`}>
-                <div className="w-2 h-2 rounded-full bg-[#d4af35]" />
-                <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#d4af35]">Modo Visualização Ativo</span>
+                <div className={`w-2 h-2 rounded-full ${isDark ? 'bg-[#d4af35]' : 'bg-[var(--orbit-glow)]'}`} />
+                <span className={`text-[10px] font-mono uppercase tracking-[0.2em] ${isDark ? 'text-[#d4af35]' : 'text-[var(--orbit-glow)]'}`}>Modo Visualização Ativo</span>
              </div>
           </div>
         </div>
 
         {/* Info/List Sidebar (Map Context) */}
-        <aside className="w-full md:w-[420px] bg-[#0a0907] border-l border-[#d4af35]/20 flex flex-col order-1 md:order-2 shadow-[-20px_0_40px_rgba(0,0,0,0.5)] z-[105]">
-          <div className="p-8 border-b border-[#d4af35]/10 bg-gradient-to-br from-[#14120c] to-black">
-            <h2 className="text-[#d4af35] font-mono text-[10px] uppercase tracking-[0.3em] mb-2 font-bold">Contexto Geográfico</h2>
-            <h3 className="text-2xl font-serif text-white tracking-tight">Acervo Mapeado</h3>
-            <p className="text-xs text-white/40 mt-1">{mapProperties.length} imóveis posicionados no radar</p>
+        <aside className={`w-full md:w-[420px] ${isDark ? 'bg-[#0a0907]' : 'bg-[var(--orbit-bg)]'} border-l ${isDark ? 'border-[#d4af35]/20' : 'border-[var(--orbit-line)]'} flex flex-col order-1 md:order-2 shadow-[-20px_0_40px_rgba(0,0,0,0.5)] z-[105]`}>
+          <div className={`p-8 border-b ${isDark ? 'border-[#d4af35]/10 bg-gradient-to-br from-[#14120c] to-black' : 'border-[var(--orbit-line)] bg-[var(--orbit-bg-secondary)]'}`}>
+            <h2 className={`${isDark ? 'text-[#d4af35]' : 'text-[var(--orbit-glow)]'} font-mono text-[10px] uppercase tracking-[0.3em] mb-2 font-bold`}>Contexto Geográfico</h2>
+            <h3 className={`text-2xl font-serif ${isDark ? 'text-white' : 'text-[var(--orbit-text)]'} tracking-tight`}>Acervo Mapeado</h3>
+            <p className={`text-xs ${isDark ? 'text-white/40' : 'text-[var(--orbit-text-muted)]'} mt-1`}>{mapProperties.length} imóveis posicionados no radar</p>
           </div>
 
           <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
@@ -150,65 +163,73 @@ export default function MapModal({ isOpen, onClose, selectedIds, onToggleSelect 
                     </div>
                  </div>
 
-                 <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-4">
                     <div className={`p-4 rounded-xl ${glassDarker}`}>
-                       <span className="text-[9px] font-mono uppercase text-[#d4af35]">Valor</span>
-                       <p className="text-lg font-serif">R$ {(selectedProperty.value / 1000000).toFixed(1)}M</p>
+                       <span className={`text-[9px] font-mono uppercase ${isDark ? 'text-[#d4af35]' : 'text-[var(--orbit-glow)]'}`}>Valor</span>
+                       <p className={`text-lg font-serif ${isDark ? 'text-white' : 'text-[var(--orbit-text)]'}`}>R$ {(selectedProperty.value / 1000000).toFixed(1)}M</p>
                     </div>
                     <div className={`p-4 rounded-xl ${glassDarker}`}>
-                       <span className="text-[9px] font-mono uppercase text-[#d4af35]">Status</span>
+                       <span className={`text-[9px] font-mono uppercase ${isDark ? 'text-[#d4af35]' : 'text-[var(--orbit-glow)]'}`}>Status</span>
                        <p className="text-sm font-medium text-emerald-400">Diponível</p>
                     </div>
-                 </div>
+                  </div>
 
-                 <div className={`p-4 rounded-xl ${glassDarker} space-y-3`}>
+                  <div className={`p-4 rounded-xl ${glassDarker} space-y-3`}>
                     <div className="flex items-center justify-between">
                        <span className="text-xs font-medium">Linkar ao Orbit Selection</span>
                        <Button 
                          onClick={() => onToggleSelect(selectedProperty)}
                          variant="ghost" 
-                         className={`h-9 px-4 gap-2 rounded-lg border border-[#d4af35]/30 ${selectedIds.has(selectedProperty.id) ? 'bg-[#d4af35] text-black' : 'text-[#d4af35] hover:bg-[#d4af35]/10'}`}
+                         className={`h-9 px-4 gap-2 rounded-lg border transition-all ${
+                             selectedIds.has(selectedProperty.id) 
+                               ? isDark ? 'bg-[#d4af35] border-[#d4af35] text-black' : 'bg-[var(--orbit-glow)] border-[var(--orbit-glow)] text-white' 
+                               : isDark ? 'text-[#d4af35] border-[#d4af35]/30 hover:bg-[#d4af35]/10' : 'text-[var(--orbit-glow)] border-[var(--orbit-glow)]/30 hover:bg-[var(--orbit-glow)]/10'
+                         }`}
                        >
                          {selectedIds.has(selectedProperty.id) ? <Sparkles className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
                          <span className="text-[10px] font-bold uppercase tracking-widest">{selectedIds.has(selectedProperty.id) ? 'Selecionado' : 'Selecionar'}</span>
                        </Button>
                     </div>
-                    <p className="text-[10px] text-white/40 leading-relaxed italic">
+                    <p className={`text-[10px] ${isDark ? 'text-white/40' : 'text-[var(--orbit-text-muted)]'} leading-relaxed italic`}>
                       A seleção no mapa sincroniza automaticamente com o seu carrinho do Atlas Manager.
                     </p>
                  </div>
 
-                 <div className="space-y-3">
-                   <h4 className="text-[10px] font-mono uppercase tracking-widest text-[#d4af35]">Atributos Extraídos</h4>
-                   <div className="flex flex-wrap gap-2">
-                     {selectedProperty.features?.slice(0, 4).map((f: string) => (
-                       <span key={f} className="px-2 py-1 rounded bg-white/5 border border-white/10 text-[10px] uppercase text-white/60">{f}</span>
-                     ))}
-                   </div>
-                 </div>
+                  <div className="space-y-3">
+                    <h4 className={`text-[10px] font-mono uppercase tracking-widest ${isDark ? 'text-[#d4af35]' : 'text-[var(--orbit-glow)]'}`}>Atributos Extraídos</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedProperty.features?.slice(0, 4).map((f: string) => (
+                        <span key={f} className={`px-2 py-1 rounded border text-[10px] uppercase ${isDark ? 'bg-white/5 border-white/10 text-white/60' : 'bg-[var(--orbit-bg-secondary)] border-[var(--orbit-line)] text-[var(--orbit-text-muted)]'}`}>{f}</span>
+                      ))}
+                    </div>
+                  </div>
                </motion.div>
             ) : (
               <div className="h-full flex flex-col items-center justify-center text-center space-y-4 px-6">
-                <div className="p-4 rounded-full bg-[#d4af35]/10 border border-[#d4af35]/20">
-                  <MapPin className="h-8 w-8 text-[#d4af35]" />
+                <div className={`p-4 rounded-full ${isDark ? 'bg-[#d4af35]/10 border border-[#d4af35]/20' : 'bg-[var(--orbit-glow)]/10 border border-[var(--orbit-glow)]/20'}`}>
+                  <MapPin className={`h-8 w-8 ${isDark ? 'text-[#d4af35]' : 'text-[var(--orbit-glow)]'}`} />
                 </div>
                 <div>
-                   <h4 className="text-white font-serif text-lg">Selecione um Ativo</h4>
-                   <p className="text-xs text-white/40 mt-2">Explore os pins no mapa para ver detalhes contextuais e vincular a curadorias em andamento.</p>
+                   <h4 className={`font-serif text-lg ${isDark ? 'text-white' : 'text-[var(--orbit-text)]'}`}>Selecione um Ativo</h4>
+                   <p className={`text-xs mt-2 ${isDark ? 'text-white/40' : 'text-[var(--orbit-text-muted)]'}`}>Explore os pins no mapa para ver detalhes contextuais e vincular a curadorias em andamento.</p>
                 </div>
               </div>
             )}
           </div>
           
           {/* Selection Counter in Sidebar */}
-          <div className="p-8 border-t border-[#d4af35]/10 bg-black/40">
+          <div className={`p-8 border-t ${isDark ? 'border-[#d4af35]/10 bg-black/40' : 'border-[var(--orbit-line)] bg-[var(--orbit-bg-secondary)]/60'}`}>
              <div className="flex items-center justify-between mb-4">
-                <span className="text-[10px] font-mono uppercase tracking-widest text-white/40">Carrinho Atual</span>
-                <span className="text-[#d4af35] font-serif text-lg">{selectedIds.size} itens</span>
+                <span className={`text-[10px] font-mono uppercase tracking-widest ${isDark ? 'text-white/40' : 'text-[var(--orbit-text-muted)]'}`}>Carrinho Atual</span>
+                <span className={`${isDark ? 'text-[#d4af35]' : 'text-[var(--orbit-glow)]'} font-serif text-lg`}>{selectedIds.size} itens</span>
              </div>
              <Button 
                onClick={onClose}
-               className="w-full h-12 bg-[#d4af35] hover:brightness-110 text-[#0a0907] font-bold text-xs gap-2 uppercase tracking-widest rounded-xl shadow-[0_10px_30px_rgba(212,175,53,0.2)]"
+               className={`w-full h-12 font-bold text-xs gap-2 uppercase tracking-widest rounded-xl transition-all ${
+                 isDark 
+                   ? 'bg-[#d4af35] hover:brightness-110 text-[#0a0907] shadow-[0_10px_30px_rgba(212,175,53,0.2)]' 
+                   : 'bg-[var(--orbit-glow)] text-white shadow-[var(--orbit-shadow)]'
+               }`}
              >
                Concluir Seleção e Voltar
              </Button>

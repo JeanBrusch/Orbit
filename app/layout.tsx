@@ -1,11 +1,17 @@
 import type React from "react"
 import type { Metadata, Viewport } from "next"
-import { Inter, Geist_Mono } from "next/font/google"
+import { Inter, Geist_Mono, Instrument_Serif } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import "./globals.css"
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" })
 const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-mono" })
+const instrumentSerif = Instrument_Serif({
+  subsets: ["latin"],
+  weight: ["400"],
+  style: ["normal", "italic"],
+  variable: "--font-display",
+})
 
 export const metadata: Metadata = {
   title: "ORBIT | Cognitive Interface",
@@ -43,8 +49,20 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className="dark">
-      <body className={`${inter.variable} ${geistMono.variable} font-sans antialiased`}>
+    <html lang="en">
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function(){
+                var t = localStorage.getItem('orbit-theme') || 'dark';
+                document.documentElement.classList.add(t);
+              })()
+            `,
+          }}
+        />
+      </head>
+      <body className={`${inter.variable} ${geistMono.variable} ${instrumentSerif.variable} font-sans antialiased text-[var(--orbit-text)] bg-[var(--orbit-bg)] transition-colors duration-300`}>
         {children}
         <Analytics />
       </body>

@@ -5,6 +5,7 @@ import { X, Search, Loader2, Sparkles, ArrowRight } from "lucide-react"
 import type { CoreState } from "@/app/page"
 import { useOrbitContext } from "./orbit-context"
 import { getSupabase } from "@/lib/supabase"
+import { useTheme } from "next-themes"
 
 interface OrbitCoreProps {
   state: CoreState
@@ -53,6 +54,8 @@ export function OrbitCore({
   const inputRef = useRef<HTMLInputElement>(null)
   const suggestDebounceRef = useRef<NodeJS.Timeout | null>(null)
   const { openLeadPanel } = useOrbitContext()
+  const { resolvedTheme } = useTheme()
+  const isDark = resolvedTheme === "dark"
 
   // Focus on entering listening mode
   useEffect(() => {
@@ -158,20 +161,40 @@ export function OrbitCore({
 
   const getOuterRingClass = () =>
     state === "listening" || state === "processing"
-      ? "animate-ring-fast shadow-[0_0_40px_rgba(46,197,255,0.15)_inset] border-cyan-400/30"
-      : "animate-orbit-rotate shadow-[0_0_20px_rgba(46,197,255,0.05)_inset] border-cyan-400/15"
+      ? isDark 
+        ? "animate-ring-fast shadow-[0_0_40px_rgba(46,197,255,0.15)_inset] border-cyan-400/30"
+        : "animate-ring-fast border-[var(--orbit-glow)]/40 shadow-[0_0_30px_var(--orbit-glow)]/5"
+      : isDark
+        ? "animate-orbit-rotate shadow-[0_0_20px_rgba(46,197,255,0.05)_inset] border-cyan-400/15"
+        : "animate-orbit-rotate border-[var(--orbit-line)]"
 
   const getInnerRingClass = () =>
     state === "listening" || state === "processing"
-      ? "animate-ring-fast-reverse shadow-[0_0_30px_rgba(46,197,255,0.1)_inset] border-cyan-400/25"
-      : "animate-orbit-rotate-reverse shadow-[0_0_15px_rgba(46,197,255,0.05)_inset] border-cyan-400/10"
+      ? isDark
+        ? "animate-ring-fast-reverse shadow-[0_0_30px_rgba(46,197,255,0.1)_inset] border-cyan-400/25"
+        : "animate-ring-fast-reverse border-[var(--orbit-glow)]/30"
+      : isDark
+        ? "animate-orbit-rotate-reverse shadow-[0_0_15px_rgba(46,197,255,0.05)_inset] border-cyan-400/10"
+        : "animate-orbit-rotate-reverse border-[var(--orbit-line)]/50"
 
   const getCoreClasses = () => {
-    const base =
-      "relative flex h-[180px] w-[180px] cursor-pointer items-center justify-center rounded-full bg-gradient-to-br from-white/10 to-transparent dark:from-cyan-950/40 dark:to-transparent backdrop-blur-3xl border border-white/20 dark:border-cyan-400/30 shadow-[0_0_50px_rgba(46,197,255,0.2)] transition-all duration-[600ms] ease-[cubic-bezier(0.16,1,0.3,1)]"
-    if (state === "listening") return `${base} animate-core-listening ring-4 ring-cyan-400/20 scale-105`
-    if (state === "processing" || state === "responding") return `${base} scale-110 shadow-[0_0_80px_rgba(212,175,53,0.3)] border-[#d4af35]/40`
-    return `${base} animate-orbit-breathe hover:scale-[1.03] hover:shadow-[0_0_60px_rgba(46,197,255,0.3)] hover:border-cyan-400/50`
+    const base = isDark
+      ? "relative flex h-[180px] w-[180px] cursor-pointer items-center justify-center rounded-full bg-gradient-to-br from-white/10 to-transparent dark:from-cyan-950/40 dark:to-transparent backdrop-blur-3xl border border-white/20 dark:border-cyan-400/30 shadow-[0_0_50px_rgba(46,197,255,0.2)] transition-all duration-[600ms] ease-[cubic-bezier(0.16,1,0.3,1)]"
+      : "relative flex h-[180px] w-[180px] cursor-pointer items-center justify-center rounded-full bg-white/80 backdrop-blur-3xl border border-[var(--orbit-line)] shadow-[0_20px_50px_rgba(0,0,0,0.05)] transition-all duration-[600ms] ease-[cubic-bezier(0.16,1,0.3,1)]"
+    
+    if (state === "listening") {
+      return isDark 
+        ? `${base} animate-core-listening ring-4 ring-cyan-400/20 scale-105`
+        : `${base} ring-4 ring-[var(--orbit-glow)]/10 scale-105 border-[var(--orbit-glow)]/30`
+    }
+    if (state === "processing" || state === "responding") {
+      return isDark
+        ? `${base} scale-110 shadow-[0_0_80px_rgba(212,175,53,0.3)] border-[#d4af35]/40`
+        : `${base} scale-110 shadow-[0_10px_40px_rgba(212,175,53,0.15)] border-amber-400/50`
+    }
+    return isDark
+      ? `${base} animate-orbit-breathe hover:scale-[1.03] hover:shadow-[0_0_60px_rgba(46,197,255,0.3)] hover:border-cyan-400/50`
+      : `${base} hover:scale-[1.03] hover:shadow-[0_25px_60px_rgba(0,0,0,0.08)] hover:border-[var(--orbit-glow)]/40`
   }
 
   return (
@@ -211,6 +234,9 @@ export function OrbitCore({
             state === "processing" || state === "responding" ? "opacity-100" : "opacity-0"
           }`}
         />
+        {!isDark && (
+          <div className="absolute inset-0 rounded-full bg-white opacity-20 pointer-events-none" />
+        )}
 
         {/* Content */}
         <div className="relative z-10 text-center w-full px-4">
@@ -221,8 +247,8 @@ export function OrbitCore({
               <form onSubmit={handleSubmit}>
                 <div className="relative flex items-center gap-2">
                   {loadingSuggestions
-                    ? <Loader2 className="w-4 h-4 text-cyan-400 animate-spin shrink-0" />
-                    : <Search className="w-4 h-4 text-cyan-400 shrink-0" />
+                    ? <Loader2 className={`w-4 h-4 animate-spin shrink-0 ${isDark ? 'text-cyan-400' : 'text-[var(--orbit-glow)]'}`} />
+                    : <Search className={`w-4 h-4 shrink-0 ${isDark ? 'text-cyan-400' : 'text-[var(--orbit-glow)]'}`} />
                   }
                   <input
                     ref={inputRef}
@@ -231,11 +257,15 @@ export function OrbitCore({
                     onChange={handleInputChange}
                     onKeyDown={handleKeyDown}
                     placeholder="Quem você busca?"
-                    className="flex-1 bg-transparent text-center text-sm font-medium text-white placeholder:text-cyan-200/50 focus:outline-none min-w-0 tracking-wide drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]"
+                    className={`flex-1 bg-transparent text-center text-sm font-medium focus:outline-none min-w-0 tracking-wide ${
+                      isDark 
+                        ? 'text-white placeholder:text-cyan-200/50 drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]' 
+                        : 'text-[var(--orbit-text)] placeholder:text-slate-400'
+                    }`}
                     aria-label="Buscar lead ou fazer pesquisa cognitiva"
                   />
                 </div>
-                <div className="mt-2 text-[10px] text-cyan-200/60 font-medium tracking-wide uppercase">
+                <div className={`mt-2 text-[10px] font-medium tracking-wide uppercase ${isDark ? 'text-cyan-200/60' : 'text-slate-400'}`}>
                   Enter para busca IA · Esc para sair
                 </div>
               </form>
@@ -244,7 +274,11 @@ export function OrbitCore({
               <button
                 type="button"
                 onClick={(e) => { e.stopPropagation(); onCancel() }}
-                className="absolute -right-3 -top-3 flex h-6 w-6 items-center justify-center rounded-full bg-white/10 dark:bg-black/40 border border-white/20 text-slate-300 hover:text-white hover:bg-white/20 transition-all shadow-lg hover:scale-110"
+                className={`absolute -right-3 -top-3 flex h-6 w-6 items-center justify-center rounded-full border transition-all shadow-lg hover:scale-110 ${
+                  isDark 
+                    ? 'bg-white/10 dark:bg-black/40 border-white/20 text-slate-300 hover:text-white hover:bg-white/20' 
+                    : 'bg-white border-[var(--orbit-line)] text-slate-400 hover:text-slate-600 hover:border-slate-300'
+                }`}
                 aria-label="Cancelar"
               >
                 <X className="h-3 w-3" />
@@ -257,19 +291,23 @@ export function OrbitCore({
             <div className={`transition-all duration-500 ${state === "processing" || state === "responding" ? "scale-105" : ""}`}>
               {state === "processing" && (
                 <div className="flex justify-center mb-3 relative">
-                  <div className="absolute inset-0 bg-[#d4af35]/30 blur-xl rounded-full animate-pulse" />
-                  <Sparkles className="w-6 h-6 text-[#d4af35] animate-pulse relative z-10" />
+                  <div className={`absolute inset-0 blur-xl rounded-full animate-pulse ${isDark ? 'bg-[#d4af35]/30' : 'bg-amber-400/20'}`} />
+                  <Sparkles className={`w-6 h-6 animate-pulse relative z-10 ${isDark ? 'text-[#d4af35]' : 'text-amber-500'}`} />
                 </div>
               )}
               {state === "responding" && (
                 <div className="flex justify-center mb-3 relative">
-                  <div className="absolute inset-0 bg-[#d4af35]/40 blur-xl rounded-full" />
-                  <Search className="w-6 h-6 text-[#d4af35] relative z-10" />
+                  <div className={`absolute inset-0 blur-xl rounded-full ${isDark ? 'bg-[#d4af35]/40' : 'bg-amber-400/30'}`} />
+                  <Search className={`w-6 h-6 relative z-10 ${isDark ? 'text-[#d4af35]' : 'text-amber-500'}`} />
                 </div>
               )}
-              <p className={`text-sm font-semibold tracking-wide drop-shadow-md transition-colors duration-500 ${state === "processing" || state === "responding" ? "text-[#d4af35]" : "text-slate-700 dark:text-cyan-50"}`}>{message}</p>
+              <p className={`text-sm font-semibold tracking-wide drop-shadow-md transition-colors duration-500 ${
+                state === "processing" || state === "responding" 
+                  ? isDark ? "text-[#d4af35]" : "text-amber-600"
+                  : isDark ? "text-cyan-50" : "text-slate-700"
+              }`}>{message}</p>
               {state === "idle" && (
-                <p className="mt-1.5 text-[10px] text-slate-500 dark:text-cyan-200/60 font-medium tracking-widest uppercase">{activeCount} ativos</p>
+                <p className={`mt-1.5 text-[10px] font-medium tracking-widest uppercase ${isDark ? 'text-cyan-200/60' : 'text-slate-400'}`}>{activeCount} ativos</p>
               )}
             </div>
           )}
@@ -282,7 +320,11 @@ export function OrbitCore({
           className="absolute left-1/2 -translate-x-1/2 pointer-events-auto w-[calc(100vw-32px)] md:w-[340px]"
           style={{ top: "calc(90px + 12px)", zIndex: 100 }}
         >
-          <div className="rounded-2xl border border-white/10 bg-black/60 backdrop-blur-3xl shadow-[0_16px_60px_rgba(0,0,0,0.8)] overflow-hidden ring-1 ring-white/5">
+          <div className={`rounded-2xl border backdrop-blur-3xl overflow-hidden ring-1 shadow-[0_16px_60px_rgba(0,0,0,0.8)] ${
+            isDark 
+              ? 'border-white/10 bg-black/60 ring-white/5' 
+              : 'border-[var(--orbit-line)] bg-white ring-slate-100 shadow-[0_20px_40px_rgba(0,0,0,0.1)]'
+          }`}>
             {/* Lead suggestions */}
             <div className="p-1.5">
               {suggestions.map((lead, i) => (
@@ -304,7 +346,9 @@ export function OrbitCore({
                     }
                     if (e.key === "Escape") { setSuggestionsVisible(false); inputRef.current?.focus() }
                   }}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-colors hover:bg-[rgba(255,255,255,0.05)] focus:bg-[rgba(255,255,255,0.05)] focus:outline-none group"
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-colors focus:outline-none group ${
+                    isDark ? 'hover:bg-[rgba(255,255,255,0.05)] focus:bg-[rgba(255,255,255,0.05)]' : 'hover:bg-slate-50 focus:bg-slate-50'
+                  }`}
                 >
                   {/* Avatar */}
                   <div className="w-8 h-8 rounded-full overflow-hidden bg-[var(--orbit-glass)] border border-[var(--orbit-glass-border)] shrink-0 flex items-center justify-center">
@@ -330,19 +374,25 @@ export function OrbitCore({
 
             {/* AI Search option — always shown when there's text */}
             {inputValue.trim().length > 0 && (
-              <div className="border-t border-white/10 p-1.5 bg-gradient-to-b from-transparent to-black/40">
+              <div className={`border-t p-1.5 bg-gradient-to-b ${isDark ? 'border-white/10 from-transparent to-black/40' : 'border-slate-100 from-transparent to-slate-50'}`}>
                 <button
                   onClick={handleAISearch}
-                  className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left transition-all hover:bg-white/10 focus:bg-white/10 focus:outline-none ring-1 ring-inset ring-transparent hover:ring-[#d4af35]/30 group"
+                  className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left transition-all focus:outline-none ring-1 ring-inset ring-transparent group ${
+                    isDark ? 'hover:bg-white/10 focus:bg-white/10 hover:ring-[#d4af35]/30' : 'hover:bg-amber-50 focus:bg-amber-50 hover:ring-amber-200'
+                  }`}
                 >
-                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#d4af35]/20 to-[#d4af35]/5 border border-[#d4af35]/30 flex items-center justify-center shrink-0 shadow-[0_0_15px_rgba(212,175,53,0.15)] group-hover:shadow-[0_0_20px_rgba(212,175,53,0.3)] transition-shadow">
-                    <Sparkles className="w-4 h-4 text-[#d4af35]" />
+                  <div className={`w-8 h-8 rounded-lg border flex items-center justify-center shrink-0 transition-shadow ${
+                    isDark 
+                      ? 'bg-gradient-to-br from-[#d4af35]/20 to-[#d4af35]/5 border-[#d4af35]/30 shadow-[0_0_15px_rgba(212,175,53,0.15)] group-hover:shadow-[0_0_20px_rgba(212,175,53,0.3)]' 
+                      : 'bg-gradient-to-br from-amber-100 to-amber-50 border-amber-200 shadow-sm group-hover:shadow-md'
+                  }`}>
+                    <Sparkles className={`w-4 h-4 ${isDark ? 'text-[#d4af35]' : 'text-amber-600'}`} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-[12px] font-semibold text-[#d4af35] tracking-wide">Busca Cognitiva</p>
-                    <p className="text-[10px] text-zinc-400 truncate opacity-90 mt-0.5">"{inputValue.trim()}"</p>
+                    <p className={`text-[12px] font-semibold tracking-wide ${isDark ? 'text-[#d4af35]' : 'text-amber-700'}`}>Busca Cognitiva</p>
+                    <p className={`text-[10px] truncate opacity-90 mt-0.5 ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>"{inputValue.trim()}"</p>
                   </div>
-                  <ArrowRight className="w-4 h-4 text-[#d4af35]/40 shrink-0 group-hover:text-[#d4af35]/80 transition-colors group-hover:translate-x-0.5" />
+                  <ArrowRight className={`w-4 h-4 shrink-0 transition-colors group-hover:translate-x-0.5 ${isDark ? 'text-[#d4af35]/40 group-hover:text-[#d4af35]/80' : 'text-amber-300 group-hover:text-amber-500'}`} />
                 </button>
               </div>
             )}
@@ -356,19 +406,29 @@ export function OrbitCore({
           className="absolute left-1/2 -translate-x-1/2 pointer-events-auto"
           style={{ top: "calc(90px + 12px)", width: "340px", zIndex: 100 }}
         >
-          <div className="rounded-2xl border border-white/10 bg-black/60 backdrop-blur-3xl shadow-[0_16px_60px_rgba(0,0,0,0.8)] overflow-hidden ring-1 ring-white/5 p-1.5">
+          <div className={`rounded-2xl border backdrop-blur-3xl overflow-hidden ring-1 p-1.5 ${
+            isDark 
+              ? 'border-white/10 bg-black/60 shadow-[0_16px_60px_rgba(0,0,0,0.8)] ring-white/5' 
+              : 'border-[var(--orbit-line)] bg-white shadow-[0_20px_40px_rgba(0,0,0,0.1)] ring-slate-100'
+          }`}>
             <button
               onClick={handleAISearch}
-              className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left transition-all hover:bg-white/10 focus:bg-white/10 focus:outline-none ring-1 ring-inset ring-transparent hover:ring-[#d4af35]/30 group"
+              className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left transition-all focus:outline-none ring-1 ring-inset ring-transparent group ${
+                isDark ? 'hover:bg-white/10 focus:bg-white/10 hover:ring-[#d4af35]/30' : 'hover:bg-amber-50 focus:bg-amber-50 hover:ring-amber-200'
+              }`}
             >
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#d4af35]/20 to-[#d4af35]/5 border border-[#d4af35]/30 flex items-center justify-center shrink-0 shadow-[0_0_15px_rgba(212,175,53,0.15)] group-hover:shadow-[0_0_20px_rgba(212,175,53,0.3)] transition-shadow">
-                <Sparkles className="w-4 h-4 text-[#d4af35]" />
+              <div className={`w-8 h-8 rounded-lg border flex items-center justify-center shrink-0 transition-shadow ${
+                isDark 
+                  ? 'bg-gradient-to-br from-[#d4af35]/20 to-[#d4af35]/5 border-[#d4af35]/30 shadow-[0_0_15px_rgba(212,175,53,0.15)] group-hover:shadow-[0_0_20px_rgba(212,175,53,0.3)]' 
+                  : 'bg-gradient-to-br from-amber-100 to-amber-50 border-amber-200 shadow-sm group-hover:shadow-md'
+              }`}>
+                <Sparkles className={`w-4 h-4 ${isDark ? 'text-[#d4af35]' : 'text-amber-600'}`} />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-[12px] font-semibold text-[#d4af35] tracking-wide">Busca Cognitiva</p>
-                <p className="text-[10px] text-zinc-400 truncate opacity-90 mt-0.5">"{inputValue.trim()}"</p>
+                <p className={`text-[12px] font-semibold tracking-wide ${isDark ? 'text-[#d4af35]' : 'text-amber-700'}`}>Busca Cognitiva</p>
+                <p className={`text-[10px] truncate opacity-90 mt-0.5 ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>"{inputValue.trim()}"</p>
               </div>
-              <ArrowRight className="w-4 h-4 text-[#d4af35]/40 shrink-0 group-hover:text-[#d4af35]/80 transition-colors group-hover:translate-x-0.5" />
+              <ArrowRight className={`w-4 h-4 shrink-0 transition-colors group-hover:translate-x-0.5 ${isDark ? 'text-[#d4af35]/40 group-hover:text-[#d4af35]/80' : 'text-amber-300 group-hover:text-amber-500'}`} />
             </button>
           </div>
         </div>

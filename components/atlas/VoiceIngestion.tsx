@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Mic, Send, X, Loader2, Sparkles, Check, Database } from "lucide-react"
+import { useTheme } from "next-themes"
 
 interface VoiceIngestionProps {
   onDataExtracted: (data: any) => void
@@ -10,6 +11,8 @@ interface VoiceIngestionProps {
 }
 
 export default function VoiceIngestion({ onDataExtracted, onClose }: VoiceIngestionProps) {
+  const { resolvedTheme } = useTheme()
+  const isDark = resolvedTheme === 'dark'
   const [text, setText] = useState("")
   const [isProcessing, setIsProcessing] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -43,16 +46,18 @@ export default function VoiceIngestion({ onDataExtracted, onClose }: VoiceIngest
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.95 }}
-      className="bg-[#0a0a0c] border border-white/10 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col"
+      className={`border rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col ${
+        isDark ? 'bg-[#0a0a0c] border-white/10' : 'bg-[var(--orbit-bg)] border-[var(--orbit-line)]'
+      }`}
     >
-      <div className="p-4 border-b border-white/5 flex items-center justify-between bg-white/2">
+      <div className={`p-4 border-b flex items-center justify-between ${isDark ? 'border-white/5 bg-white/2' : 'border-[var(--orbit-line)] bg-[var(--orbit-bg-secondary)]'}`}>
         <div className="flex items-center gap-2">
-          <div className="p-2 rounded-lg bg-indigo-500/20 text-indigo-400">
+          <div className={`p-2 rounded-lg ${isDark ? 'bg-indigo-500/20 text-indigo-400' : 'bg-[var(--orbit-glow)]/10 text-[var(--orbit-glow)]'}`}>
             <Mic size={18} />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-white">Cadastro Cognitivo</h3>
-            <p className="text-[10px] text-zinc-500 uppercase tracking-widest">Powered by OpenAI</p>
+            <h3 className={`text-sm font-bold ${isDark ? 'text-white' : 'text-[var(--orbit-text)]'}`}>Cadastro Cognitivo</h3>
+            <p className={`text-[10px] uppercase tracking-widest ${isDark ? 'text-zinc-500' : 'text-[var(--orbit-text-muted)]'}`}>Powered by OpenAI</p>
           </div>
         </div>
         <button onClick={onClose} className="p-2 hover:bg-white/5 rounded-full text-zinc-500 transition-colors">
@@ -61,7 +66,7 @@ export default function VoiceIngestion({ onDataExtracted, onClose }: VoiceIngest
       </div>
 
       <div className="p-6 space-y-4">
-        <p className="text-xs text-zinc-400 leading-relaxed">
+        <p className={`text-xs leading-relaxed ${isDark ? 'text-zinc-400' : 'text-[var(--orbit-text-muted)]'}`}>
           Dite ou descreva o imóvel naturalmente. A IA extrairá bairro, condomínio, valores e características automaticamente.
         </p>
 
@@ -70,7 +75,11 @@ export default function VoiceIngestion({ onDataExtracted, onClose }: VoiceIngest
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder='Ex: "Apartamento no centro, 3 quartos, sendo 2 suítes, 120 metros. Valor 800 mil. Tem piscina e sacada gourmet."'
-            className="w-full h-32 bg-black/40 border border-white/10 rounded-xl p-4 text-sm text-white placeholder:text-zinc-700 focus:outline-none focus:border-indigo-500/50 transition-all resize-none"
+            className={`w-full h-32 border rounded-xl p-4 text-sm transition-all resize-none focus:outline-none ${
+              isDark 
+                ? 'bg-black/40 border-white/10 text-white placeholder:text-zinc-700 focus:border-indigo-500/50' 
+                : 'bg-[var(--orbit-bg)] border-[var(--orbit-line)] text-[var(--orbit-text)] placeholder:text-[var(--orbit-text-muted)] focus:border-[var(--orbit-glow)]/50'
+            }`}
           />
           
           <div className="absolute bottom-3 right-3 flex items-center gap-2">
@@ -96,8 +105,8 @@ export default function VoiceIngestion({ onDataExtracted, onClose }: VoiceIngest
           disabled={isProcessing || !text.trim()}
           className={`w-full h-12 rounded-xl flex items-center justify-center gap-2 font-bold text-sm transition-all ${
             isProcessing || !text.trim() 
-              ? 'bg-zinc-800 text-zinc-600 cursor-not-allowed' 
-              : 'bg-indigo-500 text-white hover:bg-indigo-600 shadow-lg shadow-indigo-500/20'
+              ? isDark ? 'bg-zinc-800 text-zinc-600 cursor-not-allowed' : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+              : isDark ? 'bg-indigo-500 text-white hover:bg-indigo-600 shadow-lg shadow-indigo-500/20' : 'bg-[var(--orbit-glow)] text-white hover:brightness-110 shadow-[var(--orbit-shadow)]'
           }`}
         >
           {isProcessing ? (
@@ -114,10 +123,10 @@ export default function VoiceIngestion({ onDataExtracted, onClose }: VoiceIngest
         </button>
       </div>
 
-      <div className="px-6 py-4 bg-white/2 border-t border-white/5">
+      <div className={`px-6 py-4 border-t ${isDark ? 'bg-white/2 border-white/5' : 'bg-[var(--orbit-bg-secondary)] border-[var(--orbit-line)]'}`}>
         <div className="flex items-center gap-3">
           <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="text-[10px] text-zinc-500 uppercase font-medium tracking-widest leading-none">
+          <span className={`text-[10px] uppercase font-medium tracking-widest leading-none ${isDark ? 'text-zinc-500' : 'text-[var(--orbit-text-muted)]'}`}>
             Ready for natural language ingestion
           </span>
         </div>

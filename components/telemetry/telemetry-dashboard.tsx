@@ -1,6 +1,7 @@
 "use client";
 
 import { useTelemetryData } from "@/hooks/use-telemetry-data";
+import { useTheme } from "next-themes";
 import { MetricCard, EffortChart, CognitiveStateChart } from "./telemetry-elements";
 import { PersistenceCurve, InactivityHeatmap, QualityMatrix } from "./telemetry-advanced-charts";
 import { TelemetrySidebar, CognitiveTable } from "./telemetry-sections";
@@ -19,13 +20,15 @@ function initials(name: string) {
 export function TelemetryDashboard() {
   const { data, loading } = useTelemetryData();
   const { selectedLeadId, isLeadPanelOpen, openLeadPanel, closeLeadPanel } = useOrbitContext();
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === "dark";
 
   if (loading || !data) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#05060a]">
+      <div className={`flex min-h-screen items-center justify-center ${isDark ? 'bg-[#05060a]' : 'bg-[var(--orbit-bg)]'}`}>
         <div className="flex flex-col items-center gap-4">
-          <Loader2 className="h-8 w-8 animate-spin text-[#2ec5ff]" />
-          <div className="font-mono text-[10px] uppercase tracking-widest text-[#94a3b8]">
+          <Loader2 className={`h-8 w-8 animate-spin ${isDark ? 'text-[var(--orbit-glow)]' : 'text-[var(--orbit-glow)]'}`} />
+          <div className="font-mono text-[10px] uppercase tracking-widest text-[var(--orbit-text-muted)]">
             Sincronizando Campo Cognitivo...
           </div>
         </div>
@@ -53,19 +56,19 @@ export function TelemetryDashboard() {
   })) || [];
 
   return (
-    <div className="relative min-h-screen w-full overflow-x-hidden bg-[#05060a] text-[#e6eef6]">
+    <div className={`relative min-h-screen w-full overflow-x-hidden bg-[var(--orbit-bg)] text-[var(--orbit-text)]`}>
       <ParticleBackground />
 
       <div className="relative z-10 mx-auto max-w-[1400px] px-6 py-20 lg:px-8">
         {/* Header */}
-        <header className="mb-10 flex flex-col justify-between gap-6 border-b border-white/5 pb-8 sm:flex-row sm:items-end">
+        <header className={`mb-10 flex flex-col justify-between gap-6 border-b pb-8 sm:flex-row sm:items-end ${isDark ? 'border-white/5' : 'border-[var(--orbit-line)]'}`}>
           <div>
-            <div className="mb-2 flex items-center gap-2 font-mono text-[9px] font-semibold uppercase tracking-[0.2em] text-[#2ec5ff]/70">
+            <div className={`mb-2 flex items-center gap-2 font-mono text-[9px] font-semibold uppercase tracking-[0.2em] ${isDark ? 'text-[var(--orbit-glow)]/70' : 'text-[var(--orbit-glow)]'}`}>
               <Cpu className="h-3 w-3" />
               Operador · Cognitive Performance Terminal
             </div>
-            <h1 className="text-4xl font-bold tracking-tight text-white">Telemetria do Operador</h1>
-            <p className="mt-2 text-sm text-[#94a3b8]">
+            <h1 className={`text-4xl font-bold tracking-tight ${isDark ? 'text-white' : 'text-[var(--orbit-text)]'}`}>Telemetria do Operador</h1>
+            <p className="mt-2 text-sm text-[var(--orbit-text-muted)]">
               Você está trabalhando bem? Nos horários certos? Seu esforço gera retorno?
             </p>
           </div>
@@ -74,17 +77,21 @@ export function TelemetryDashboard() {
              <div className="flex items-center gap-3">
                 <div className="flex flex-col items-center gap-1">
                    <div className="text-[10px] font-mono text-[#94a3b8] uppercase">Interesse</div>
-                   <div className="text-xl font-bold text-[#2ec5ff]">{Math.round(data.avgInterest)}%</div>
+                   <div className={`text-xl font-bold ${isDark ? 'text-[#2ec5ff]' : 'text-[var(--orbit-glow)]'}`}>{Math.round(data.avgInterest)}%</div>
                 </div>
                 <div className="flex flex-col items-center gap-1">
                    <div className="text-[10px] font-mono text-[#94a3b8] uppercase">Momentum</div>
-                   <div className="text-xl font-bold text-[#ffc87a]">{Math.round(data.avgMomentum)}%</div>
+                   <div className={`text-xl font-bold ${isDark ? 'text-[#ffc87a]' : 'text-amber-600'}`}>{Math.round(data.avgMomentum)}%</div>
                 </div>
              </div>
-             <div className="h-10 w-[1px] bg-white/10" />
-             <div className="flex gap-1 rounded-lg bg-white/5 p-1">
+             <div className={`h-10 w-[1px] ${isDark ? 'bg-white/10' : 'bg-[var(--orbit-line)]'}`} />
+             <div className={`flex gap-1 rounded-lg p-1 ${isDark ? 'bg-white/5' : 'bg-[var(--orbit-bg-secondary)] border border-[var(--orbit-line)]'}`}>
                 {['7d', '30d', '90d'].map(p => (
-                   <button key={p} className={`rounded-md px-3 py-1 font-mono text-[10px] uppercase transition-all ${p === '30d' ? 'bg-[#2ec5ff]/10 text-[#2ec5ff] border border-[#2ec5ff]/20' : 'text-[#94a3b8] hover:text-white'}`}>
+                   <button key={p} className={`rounded-md px-3 py-1 font-mono text-[10px] uppercase transition-all ${
+                     p === '30d' 
+                       ? isDark ? 'bg-[#2ec5ff]/10 text-[#2ec5ff] border border-[#2ec5ff]/20' : 'bg-[var(--orbit-glow)] text-white shadow-sm'
+                       : 'text-[#94a3b8] hover:text-white dark:hover:text-white'
+                   }`}>
                       {p}
                    </button>
                 ))}
@@ -106,84 +113,84 @@ export function TelemetryDashboard() {
 
             {/* Interaction Breakdown Row */}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <div className="flex items-center justify-between rounded-xl border border-white/5 bg-white/5 px-6 py-4 backdrop-blur-sm">
+              <div className={`flex items-center justify-between rounded-xl border px-6 py-4 backdrop-blur-sm ${isDark ? 'border-white/5 bg-white/5' : 'border-[var(--orbit-line)] bg-white shadow-sm'}`}>
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#2ec5ff]/10 text-[#2ec5ff]">
+                  <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${isDark ? 'bg-[#2ec5ff]/10 text-[#2ec5ff]' : 'bg-[var(--orbit-glow)]/10 text-[var(--orbit-glow)]'}`}>
                      <Zap className="h-5 w-5" />
                   </div>
                   <div>
-                    <div className="text-[10px] font-mono uppercase tracking-widest text-[#94a3b8]">WhatsApp</div>
-                    <div className="text-2xl font-bold text-white">{data.interactionBreakdown.whatsapp}</div>
+                    <div className="text-[10px] font-mono uppercase tracking-widest text-[var(--orbit-text-muted)]">WhatsApp</div>
+                    <div className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-[var(--orbit-text)]'}`}>{data.interactionBreakdown.whatsapp}</div>
                   </div>
                 </div>
-                <div className="text-[10px] font-mono text-[#2ec5ff]/50">Mensagens</div>
+                <div className={`text-[10px] font-mono ${isDark ? 'text-[var(--orbit-glow)]/50' : 'text-[var(--orbit-glow)]/50'}`}>Mensagens</div>
               </div>
 
-              <div className="flex items-center justify-between rounded-xl border border-white/5 bg-white/5 px-6 py-4 backdrop-blur-sm">
+              <div className={`flex items-center justify-between rounded-xl border px-6 py-4 backdrop-blur-sm ${isDark ? 'border-white/5 bg-white/5' : 'border-[var(--orbit-line)] bg-white shadow-sm'}`}>
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-500">
                      <Mic className="h-5 w-5" />
                   </div>
                   <div>
-                    <div className="text-[10px] font-mono uppercase tracking-widest text-[#94a3b8]">Ligações</div>
-                    <div className="text-2xl font-bold text-white">{data.interactionBreakdown.calls}</div>
+                    <div className="text-[10px] font-mono uppercase tracking-widest text-[var(--orbit-text-muted)]">Ligações</div>
+                    <div className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-[var(--orbit-text)]'}`}>{data.interactionBreakdown.calls}</div>
                   </div>
                 </div>
                 <div className="text-[10px] font-mono text-emerald-500/50">Esforço</div>
               </div>
 
-              <div className="flex items-center justify-between rounded-xl border border-white/5 bg-white/5 px-6 py-4 backdrop-blur-sm">
+              <div className={`flex items-center justify-between rounded-xl border px-6 py-4 backdrop-blur-sm ${isDark ? 'border-white/5 bg-white/5' : 'border-[var(--orbit-line)] bg-white shadow-sm'}`}>
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#d4af35]/10 text-[#d4af35]">
+                  <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${isDark ? 'bg-[#d4af35]/10 text-[#d4af35]' : 'bg-amber-500/10 text-amber-600'}`}>
                      <Star className="h-5 w-5" />
                   </div>
                   <div>
-                    <div className="text-[10px] font-mono uppercase tracking-widest text-[#94a3b8]">Anotações</div>
-                    <div className="text-2xl font-bold text-white">{data.interactionBreakdown.notes}</div>
+                    <div className="text-[10px] font-mono uppercase tracking-widest text-[var(--orbit-text-muted)]">Anotações</div>
+                    <div className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-[var(--orbit-text)]'}`}>{data.interactionBreakdown.notes}</div>
                   </div>
                 </div>
-                <div className="text-[10px] font-mono text-[#d4af35]/50">Inteligência</div>
+                <div className={`text-[10px] font-mono ${isDark ? 'text-[#d4af35]/50' : 'text-amber-600/50'}`}>Inteligência</div>
               </div>
             </div>
 
             {/* Middle Section: Charts */}
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-              <Card className="border-[var(--orbit-border)] bg-[var(--orbit-glass)] p-6 backdrop-blur-md">
-                <div className="mb-1 font-mono text-[9px] font-semibold uppercase tracking-widest text-[#2ec5ff]/70">Esforço vs Reatividade</div>
-                <div className="mb-4 text-xs text-[#94a3b8]">dias sem interação por lead · distribuição do campo</div>
+              <Card className={`border p-6 backdrop-blur-md ${isDark ? 'border-[var(--orbit-border)] bg-[var(--orbit-glass)]' : 'border-[var(--orbit-line)] bg-white shadow-sm'}`}>
+                <div className={`mb-1 font-mono text-[9px] font-semibold uppercase tracking-widest ${isDark ? 'text-[var(--orbit-glow)]/70' : 'text-[var(--orbit-glow)]'}`}>Esforço vs Reatividade</div>
+                <div className="mb-4 text-xs text-[var(--orbit-text-muted)]">dias sem interação por lead · distribuição do campo</div>
                 <EffortChart data={data.diasBuckets} />
               </Card>
 
-              <Card className="border-[var(--orbit-border)] bg-[var(--orbit-glass)] p-6 backdrop-blur-md">
-                <div className="mb-1 font-mono text-[9px] font-semibold uppercase tracking-widest text-[#2ec5ff]/70">Estados Cognitivos</div>
-                <div className="mb-4 text-xs text-[#94a3b8]">distribuição via lead_cognitive_state</div>
+              <Card className={`border p-6 backdrop-blur-md ${isDark ? 'border-[var(--orbit-border)] bg-[var(--orbit-glass)]' : 'border-[var(--orbit-line)] bg-white shadow-sm'}`}>
+                <div className={`mb-1 font-mono text-[9px] font-semibold uppercase tracking-widest ${isDark ? 'text-[var(--orbit-glow)]/70' : 'text-[var(--orbit-glow)]'}`}>Estados Cognitivos</div>
+                <div className="mb-4 text-xs text-[var(--orbit-text-muted)]">distribuição via lead_cognitive_state</div>
                 <CognitiveStateChart data={data.stateCounts} />
               </Card>
             </div>
 
             {/* Advance Analytics Section */}
             <section className="space-y-6">
-               <div className="flex items-center gap-2 font-mono text-[9px] font-semibold uppercase tracking-widest text-[#a78bfa]/70">
+               <div className={`flex items-center gap-2 font-mono text-[9px] font-semibold uppercase tracking-widest ${isDark ? 'text-[#a78bfa]/70' : 'text-violet-600'}`}>
                  <Activity className="h-2.5 w-2.5" />
                  Inteligência Avançada & Padrões
                </div>
                
                <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-                  <Card className="border-[var(--orbit-border)] bg-[var(--orbit-glass)] p-6 backdrop-blur-md">
-                    <div className="mb-1 font-mono text-[9px] font-semibold uppercase tracking-widest text-[#2ec5ff]/70">Curva de Persistência</div>
+                  <Card className={`border p-6 backdrop-blur-md ${isDark ? 'border-[var(--orbit-border)] bg-[var(--orbit-glass)]' : 'border-[var(--orbit-line)] bg-white shadow-sm'}`}>
+                    <div className={`mb-1 font-mono text-[9px] font-semibold uppercase tracking-widest ${isDark ? 'text-[#2ec5ff]/70' : 'text-[var(--orbit-glow)]'}`}>Curva de Persistência</div>
                     <div className="mb-4 text-xs text-[#94a3b8]">probabilidade de conversão vs nº de contatos</div>
                     <PersistenceCurve />
                   </Card>
 
-                  <Card className="border-[var(--orbit-border)] bg-[var(--orbit-glass)] p-6 backdrop-blur-md">
-                    <div className="mb-1 font-mono text-[9px] font-semibold uppercase tracking-widest text-[#2ec5ff]/70">Matriz de Qualidade</div>
+                  <Card className={`border p-6 backdrop-blur-md ${isDark ? 'border-[var(--orbit-border)] bg-[var(--orbit-glass)]' : 'border-[var(--orbit-line)] bg-white shadow-sm'}`}>
+                    <div className={`mb-1 font-mono text-[9px] font-semibold uppercase tracking-widest ${isDark ? 'text-[#2ec5ff]/70' : 'text-[var(--orbit-glow)]'}`}>Matriz de Qualidade</div>
                     <div className="mb-4 text-xs text-[#94a3b8]">sentimento vs clareza (AI analysis)</div>
                     <QualityMatrix />
                   </Card>
 
-                  <Card className="border-[var(--orbit-border)] bg-[var(--orbit-glass)] p-6 backdrop-blur-md">
-                    <div className="mb-1 font-mono text-[9px] font-semibold uppercase tracking-widest text-[#2ec5ff]/70">Heatmap de Inatividade</div>
-                    <div className="mb-4 text-xs text-[#94a3b8]">distribuição de silêncio por período e dia</div>
+                  <Card className={`border p-6 backdrop-blur-md ${isDark ? 'border-[var(--orbit-border)] bg-[var(--orbit-glass)]' : 'border-[var(--orbit-line)] bg-white shadow-sm'}`}>
+                    <div className={`mb-1 font-mono text-[9px] font-semibold uppercase tracking-widest ${isDark ? 'text-[var(--orbit-glow)]/70' : 'text-[var(--orbit-glow)]'}`}>Heatmap de Inatividade</div>
+                    <div className="mb-4 text-xs text-[var(--orbit-text-muted)]">distribuição de silêncio por período e dia</div>
                     <InactivityHeatmap />
                   </Card>
                </div>
@@ -191,7 +198,7 @@ export function TelemetryDashboard() {
 
             {/* Cognitive Table Section */}
             <section>
-               <div className="mb-4 flex items-center gap-2 font-mono text-[9px] font-semibold uppercase tracking-widest text-[#2ec5ff]/70">
+               <div className={`mb-4 flex items-center gap-2 font-mono text-[9px] font-semibold uppercase tracking-widest ${isDark ? 'text-[var(--orbit-glow)]/70' : 'text-[var(--orbit-glow)]'}`}>
                  <Activity className="h-2.5 w-2.5" />
                  Campo Cognitivo Completo
                </div>
@@ -200,12 +207,12 @@ export function TelemetryDashboard() {
 
             {/* Bottom Section: Latency & Insights */}
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-               <Card className="border-[var(--orbit-border)] bg-[var(--orbit-glass)] p-6 backdrop-blur-md">
-                  <div className="mb-1 font-mono text-[9px] font-semibold uppercase tracking-widest text-[#2ec5ff]/70">Latência de Reação</div>
-                  <div className="mb-6 text-xs text-[#94a3b8]">tempo entre resposta do lead e sua próxima ação</div>
+               <Card className={`border p-6 backdrop-blur-md ${isDark ? 'border-[var(--orbit-border)] bg-[var(--orbit-glass)]' : 'border-[var(--orbit-line)] bg-white shadow-sm'}`}>
+                  <div className={`mb-1 font-mono text-[9px] font-semibold uppercase tracking-widest ${isDark ? 'text-[var(--orbit-glow)]/70' : 'text-[var(--orbit-glow)]'}`}>Latência de Reação</div>
+                  <div className="mb-6 text-xs text-[var(--orbit-text-muted)]">tempo entre resposta do lead e sua próxima ação</div>
                   <div className="flex items-end gap-3 mb-6">
-                     <span className="text-4xl font-bold text-white">{Math.round(data.latencyData.avgMinutes)}</span>
-                     <span className="mb-1 text-sm text-[#94a3b8]">min m3dia</span>
+                     <span className={`text-4xl font-bold ${isDark ? 'text-white' : 'text-[var(--orbit-text)]'}`}>{Math.round(data.latencyData.avgMinutes)}</span>
+                     <span className="mb-1 text-sm text-[var(--orbit-text-muted)]">min m3dia</span>
                   </div>
                   <div className="space-y-3">
                      {[
@@ -214,7 +221,7 @@ export function TelemetryDashboard() {
                         { label: '> 1h', val: data.latencyData.over60, color: '#ff7a7a' }
                      ].map(l => (
                         <div key={l.label} className="flex items-center gap-4">
-                           <span className="w-16 font-mono text-[10px] text-[#94a3b8]">{l.label}</span>
+                           <span className="w-16 font-mono text-[10px] text-[var(--orbit-text-muted)]">{l.label}</span>
                            <div className="h-1 flex-1 overflow-hidden rounded-full bg-white/5">
                               <div className="h-full transition-all duration-1000" style={{ width: `${l.val}%`, backgroundColor: l.color }} />
                            </div>
@@ -225,23 +232,23 @@ export function TelemetryDashboard() {
                </Card>
 
                <div className="space-y-4">
-                  <div className="rounded-xl border border-[#2ec5ff]/20 bg-[#2ec5ff]/5 p-6 backdrop-blur-sm">
+                  <div className={`rounded-xl border p-6 backdrop-blur-sm ${isDark ? 'border-[var(--orbit-glow)]/20 bg-[var(--orbit-glow)]/5' : 'border-[var(--orbit-glow)]/20 bg-[var(--orbit-glow)]/5 brightness-110'}`}>
                      <div className="mb-2 flex items-center justify-between">
-                        <TrendingUp className="h-4 w-4 text-[#2ec5ff]" />
-                        <span className="font-mono text-[9px] uppercase text-[#2ec5ff]/60">Insight Cognitivo</span>
+                        <TrendingUp className={`h-4 w-4 ${isDark ? 'text-[var(--orbit-glow)]' : 'text-[var(--orbit-glow)]'}`} />
+                        <span className={`font-mono text-[9px] uppercase ${isDark ? 'text-[var(--orbit-glow)]/60' : 'text-[var(--orbit-glow)]/60'}`}>Insight Cognitivo</span>
                      </div>
-                     <div className="text-xl font-bold text-white">Janela Ideal: 18h–20h</div>
-                     <p className="mt-2 text-xs leading-relaxed text-[#94a3b8]">
+                     <div className={`text-xl font-bold ${isDark ? 'text-white' : 'text-[var(--orbit-glow)]'}`}>Janela Ideal: 18h–20h</div>
+                     <p className={`mt-2 text-xs leading-relaxed ${isDark ? 'text-[var(--orbit-text-muted)]' : 'text-[var(--orbit-text-muted)]'}`}>
                         Pico de responsividade detectado. Leads respondem 2× mais neste período. Concentrar ações aqui pode dobrar sua taxa.
                      </p>
                   </div>
-                  <div className="rounded-xl border border-[#a78bfa]/20 bg-[#a78bfa]/5 p-6 backdrop-blur-sm">
+                  <div className={`rounded-xl border p-6 backdrop-blur-sm ${isDark ? 'border-[#a78bfa]/20 bg-[#a78bfa]/5' : 'border-violet-300/30 bg-violet-50'}`}>
                      <div className="mb-2 flex items-center justify-between">
-                        <TrendingUp className="h-4 w-4 text-[#a78bfa]" />
-                        <span className="font-mono text-[9px] uppercase text-[#a78bfa]/60">Insight de Momentum</span>
+                        <TrendingUp className={`h-4 w-4 ${isDark ? 'text-[#a78bfa]' : 'text-violet-600'}`} />
+                        <span className={`font-mono text-[9px] uppercase ${isDark ? 'text-[#a78bfa]/60' : 'text-violet-600/60'}`}>Insight de Momentum</span>
                      </div>
-                     <div className="text-xl font-bold text-white">{data.decidingLeads} Leads em Deciding</div>
-                     <p className="mt-2 text-xs leading-relaxed text-[#94a3b8]">
+                     <div className={`text-xl font-bold ${isDark ? 'text-white' : 'text-violet-700'}`}>{data.decidingLeads} Leads em Deciding</div>
+                     <p className={`mt-2 text-xs leading-relaxed ${isDark ? 'text-[var(--orbit-text-muted)]' : 'text-violet-600/80'}`}>
                         Janela de conversão crítica detectada. Momentum elevado sugere fechamento nos próximos 3-5 dias.
                      </p>
                   </div>

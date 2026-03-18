@@ -3,12 +3,15 @@
 import { useState, useEffect } from "react"
 import dynamic from "next/dynamic"
 import { motion, AnimatePresence } from "framer-motion"
+import { format } from "date-fns"
+import { ptBR } from "date-fns/locale"
 import { X, Loader2, MapPin, Trash2, AlertTriangle } from "lucide-react"
 import { toast } from "sonner"
+import { useTheme } from "next-themes"
 
 const MapAtlas = dynamic(
   () => import("@/components/atlas/MapAtlas").then((m) => m.MapAtlas),
-  { ssr: false, loading: () => <div className="animate-pulse bg-black/10 w-full h-full rounded-xl"/> }
+  { ssr: false, loading: () => <div className="animate-pulse bg-[var(--orbit-line)] w-full h-full rounded-xl"/> }
 )
 
 interface EditPropertyModalProps {
@@ -20,6 +23,8 @@ interface EditPropertyModalProps {
 }
 
 export default function EditPropertyModal({ isOpen, onClose, property, onSave, onDelete }: EditPropertyModalProps) {
+  const { resolvedTheme } = useTheme()
+  const isDark = resolvedTheme === 'dark'
   const [formData, setFormData] = useState<any>({})
   const [marker, setMarker] = useState<{lat: number, lng: number} | null>(null)
   const [saving, setSaving] = useState(false)
@@ -117,8 +122,12 @@ export default function EditPropertyModal({ isOpen, onClose, property, onSave, o
 
   if (!isOpen || !property) return null
 
-  const inputClass = "w-full h-11 bg-[#05060a] border border-[rgba(46,197,255,0.15)] rounded-xl px-4 text-sm text-[#e6eef6] placeholder:text-[#94a3b8]/40 focus:border-[#2ec5ff]/50 focus:outline-none transition-all"
-  const labelClass = "text-[9px] font-mono uppercase tracking-[0.2em] text-[#94a3b8] block mb-1.5"
+  const inputClass = `w-full h-11 border rounded-xl px-4 text-sm transition-all focus:outline-none ${
+    isDark 
+      ? "bg-[var(--orbit-bg)] border-[var(--orbit-line)] text-[var(--orbit-text)] placeholder:text-[var(--orbit-text-muted)] focus:border-[var(--orbit-glow)]/50" 
+      : "bg-[var(--orbit-bg)] border-[var(--orbit-line)] text-[var(--orbit-text)] placeholder:text-[var(--orbit-text-muted)] focus:border-[var(--orbit-glow)]/50"
+  }`
+  const labelClass = `text-[9px] font-mono uppercase tracking-[0.2em] block mb-1.5 ${isDark ? "text-[var(--orbit-text-muted)]" : "text-[var(--orbit-text-muted)]"}`
 
   return (
     <AnimatePresence>
@@ -127,19 +136,27 @@ export default function EditPropertyModal({ isOpen, onClose, property, onSave, o
           initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.95, opacity: 0 }}
-          className="bg-[#0b1220] border border-[rgba(46,197,255,0.15)] rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col md:flex-row max-h-[90vh]"
+          className={`border rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col md:flex-row max-h-[90vh] ${
+            isDark ? "bg-[var(--orbit-bg-secondary)] border-[var(--orbit-line)]" : "bg-[var(--orbit-bg)] border-[var(--orbit-line)]"
+          }`}
         >
           {/* Form Side */}
-          <div className="w-full md:w-1/2 p-8 overflow-y-auto space-y-5" style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(46,197,255,0.15) transparent" }}>
+          <div 
+            className="w-full md:w-1/2 p-8 overflow-y-auto space-y-5" 
+            style={{ 
+              scrollbarWidth: "thin", 
+              scrollbarColor: isDark ? "rgba(46,197,255,0.15) transparent" : "var(--orbit-line) transparent" 
+            }}
+          >
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="font-sans font-semibold text-xl text-[#e6eef6]">Editar Ativo</h3>
-                <p className="text-[9px] font-mono uppercase tracking-widest text-[#2ec5ff]/70 mt-1">ID: {property.id?.split('-')[0]}</p>
+                <h3 className={`font-sans font-semibold text-xl ${isDark ? 'text-[var(--orbit-text)]' : 'text-[var(--orbit-text)]'}`}>Editar Ativo</h3>
+                <p className={`text-[9px] font-mono uppercase tracking-widest mt-1 ${isDark ? 'text-[var(--orbit-glow)]/70' : 'text-[var(--orbit-glow)]/70'}`}>ID: {property.id?.split('-')[0]}</p>
               </div>
               <button 
                 type="button"
                 onClick={onClose} 
-                className="p-2 hover:bg-white/5 rounded-full text-[#94a3b8] hover:text-[#e6eef6] transition-colors md:hidden"
+                className="p-2 hover:bg-white/5 rounded-full text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)] transition-colors md:hidden"
               >
                  <X size={20} />
               </button>
@@ -195,9 +212,13 @@ export default function EditPropertyModal({ isOpen, onClose, property, onSave, o
                     accept="image/*" 
                     onChange={handleImageUpload} 
                     disabled={uploadingImage}
-                    className="w-full h-11 bg-[#05060a] border border-[rgba(46,197,255,0.15)] rounded-xl px-4 text-xs text-[#94a3b8] file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-[#2ec5ff]/10 file:text-[#2ec5ff] hover:file:bg-[#2ec5ff]/20 transition-all"
+                    className={`w-full h-11 border rounded-xl px-4 text-xs file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold transition-all ${
+                      isDark 
+                        ? 'bg-[var(--orbit-bg)] border-[var(--orbit-line)] text-[var(--orbit-text-muted)] file:bg-[var(--orbit-glow)]/10 file:text-[var(--orbit-glow)] hover:file:bg-[var(--orbit-glow)]/20' 
+                        : 'bg-[var(--orbit-bg)] border-[var(--orbit-line)] text-[var(--orbit-text-muted)] file:bg-[var(--orbit-glow)]/10 file:text-[var(--orbit-glow)] hover:file:bg-[var(--orbit-glow)]/20'
+                    }`}
                   />
-                  {uploadingImage && <Loader2 className="h-5 w-5 animate-spin text-[#2ec5ff] shrink-0" />}
+                  {uploadingImage && <Loader2 className={`h-5 w-5 animate-spin shrink-0 ${isDark ? 'text-[var(--orbit-glow)]' : 'text-[var(--orbit-glow)]'}`} />}
                 </div>
                 <input value={formData.cover_image} onChange={e => setFormData({...formData, cover_image: e.target.value})} className={inputClass} placeholder="Ou cole a URL direta..." />
                 {formData.cover_image && (
@@ -206,10 +227,14 @@ export default function EditPropertyModal({ isOpen, onClose, property, onSave, o
               </div>
 
               <div className="pt-2 flex gap-3">
-                <button type="button" onClick={onClose} className="flex-1 h-11 rounded-xl border border-[rgba(46,197,255,0.15)] text-[#94a3b8] hover:text-[#e6eef6] hover:bg-white/5 text-[10px] font-mono uppercase tracking-widest transition-all">
+                <button type="button" onClick={onClose} className={`flex-1 h-11 rounded-xl border transition-all text-[10px] font-mono uppercase tracking-widest ${isDark ? 'border-[rgba(46,197,255,0.15)] text-[#94a3b8] hover:text-[#e6eef6] hover:bg-white/5' : 'border-[var(--orbit-line)] text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)] hover:bg-[var(--orbit-line)]'}`}>
                   Cancelar
                 </button>
-                <button type="submit" disabled={saving} className="flex-[2] h-11 rounded-xl bg-[#2ec5ff] hover:bg-[#2ec5ff]/90 text-[#05060a] text-[10px] font-bold uppercase tracking-widest shadow-[0_0_20px_rgba(46,197,255,0.2)] transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+                <button type="submit" disabled={saving} className={`flex-[2] h-11 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all disabled:opacity-50 flex items-center justify-center gap-2 ${
+                  isDark 
+                    ? 'bg-[var(--orbit-glow)] hover:bg-[var(--orbit-glow)]/90 text-black shadow-[0_0_20px_rgba(var(--orbit-glow-rgb),0.2)]' 
+                    : 'bg-[var(--orbit-glow)] hover:brightness-110 text-white shadow-[var(--orbit-shadow)]'
+                }`}>
                   {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Salvar Alterações'}
                 </button>
               </div>
@@ -217,7 +242,7 @@ export default function EditPropertyModal({ isOpen, onClose, property, onSave, o
 
             {/* Delete Section */}
             {onDelete && (
-              <div className="pt-4 border-t border-[rgba(46,197,255,0.08)]">
+              <div className={`pt-4 border-t ${isDark ? 'border-[rgba(46,197,255,0.08)]' : 'border-[var(--orbit-line)]'}`}>
                 {!confirmDelete ? (
                   <button
                     onClick={() => setConfirmDelete(true)}
@@ -231,7 +256,7 @@ export default function EditPropertyModal({ isOpen, onClose, property, onSave, o
                       <AlertTriangle size={15} />
                       <span className="text-[11px] font-bold uppercase tracking-wider">Ação Irreversível</span>
                     </div>
-                    <p className="text-xs text-[#94a3b8]">Isso remove o imóvel do banco, junto com todas as interações e dados vinculados.</p>
+                    <p className="text-xs text-[var(--orbit-text-muted)]">Isso remove o imóvel do banco, junto com todas as interações e dados vinculados.</p>
                     <div className="flex gap-2">
                       <button onClick={() => setConfirmDelete(false)} className="flex-1 h-9 rounded-lg border border-white/10 text-[#94a3b8] hover:bg-white/5 text-[10px] font-mono uppercase tracking-widest transition-all">
                         Cancelar
@@ -247,22 +272,24 @@ export default function EditPropertyModal({ isOpen, onClose, property, onSave, o
           </div>
           
           {/* Map Side */}
-          <div className="w-full md:w-1/2 bg-[#05060a] relative min-h-[400px] md:min-h-0 border-l border-[rgba(46,197,255,0.1)]">
+          <div className={`w-full md:w-1/2 relative min-h-[400px] md:min-h-0 border-l ${isDark ? 'bg-[#05060a] border-[rgba(46,197,255,0.1)]' : 'bg-[var(--orbit-bg)] border-[var(--orbit-line)]'}`}>
             <button 
               type="button"
               onClick={onClose} 
-              className="absolute top-5 right-5 z-10 p-2 hover:bg-white/10 rounded-full text-[#94a3b8] hidden md:block backdrop-blur-md transition-colors"
+              className="absolute top-5 right-5 z-10 p-2 hover:bg-white/10 rounded-full text-[var(--orbit-text-muted)] hidden md:block backdrop-blur-md transition-colors"
             >
               <X size={18} />
             </button>
-            <div className="absolute top-5 left-5 z-10 p-4 bg-[#0b1220]/80 backdrop-blur-md rounded-xl border border-[rgba(46,197,255,0.15)] max-w-[80%] pointer-events-none">
+            <div className={`absolute top-5 left-5 z-10 p-4 backdrop-blur-md rounded-xl border max-w-[80%] pointer-events-none ${
+              isDark ? 'bg-[#0b1220]/80 border-[rgba(46,197,255,0.15)]' : 'bg-[var(--orbit-bg)]/80 border-[var(--orbit-line)]'
+            }`}>
               <div className="flex items-center gap-2 mb-1">
-                <MapPin className="h-3.5 w-3.5 text-[#2ec5ff]" />
-                <span className="text-[10px] font-bold text-[#e6eef6] uppercase tracking-widest">Localização</span>
+                <MapPin className={`h-3.5 w-3.5 ${isDark ? 'text-[var(--orbit-glow)]' : 'text-[var(--orbit-glow)]'}`} />
+                <span className={`text-[10px] font-bold uppercase tracking-widest ${isDark ? 'text-[var(--orbit-text)]' : 'text-[var(--orbit-text)]'}`}>Localização</span>
               </div>
-              <p className="text-[10px] text-[#94a3b8]">Clique no mapa para registrar as coordenadas.</p>
+              <p className={`text-[10px] ${isDark ? 'text-[var(--orbit-text-muted)]' : 'text-[var(--orbit-text-muted)]'}`}>Clique no mapa para registrar as coordenadas.</p>
               {marker && (
-                <p className="text-[9px] text-[#2ec5ff] mt-1 font-mono">{marker.lat.toFixed(5)}, {marker.lng.toFixed(5)}</p>
+                <p className={`text-[9px] mt-1 font-mono ${isDark ? 'text-[#2ec5ff]' : 'text-[var(--orbit-glow)]'}`}>{marker.lat.toFixed(5)}, {marker.lng.toFixed(5)}</p>
               )}
             </div>
             

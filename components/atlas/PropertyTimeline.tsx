@@ -18,6 +18,7 @@ import {
 import { getSupabase } from "@/lib/supabase"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
+import { useTheme } from "next-themes"
 
 interface HistoryEvent {
   id: string
@@ -36,6 +37,8 @@ interface PropertyTimelineProps {
 }
 
 export default function PropertyTimeline({ propertyId }: PropertyTimelineProps) {
+  const { resolvedTheme } = useTheme()
+  const isDark = resolvedTheme === 'dark'
   const [events, setEvents] = useState<HistoryEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [showAddForm, setShowAddForm] = useState(false)
@@ -106,11 +109,11 @@ export default function PropertyTimeline({ propertyId }: PropertyTimelineProps) 
 
   return (
     <div className="flex flex-col h-full">
-      <div className="p-5 flex items-center justify-between border-b border-white/5 bg-white/2">
-        <h4 className="text-xs font-bold uppercase tracking-widest text-zinc-500">Linha do Tempo</h4>
+      <div className={`p-5 flex items-center justify-between border-b ${isDark ? 'border-white/5 bg-white/2' : 'border-[var(--orbit-line)] bg-[var(--orbit-bg-secondary)]'}`}>
+        <h4 className={`text-xs font-bold uppercase tracking-widest ${isDark ? 'text-zinc-500' : 'text-[var(--orbit-text-muted)]'}`}>Linha do Tempo</h4>
         <button 
           onClick={() => setShowAddForm(!showAddForm)}
-          className="p-1.5 rounded-full bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500 hover:text-white transition-all"
+          className={`p-1.5 rounded-full transition-all ${isDark ? 'bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500 hover:text-white' : 'bg-[var(--orbit-glow)]/10 text-[var(--orbit-glow)] hover:bg-[var(--orbit-glow)] hover:text-white'}`}
         >
           <Plus size={16} />
         </button>
@@ -125,12 +128,12 @@ export default function PropertyTimeline({ propertyId }: PropertyTimelineProps) 
               exit={{ height: 0, opacity: 0 }}
               className="mb-6 overflow-hidden"
             >
-              <div className="p-4 rounded-xl bg-white/5 border border-white/10 space-y-4">
+              <div className={`p-4 rounded-xl border space-y-4 ${isDark ? 'bg-white/5 border-white/10' : 'bg-[var(--orbit-bg)] border-[var(--orbit-line)]'}`}>
                 <div className="grid grid-cols-2 gap-2">
                   <select 
                     value={eventType}
                     onChange={(e) => setEventType(e.target.value as any)}
-                    className="bg-black/40 border border-white/10 rounded-lg p-2 text-xs text-white"
+                    className={`border rounded-lg p-2 text-xs focus:outline-none transition-all ${isDark ? 'bg-black/40 border-white/10 text-white' : 'bg-[var(--orbit-bg)] border-[var(--orbit-line)] text-[var(--orbit-text)]'}`}
                   >
                     <option value="visit">Visita</option>
                     <option value="proposal">Proposta</option>
@@ -141,7 +144,7 @@ export default function PropertyTimeline({ propertyId }: PropertyTimelineProps) 
                     type="date" 
                     value={eventDate}
                     onChange={(e) => setEventDate(e.target.value)}
-                    className="bg-black/40 border border-white/10 rounded-lg p-2 text-xs text-white"
+                    className={`border rounded-lg p-2 text-xs focus:outline-none transition-all ${isDark ? 'bg-black/40 border-white/10 text-white' : 'bg-[var(--orbit-bg)] border-[var(--orbit-line)] text-[var(--orbit-text)]'}`}
                   />
                 </div>
                 
@@ -149,7 +152,7 @@ export default function PropertyTimeline({ propertyId }: PropertyTimelineProps) 
                   placeholder="Descrição do evento..."
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="w-full bg-black/40 border border-white/10 rounded-lg p-3 text-xs text-white h-20 resize-none"
+                  className={`w-full border rounded-lg p-3 text-xs focus:outline-none transition-all h-20 resize-none ${isDark ? 'bg-black/40 border-white/10 text-white' : 'bg-[var(--orbit-bg)] border-[var(--orbit-line)] text-[var(--orbit-text)]'}`}
                 />
 
                 {eventType === 'valuation' && (
@@ -158,15 +161,15 @@ export default function PropertyTimeline({ propertyId }: PropertyTimelineProps) 
                     placeholder="Novo Valor (R$)"
                     value={newValue}
                     onChange={(e) => setNewValue(e.target.value)}
-                    className="w-full bg-black/40 border border-white/10 rounded-lg p-2 text-xs text-white"
+                    className={`w-full border rounded-lg p-2 text-xs focus:outline-none transition-all ${isDark ? 'bg-black/40 border-white/10 text-white' : 'bg-[var(--orbit-bg)] border-[var(--orbit-line)] text-[var(--orbit-text)]'}`}
                   />
                 )}
 
                 <div className="flex justify-end gap-2">
-                  <button onClick={() => setShowAddForm(false)} className="px-3 py-1.5 text-xs text-zinc-500 hover:text-white">Cancelar</button>
+                  <button onClick={() => setShowAddForm(false)} className={`px-3 py-1.5 text-xs transition-colors ${isDark ? 'text-zinc-500 hover:text-white' : 'text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)]'}`}>Cancelar</button>
                   <button 
                     onClick={handleAddEvent}
-                    className="px-4 py-1.5 bg-indigo-500 text-white rounded-lg text-xs font-bold"
+                    className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${isDark ? 'bg-indigo-500 text-white hover:bg-indigo-600' : 'bg-[var(--orbit-glow)] text-white hover:brightness-110'}`}
                   >
                     Registrar
                   </button>
@@ -188,7 +191,7 @@ export default function PropertyTimeline({ propertyId }: PropertyTimelineProps) 
         ) : (
           <div className="relative space-y-8">
             {/* Vertical Line */}
-            <div className="absolute left-[17px] top-2 bottom-2 w-[1px] bg-white/5" />
+            <div className={`absolute left-[17px] top-2 bottom-2 w-[1px] ${isDark ? 'bg-white/5' : 'bg-[var(--orbit-line)]'}`} />
             
             {events.map((event, i) => (
               <motion.div 
@@ -199,8 +202,8 @@ export default function PropertyTimeline({ propertyId }: PropertyTimelineProps) 
                 className="relative pl-10 group"
               >
                 {/* Dot */}
-                <div className="absolute left-[8px] top-1.5 w-[19px] h-[19px] rounded-full bg-[#0a0a0c] border border-white/10 flex items-center justify-center z-10 transition-colors group-hover:border-indigo-500/50">
-                  <div className="w-1.5 h-1.5 rounded-full bg-zinc-600 group-hover:bg-indigo-400" />
+                <div className={`absolute left-[8px] top-1.5 w-[19px] h-[19px] rounded-full border flex items-center justify-center z-10 transition-colors ${isDark ? 'bg-[#0a0a0c] border-white/10 group-hover:border-indigo-500/50' : 'bg-[var(--orbit-bg)] border-[var(--orbit-line)] group-hover:border-[var(--orbit-glow)]/50'}`}>
+                  <div className={`w-1.5 h-1.5 rounded-full transition-colors ${isDark ? 'bg-zinc-600 group-hover:bg-indigo-400' : 'bg-[var(--orbit-text-muted)] group-hover:bg-[var(--orbit-glow)]'}`} />
                 </div>
 
                 <div className="space-y-1">
@@ -215,19 +218,19 @@ export default function PropertyTimeline({ propertyId }: PropertyTimelineProps) 
                     </div>
                   </div>
                   
-                  <div className="p-3 rounded-xl bg-white/2 border border-white/5 group-hover:border-white/10 transition-all">
-                    <p className="text-[13px] text-zinc-200 leading-relaxed">{event.description}</p>
+                  <div className={`p-3 rounded-xl border transition-all ${isDark ? 'bg-white/2 border-white/5 group-hover:border-white/10' : 'bg-[var(--orbit-bg-secondary)]/50 border-[var(--orbit-line)] group-hover:border-[var(--orbit-glow)]/30'}`}>
+                    <p className={`text-[13px] leading-relaxed ${isDark ? 'text-zinc-200' : 'text-[var(--orbit-text)]'}`}>{event.description}</p>
                     
                     {event.new_value && (
-                      <div className="mt-2 text-xs font-bold text-indigo-400">
+                      <div className={`mt-2 text-xs font-bold ${isDark ? 'text-indigo-400' : 'text-[var(--orbit-glow)]'}`}>
                         Novo Valor: R$ {event.new_value.toLocaleString('pt-BR')}
                       </div>
                     )}
                     
                     {event.leads?.name && (
                       <div className="mt-2 flex items-center gap-1.5">
-                        <Users size={10} className="text-zinc-500" />
-                        <span className="text-[10px] text-zinc-400">{event.leads.name}</span>
+                        <Users size={10} className={isDark ? "text-zinc-500" : "text-[var(--orbit-text-muted)]"} />
+                        <span className={`text-[10px] ${isDark ? 'text-zinc-400' : 'text-[var(--orbit-text-muted)]'}`}>{event.leads.name}</span>
                       </div>
                     )}
                   </div>

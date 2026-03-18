@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { type Property, type IngestionStatus, type LocationAccuracy, useOrbitContext } from "./orbit-context"
 import { useSupabaseProperties } from "@/hooks/use-supabase-data"
 import { getSupabase } from "@/lib/supabase"
+import { useTheme } from "next-themes"
 import dynamic from "next/dynamic"
 import type { MapProperty } from "./atlas/MapAtlas"
 
@@ -14,7 +15,7 @@ const PropertyTimeline = dynamic(() => import("./atlas/PropertyTimeline"), { ssr
 
 const MapAtlas = dynamic(
   () => import("./atlas/MapAtlas").then((m) => m.MapAtlas),
-  { ssr: false, loading: () => <div className="flex-1 bg-[#050505] flex items-center justify-center"><div className="animate-spin h-6 w-6 border-2 border-indigo-400 border-t-transparent rounded-full" /></div> }
+  { ssr: false, loading: () => <div className="flex-1 bg-[var(--orbit-bg)] flex items-center justify-center"><div className="animate-spin h-6 w-6 border-2 border-[var(--orbit-glow)] border-t-transparent rounded-full" /></div> }
 )
 
 export type { Property }
@@ -34,6 +35,8 @@ const formatValue = (value: number | null): string => {
 }
 
 export function AtlasFocusSurface() {
+  const { resolvedTheme } = useTheme()
+  const isDark = resolvedTheme === 'dark'
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null)
   const [filterMinValue, setFilterMinValue] = useState<string>('')
   const [filterMaxValue, setFilterMaxValue] = useState<string>('')
@@ -265,16 +268,16 @@ export function AtlasFocusSurface() {
       </motion.div>
 
       {/* ── Top navbar floating over nodes ─────────────────────────────────── */}
-      <div className="fixed top-4 left-16 right-16 z-[35] flex items-center justify-between border border-white/10 bg-black/70 backdrop-blur-xl px-4 py-3 rounded-xl shadow-2xl pointer-events-auto">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">
+      <div className={`fixed top-4 left-16 right-16 z-[35] flex items-center justify-between border ${isDark ? 'border-white/10 bg-black/70' : 'border-[var(--orbit-line)] bg-[var(--orbit-bg-secondary)]/80'} backdrop-blur-xl px-4 py-3 rounded-xl shadow-2xl pointer-events-auto`}>
+            <div className={`flex items-center gap-3`}>
+              <div className={`flex h-10 w-10 items-center justify-center rounded-lg border ${isDark ? 'bg-[var(--orbit-glow)]/10 text-[var(--orbit-glow)] border-[var(--orbit-glow)]/20' : 'bg-[var(--orbit-glow)]/10 text-[var(--orbit-glow)] border-[var(--orbit-glow)]/20'}`}>
                 <MapPin className="h-5 w-5" />
               </div>
               <div>
-                <h2 className="text-[15px] font-semibold text-white tracking-wide">
+                <h2 className={`text-[15px] font-semibold ${isDark ? 'text-white' : 'text-[var(--orbit-text)]'} tracking-wide`}>
                   Atlas <span className="text-zinc-500 font-light">| Engine</span>
                 </h2>
-                <p className="text-xs text-zinc-400">
+                <p className={`text-xs ${isDark ? 'text-zinc-400' : 'text-[var(--orbit-text-muted)]'}`}>
                   {leadName 
                     ? `Filtrando para ${leadName}`
                     : `${allProperties.length} imóveis curados`}
@@ -284,13 +287,17 @@ export function AtlasFocusSurface() {
 
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2">
-                <Search className="h-4 w-4 text-zinc-500" />
+                <Search className={`h-4 w-4 ${isDark ? 'text-zinc-500' : 'text-[var(--orbit-text-muted)]'}`} />
                 <input
                   type="text"
                   placeholder="Bairro ou Cidade..."
                   value={filterLocation}
                   onChange={(e) => setFilterLocation(e.target.value)}
-                  className="w-40 rounded-lg border border-white/10 bg-white/5 py-1.5 px-3 text-xs text-white placeholder:text-zinc-600 focus:border-indigo-500/50 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 transition-all"
+                  className={`w-40 rounded-lg border py-1.5 px-3 text-xs focus:outline-none focus:ring-1 transition-all ${
+                    isDark 
+                      ? 'border-[var(--orbit-line)] bg-white/5 text-[var(--orbit-text)] placeholder:text-[var(--orbit-text-muted)]/40 focus:border-[var(--orbit-glow)]/50 focus:ring-[var(--orbit-glow)]/50' 
+                      : 'border-[var(--orbit-line)] bg-[var(--orbit-bg)] text-[var(--orbit-text)] placeholder:text-[var(--orbit-text-muted)] focus:border-[var(--orbit-glow)]/50 focus:ring-[var(--orbit-glow)]/50'
+                  }`}
                 />
               </div>
               <button
@@ -309,12 +316,14 @@ export function AtlasFocusSurface() {
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: 380, opacity: 0 }}
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            className="fixed right-0 top-0 h-full w-[420px] z-[35] border-l border-white/10 bg-[#0a0a0c]/95 backdrop-blur-2xl flex flex-col overflow-hidden shadow-[-20px_0_50px_rgba(0,0,0,0.5)] pointer-events-auto"
+            className={`fixed right-0 top-0 h-full w-[420px] z-[35] border-l flex flex-col overflow-hidden shadow-[var(--orbit-shadow)] pointer-events-auto ${
+              isDark ? 'border-[var(--orbit-line)] bg-[var(--orbit-bg-secondary)]/95 backdrop-blur-2xl' : 'border-[var(--orbit-line)] bg-[var(--orbit-bg)]/95 backdrop-blur-2xl'
+            }`}
           >
               <div className="w-full h-full flex flex-col relative">
                 
                 {/* Visual Header do Imóvel Selecionado */}
-                <div className="relative h-48 shrink-0 border-b border-white/5 bg-black">
+                <div className={`relative h-48 shrink-0 border-b ${isDark ? 'border-white/5 bg-black' : 'border-[var(--orbit-line)] bg-[var(--orbit-bg-secondary)]'}`}>
                   {selectedProperty.coverImage && selectedProperty.coverImage !== "null" ? (
                     <img 
                       src={selectedProperty.coverImage} 
@@ -322,22 +331,22 @@ export function AtlasFocusSurface() {
                       alt="Capa"
                     />
                   ) : (
-                    <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/40 to-black" />
+                    <div className="absolute inset-0 bg-gradient-to-br from-[var(--orbit-glow)]/20 to-transparent" />
                   )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0c] via-[#0a0a0c]/60 to-transparent" />
+                  <div className={`absolute inset-0 bg-gradient-to-t via-transparent to-transparent ${isDark ? 'from-[var(--orbit-bg)]' : 'from-[var(--orbit-bg)]'}`} />
                   
                   <div className="absolute bottom-4 left-5 right-5">
                     <div className="inline-flex px-2 py-1 bg-white/10 backdrop-blur-md rounded border border-white/20 text-[10px] uppercase tracking-wider text-white/80 font-medium mb-2">
                        {selectedProperty.type || "Residencial"}
                     </div>
                     <div className="flex items-start justify-between">
-                      <h3 className="text-lg font-medium text-white leading-tight line-clamp-2 shadow-black drop-shadow-md">
+                      <h3 className={`text-lg font-medium tracking-tight leading-tight line-clamp-2 ${isDark ? 'text-white drop-shadow-md' : 'text-[var(--orbit-text)]'}`}>
                         {selectedProperty.name}
                       </h3>
                       <button onClick={() => setSelectedProperty(null)} className="p-1 text-zinc-500 hover:text-white"><X size={18} /></button>
                     </div>
                     <div className="mt-1 flex items-center justify-between">
-                      <p className="text-xs text-zinc-400 font-light flex items-center gap-1">
+                      <p className={`text-xs font-light flex items-center gap-1 ${isDark ? 'text-zinc-400' : 'text-[var(--orbit-text-muted)]'}`}>
                         <MapPin className="w-3 h-3" /> {selectedProperty.locationText}
                       </p>
                       <div className="flex items-center gap-3">
@@ -347,12 +356,12 @@ export function AtlasFocusSurface() {
                             handleDeleteProperty();
                           }}
                           disabled={isDeleting}
-                          className="p-1.5 rounded-lg bg-white/5 hover:bg-red-500/20 text-zinc-400 hover:text-red-400 transition-colors"
+                          className={`p-1.5 rounded-lg transition-colors ${isDark ? 'bg-white/5 text-zinc-400 hover:bg-red-500/20 hover:text-red-400' : 'bg-[var(--orbit-line)] text-[var(--orbit-text-muted)] hover:bg-red-500/10 hover:text-red-500'}`}
                           title="Excluir Imóvel"
                         >
                           {isDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
                         </button>
-                        <span className="text-sm font-semibold text-indigo-300">
+                        <span className={`text-sm font-semibold ${isDark ? 'text-[var(--orbit-glow)]' : 'text-[var(--orbit-glow)]'}`}>
                           {formatValue(selectedProperty.value)}
                         </span>
                       </div>
@@ -362,16 +371,16 @@ export function AtlasFocusSurface() {
 
                 <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col">
                   {/* TABS DE CONTEXTO */}
-                  <div className="flex h-12 border-b border-white/5 bg-white/5">
+                  <div className={`flex h-12 border-b ${isDark ? 'border-white/5 bg-white/5' : 'border-[var(--orbit-line)] bg-[var(--orbit-bg-secondary)]'}`}>
                     <button 
                       onClick={() => setActiveContextTab("matches")}
-                      className={`flex-1 text-xs font-medium transition-colors ${activeContextTab === "matches" ? "text-white border-b-2 border-indigo-500" : "text-zinc-500 hover:text-zinc-300"}`}
+                      className={`flex-1 text-xs font-medium transition-colors ${activeContextTab === "matches" ? (isDark ? "text-[var(--orbit-text)] border-b-2 border-[var(--orbit-glow)]" : "text-[var(--orbit-text)] border-b-2 border-[var(--orbit-glow)]") : (isDark ? "text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)]" : "text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)]")}`}
                     >
                       Predictive Matches
                     </button>
                     <button 
                       onClick={() => setActiveContextTab("history")}
-                      className={`flex-1 text-xs font-medium transition-colors ${activeContextTab === "history" ? "text-white border-b-2 border-indigo-500" : "text-zinc-500 hover:text-zinc-300"}`}
+                      className={`flex-1 text-xs font-medium transition-colors ${activeContextTab === "history" ? (isDark ? "text-[var(--orbit-text)] border-b-2 border-[var(--orbit-glow)]" : "text-[var(--orbit-text)] border-b-2 border-[var(--orbit-glow)]") : (isDark ? "text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)]" : "text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)]")}`}
                     >
                       Histórico
                     </button>
@@ -380,9 +389,9 @@ export function AtlasFocusSurface() {
                   {activeContextTab === "matches" ? (
                     /* Match Engine / Leads Compatíveis */
                     <div className="p-5">
-                      <div className="flex items-center gap-2 mb-4">
-                        <Stars className="w-4 h-4 text-indigo-400" />
-                        <h4 className="text-sm font-medium text-white tracking-wide">
+                    <div className="flex items-center gap-2 mb-4">
+                        <Stars className={`w-4 h-4 ${isDark ? 'text-indigo-400' : 'text-[var(--orbit-glow)]'}`} />
+                        <h4 className={`text-sm font-medium tracking-wide ${isDark ? 'text-white' : 'text-[var(--orbit-text)]'}`}>
                           Predictive Matches
                         </h4>
                       </div>
@@ -397,37 +406,41 @@ export function AtlasFocusSurface() {
                         <div className="space-y-3">
                           {matches.map((match, i) => (
                             <motion.div 
-                              key={match.id}
-                              initial={{ opacity: 0, y: 10 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              transition={{ delay: i * 0.1 }}
-                              className={`group relative p-3 rounded-xl border transition-all overflow-hidden ${atlasInvokeContext?.leadId === match.id ? 'bg-indigo-500/10 border-indigo-500/40 shadow-[0_0_15px_rgba(99,102,241,0.2)]' : 'bg-white/5 border-white/10 hover:border-indigo-500/50 hover:bg-white/10'}`}
-                            >
+                                key={match.id}
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: i * 0.1 }}
+                                className={`group relative p-3 rounded-xl border transition-all overflow-hidden ${
+                                  atlasInvokeContext?.leadId === match.id 
+                                    ? isDark ? 'bg-[var(--orbit-glow)]/10 border-[var(--orbit-glow)] shadow-[var(--orbit-shadow)]' : 'bg-[var(--orbit-glow)]/10 border-[var(--orbit-glow)] shadow-[var(--orbit-shadow)]'
+                                    : isDark ? 'bg-[var(--orbit-bg-secondary)] border-[var(--orbit-line)] hover:border-[var(--orbit-glow)]/50 hover:bg-[var(--orbit-line)]' : 'bg-[var(--orbit-bg-secondary)] border-[var(--orbit-line)] hover:border-[var(--orbit-glow)]/50 hover:bg-[var(--orbit-line)]'
+                                }`}
+                              >
                               <div className="flex items-center gap-3 relative z-10">
-                                <div className="w-10 h-10 rounded-full border border-white/20 bg-zinc-800 overflow-hidden shrink-0">
+                                <div className="w-10 h-10 rounded-full border border-[var(--orbit-line)] bg-[var(--orbit-bg)] overflow-hidden shrink-0">
                                   {match.photo_url && match.photo_url !== "null" ? (
                                     <img src={match.photo_url} className="w-full h-full object-cover" alt={match.name} />
                                   ) : (
-                                    <div className="w-full h-full flex items-center justify-center text-zinc-500 uppercase text-xs font-bold">
+                                    <div className="w-full h-full flex items-center justify-center text-[var(--orbit-text-muted)] uppercase text-xs font-bold">
                                       {match.name.substring(0,2)}
                                     </div>
                                   )}
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                  <h5 className="text-[13px] font-medium text-zinc-100 truncate">{match.name}</h5>
-                                  <p className="text-[10px] text-zinc-400 capitalize flex items-center gap-1">
+                                  <h5 className={`text-[13px] font-medium truncate ${isDark ? 'text-[var(--orbit-text)]' : 'text-[var(--orbit-text)]'}`}>{match.name}</h5>
+                                  <p className={`text-[10px] capitalize flex items-center gap-1 ${isDark ? 'text-[var(--orbit-text-muted)]' : 'text-[var(--orbit-text-muted)]'}`}>
                                     {match.orbit_stage || "Lead"}
-                                    <span className="w-1 h-1 rounded-full bg-zinc-700" />
+                                    <span className={`w-1 h-1 rounded-full ${isDark ? 'bg-[var(--orbit-line)]' : 'bg-[var(--orbit-line)]'}`} />
                                     AI Focus
                                   </p>
                                 </div>
                                 <div className="shrink-0 flex flex-col items-end gap-1">
-                                  <span className="text-xs font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-fuchsia-400">
+                                  <span className={`text-xs font-bold text-transparent bg-clip-text bg-gradient-to-r from-[var(--orbit-glow)] to-[var(--orbit-accent)]`}>
                                     {(match.similarity ? (match.similarity * 100).toFixed(0) : "95")}%
                                   </span>
                                   <button 
                                     onClick={() => setShowClientSpaceFor(match.id)}
-                                    className="p-1 rounded bg-white/5 hover:bg-indigo-500/40 text-[9px] text-zinc-400 hover:text-white uppercase font-bold tracking-tighter"
+                                    className={`p-1 rounded text-[9px] uppercase font-bold tracking-tighter transition-colors ${isDark ? 'bg-white/5 text-[var(--orbit-text-muted)] hover:bg-[var(--orbit-glow)]/40 hover:text-white' : 'bg-[var(--orbit-line)] text-[var(--orbit-text-muted)] hover:bg-[var(--orbit-glow)]/20 hover:text-[var(--orbit-glow)]'}`}
                                   >
                                     Selection
                                   </button>
@@ -438,9 +451,9 @@ export function AtlasFocusSurface() {
                           ))}
                         </div>
                       ) : (
-                        <div className="p-4 rounded-xl border border-dashed border-zinc-700/50 flex flex-col items-center justify-center text-center gap-2">
-                           <p className="text-xs text-zinc-400">Nenhum Match Automático</p>
-                           <p className="text-[10px] text-zinc-500 max-w-[200px]">A IA não encontrou afinidade semântica explícita com os leads latentes.</p>
+                        <div className={`p-4 rounded-xl border border-dashed flex flex-col items-center justify-center text-center gap-2 ${isDark ? 'border-[var(--orbit-line)]' : 'border-[var(--orbit-line)]'}`}>
+                           <p className="text-xs text-[var(--orbit-text-muted)]">Nenhum Match Automático</p>
+                           <p className="text-[10px] text-[var(--orbit-text-muted)]/60 max-w-[200px]">A IA não encontrou afinidade semântica explícita com os leads latentes.</p>
                         </div>
                       )}
                     </div>
@@ -451,10 +464,14 @@ export function AtlasFocusSurface() {
 
                 {/* Confirm Action Se houver Lead já pre-selecionado (envio ativo) */}
                 {atlasInvokeContext?.onPropertySelected && (
-                  <div className="shrink-0 p-5 border-t border-white/5 bg-[#0a0a0c]">
+                  <div className={`shrink-0 p-5 border-t ${isDark ? 'border-white/5 bg-[#0a0a0c]' : 'border-[var(--orbit-line)] bg-[var(--orbit-bg)]'}`}>
                     <button
                       onClick={handleConfirmSelection}
-                      className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-medium text-sm text-white bg-indigo-600 hover:bg-indigo-500 transition-colors shadow-[0_0_20px_rgba(99,102,241,0.4)]"
+                      className={`w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-medium text-sm transition-all ${
+                        isDark 
+                          ? 'text-white bg-[var(--orbit-glow)] hover:brightness-110 shadow-[var(--orbit-shadow)]' 
+                          : 'text-white bg-[var(--orbit-glow)] hover:brightness-110 shadow-[var(--orbit-shadow)]'
+                      }`}
                     >
                       <Check className="w-4 h-4" />
                       Vincular a {leadName || "Lead Atual"}
@@ -480,7 +497,7 @@ export function AtlasFocusSurface() {
               initial={{ x: 420 }}
               animate={{ x: 0 }}
               exit={{ x: 420 }}
-              className="w-[420px] h-full bg-[#0a0a0c] border-l border-white/10 shadow-2xl"
+              className={`w-[420px] h-full border-l shadow-2xl ${isDark ? 'bg-[#0a0a0c] border-white/10' : 'bg-[var(--orbit-bg)] border-[var(--orbit-line)]'}`}
               onClick={(e) => e.stopPropagation()}
             >
               <ClientSpacesManager 

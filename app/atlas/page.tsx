@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { useSupabaseProperties, useSupabaseLeads } from "@/hooks/use-supabase-data"
 import { useAuth } from "@/hooks/use-auth"
+import { useTheme } from "next-themes"
 import ClientSpacesManager from "@/components/atlas/ClientSpacesManager"
 import { motion, AnimatePresence } from "framer-motion"
 import { 
@@ -25,14 +26,14 @@ const EditPropertyModal = dynamic(() => import("@/components/atlas/EditPropertyM
 
 // ── Aesthetics & Tokens ──────────────────────────────────────────────────────
 const theme = {
-  bg: "#05060a",
-  bgSecondary: "#0b1220",
-  border: "rgba(46, 197, 255, 0.15)",
-  glass: "rgba(15, 23, 42, 0.65)",
-  ink: "#e6eef6",
-  inkMuted: "#94a3b8",
-  accent: "#2ec5ff",
-  accentBg: "rgba(46, 197, 255, 0.1)",
+  bg: "var(--orbit-bg)",
+  bgSecondary: "var(--orbit-bg-secondary)",
+  border: "var(--orbit-line)",
+  glass: "var(--orbit-glass)",
+  ink: "var(--orbit-text)",
+  inkMuted: "var(--orbit-text-muted)",
+  accent: "var(--orbit-glow)",
+  accentBg: "var(--orbit-glow-light)",
 }
 
 // ── Components ───────────────────────────────────────────────────────────────
@@ -53,10 +54,10 @@ function PropertyCard({
       layout
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`group relative bg-[#0b1220] border ${isSelected ? 'border-[#2ec5ff] ring-1 ring-[#2ec5ff]/30 shadow-[0_0_15px_rgba(46,197,255,0.15)]' : 'border-[rgba(46,197,255,0.1)]'} rounded-xl overflow-hidden hover:shadow-[0_4px_20px_rgba(46,197,255,0.08)] hover:border-[#2ec5ff]/40 transition-all duration-300 cursor-pointer`}
+      className={`group relative bg-[var(--orbit-bg)] border ${isSelected ? 'border-[var(--orbit-glow)] ring-1 ring-[var(--orbit-glow)]/30 shadow-[var(--orbit-shadow)]' : 'border-[var(--orbit-line)]'} rounded-xl overflow-hidden hover:shadow-[var(--orbit-shadow-hover)] hover:border-[var(--orbit-glow)]/40 transition-all duration-300 cursor-pointer`}
       onClick={() => onToggleSelect(property)}
     >
-      <div className="aspect-[16/10] overflow-hidden bg-[#05060a]/50">
+      <div className="aspect-[16/10] overflow-hidden bg-[var(--orbit-bg-secondary)]">
         {property.cover_image ? (
           <img 
             src={property.cover_image} 
@@ -64,18 +65,18 @@ function PropertyCard({
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 opacity-90 group-hover:opacity-100"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-[#94a3b8]">
+          <div className="w-full h-full flex items-center justify-center text-[var(--orbit-text-muted)]">
             <Building2 className="h-8 w-8 opacity-20" />
           </div>
         )}
         
-        <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-[#05060a]/60 backdrop-blur-md border border-[#2ec5ff]/20 text-[9px] font-mono uppercase tracking-wider text-[#2ec5ff] shadow-sm">
+        <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-[var(--orbit-bg)]/60 backdrop-blur-md border border-[var(--orbit-line)] text-[9px] font-mono uppercase tracking-wider text-[var(--orbit-glow)] shadow-sm">
           Curadoria Orbit
         </div>
 
         {isSelected && (
-          <div className="absolute inset-0 bg-[#2ec5ff]/10 flex items-center justify-center backdrop-blur-[1px]">
-            <div className="bg-[#2ec5ff] text-[#05060a] p-2.5 rounded-full shadow-[0_0_15px_rgba(46,197,255,0.4)]">
+          <div className="absolute inset-0 bg-[var(--orbit-glow)]/10 flex items-center justify-center backdrop-blur-[1px]">
+            <div className="bg-[var(--orbit-glow)] text-white p-2.5 rounded-full shadow-[var(--orbit-shadow)]">
               <Check className="h-4 w-4 stroke-[3px]" />
             </div>
           </div>
@@ -84,21 +85,21 @@ function PropertyCard({
 
       <div className="p-5">
         <div className="flex justify-between items-start mb-2">
-          <h3 className="font-sans text-[15px] font-medium text-[#e6eef6] leading-tight group-hover:text-[#2ec5ff] transition-colors pr-2">
+          <h3 className="font-display text-[17px] font-medium text-[var(--orbit-text)] leading-tight group-hover:text-[var(--orbit-glow)] transition-colors pr-2">
             {property.title || property.internal_name || "Sem título"}
           </h3>
-          <span className="text-sm font-sans font-medium text-[#e6eef6] whitespace-nowrap">
+          <span className="text-sm font-sans font-medium text-[var(--orbit-text)] whitespace-nowrap">
             {property.value ? `R$ ${(property.value / 1000000).toFixed(1)}M` : "Sob consulta"}
           </span>
         </div>
         
-        <p className="text-[11px] text-[#94a3b8] mb-3 flex items-center gap-1.5 font-medium">
-          <MapIcon className="h-3 w-3 text-[#2ec5ff]/70" />
+        <p className="text-[11px] text-[var(--orbit-text-muted)] mb-3 flex items-center gap-1.5 font-medium">
+          <MapIcon className="h-3 w-3 text-[var(--orbit-glow)]/70" />
           {property.location_text || "Localização não informada"}
         </p>
 
         {property.payment_conditions && (
-          <div className="mb-4 px-2.5 py-1.5 bg-[#2ec5ff]/5 border border-[#2ec5ff]/15 rounded-md text-[10px] text-[#2ec5ff] font-sans font-medium">
+          <div className="mb-4 px-2.5 py-1.5 bg-[var(--orbit-glow)]/5 border border-[var(--orbit-glow)]/15 rounded-md text-[10px] text-[var(--orbit-glow)] font-sans font-medium">
             {typeof property.payment_conditions === 'object' 
               ? (property.payment_conditions.custom || JSON.stringify(property.payment_conditions))
               : property.payment_conditions
@@ -106,15 +107,15 @@ function PropertyCard({
           </div>
         )}
 
-        <div className="flex items-center gap-2 pt-4 border-t border-[rgba(46,197,255,0.1)]">
-          <Button variant="ghost" size="sm" className="h-8 px-2 text-[10px] uppercase tracking-widest font-mono text-[#94a3b8] hover:text-[#e6eef6] hover:bg-white/5">
+        <div className="flex items-center gap-2 pt-4 border-t border-[var(--orbit-line)]">
+          <Button variant="ghost" size="sm" className="h-8 px-2 text-[10px] uppercase tracking-widest font-mono text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)] hover:bg-[var(--orbit-glow)]/5">
             Ver Detalhes
           </Button>
           <div className="ml-auto flex gap-1.5">
             <Button 
               size="icon" 
               variant="ghost" 
-              className={`h-8 w-8 rounded-full border ${isSelected ? 'border-[#2ec5ff] bg-[#2ec5ff] text-[#05060a] hover:bg-[#2ec5ff]/90 shadow-[0_0_10px_rgba(46,197,255,0.3)]' : 'border-[rgba(46,197,255,0.1)] text-[#94a3b8] hover:border-[#2ec5ff]/40 hover:text-[#2ec5ff] hover:bg-[#2ec5ff]/5'}`}
+              className={`h-8 w-8 rounded-full border ${isSelected ? 'border-[var(--orbit-glow)] bg-[var(--orbit-glow)] text-white hover:bg-[var(--orbit-glow)]/90 shadow-[var(--orbit-shadow)]' : 'border-[var(--orbit-line)] text-[var(--orbit-text-muted)] hover:border-[var(--orbit-glow)]/40 hover:text-[var(--orbit-glow)] hover:bg-[var(--orbit-glow)]/5'}`}
               onClick={(e) => {
                 e.stopPropagation()
                 onToggleSelect(property)
@@ -126,7 +127,7 @@ function PropertyCard({
               <Button 
                 size="icon" 
                 variant="ghost" 
-                className="h-8 w-8 rounded-full border border-[rgba(46,197,255,0.1)] text-[#94a3b8] hover:border-[#2ec5ff]/40 hover:text-[#2ec5ff] hover:bg-[#2ec5ff]/5"
+                className="h-8 w-8 rounded-full border border-[var(--orbit-line)] text-[var(--orbit-text-muted)] hover:border-[var(--orbit-glow)]/40 hover:text-[var(--orbit-glow)] hover:bg-[var(--orbit-glow)]/5"
                 onClick={(e) => {
                   e.stopPropagation()
                   onEdit(property)
@@ -143,6 +144,8 @@ function PropertyCard({
 }
 
 function AtlasManagerContent() {
+  const { resolvedTheme } = useTheme()
+  const isDark = resolvedTheme === 'dark'
   const { properties, loading: propsLoading, refetch } = useSupabaseProperties()
   const { leads, loading: leadsLoading } = useSupabaseLeads()
   const searchParams = useSearchParams()
@@ -505,35 +508,39 @@ function AtlasManagerContent() {
 
   if (propsLoading || leadsLoading) {
     return (
-      <div className="min-h-screen bg-[#05060a] flex items-center justify-center">
+      <div className={`min-h-screen bg-[var(--orbit-bg)] flex items-center justify-center`}>
         <div className="flex flex-col items-center gap-4">
-          <Loader2 className="h-8 w-8 animate-spin text-[#2ec5ff]" />
-          <span className="font-mono text-[10px] uppercase tracking-widest text-[#94a3b8]">Carregando Manager...</span>
+          <Loader2 className="h-8 w-8 animate-spin text-[var(--orbit-glow)]" />
+          <span className="font-mono text-[10px] uppercase tracking-widest text-[var(--orbit-text-muted)]">Carregando Manager...</span>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-[#05060a] text-[#e6eef6] relative overflow-hidden font-sans flex flex-col h-screen dark">
+    <div className="min-h-screen bg-[var(--orbit-bg)] text-[var(--orbit-text)] relative overflow-hidden font-sans flex flex-col h-screen">
       {/* Decorative Glows */}
-      <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-[#2ec5ff]/5 blur-[120px] rounded-full pointer-events-none" />
-      <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-[#2ec5ff]/5 blur-[120px] rounded-full pointer-events-none" />
+      {isDark && (
+        <>
+          <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-[var(--orbit-glow)]/5 blur-[120px] rounded-full pointer-events-none" />
+          <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-[var(--orbit-glow)]/5 blur-[120px] rounded-full pointer-events-none" />
+        </>
+      )}
       
       {/* Grain */}
       <div className="fixed inset-0 z-50 pointer-events-none" style={grainStyle} />
 
       {/* Minimalist Header — Orbit style */}
-      <header className="h-14 border-b border-[rgba(46,197,255,0.12)] bg-[#05060a]/90 backdrop-blur-xl flex items-center px-6 gap-4 sticky top-0 z-30 shrink-0">
+      <header className="h-14 border-b border-[var(--orbit-line)] bg-[var(--orbit-glass)]/90 backdrop-blur-xl flex items-center px-6 gap-4 sticky top-0 z-30 shrink-0">
         {/* Brand */}
-        <div className="flex items-center gap-3 pr-4 border-r border-[rgba(46,197,255,0.1)]">
-          <button onClick={() => window.history.back()} className="p-1.5 rounded-lg hover:bg-white/5 text-[#94a3b8] hover:text-[#e6eef6] transition-colors" title="Voltar">
+        <div className="flex items-center gap-3 pr-4 border-r border-[var(--orbit-line)]">
+          <button onClick={() => window.history.back()} className="p-1.5 rounded-lg hover:bg-[var(--orbit-glow)]/5 text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)] transition-colors" title="Voltar">
             <ChevronLeft className="h-4 w-4" />
           </button>
-          <div className="w-6 h-6 rounded-lg bg-[#2ec5ff]/10 border border-[#2ec5ff]/20 flex items-center justify-center text-[#2ec5ff]">
+          <div className="w-6 h-6 rounded-lg bg-[var(--orbit-glow)]/10 border border-[var(--orbit-glow)]/20 flex items-center justify-center text-[var(--orbit-glow)]">
             <Compass className="h-3.5 w-3.5" />
           </div>
-          <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-[#e6eef6]/80 font-medium">Atlas</span>
+          <span className="font-display text-[11px] uppercase tracking-[0.18em] text-[var(--orbit-text)] font-bold">Atlas</span>
         </div>
 
         {/* Tabs */}
@@ -547,8 +554,8 @@ function AtlasManagerContent() {
               onClick={() => setActiveTab(tab.id as any)}
               className={`px-4 py-1.5 rounded-lg text-[11px] font-mono uppercase tracking-wider transition-all ${
                 activeTab === tab.id 
-                  ? 'text-[#2ec5ff] bg-[rgba(46,197,255,0.08)]' 
-                  : 'text-[#94a3b8] hover:text-[#e6eef6] hover:bg-white/5'
+                  ? 'text-white bg-[var(--orbit-glow)] shadow-sm' 
+                  : 'text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)] hover:bg-[var(--orbit-line)]'
               }`}
             >
               {tab.label}
@@ -558,7 +565,7 @@ function AtlasManagerContent() {
 
         {/* Semantic search */}
         <div className="flex-1 max-w-sm relative group">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#94a3b8] transition-colors group-focus-within:text-[#2ec5ff]" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[var(--orbit-text-muted)] transition-colors group-focus-within:text-[var(--orbit-glow)]" />
           <form onSubmit={handleNaturalSearch}>
             <Input 
               value={naturalSearch}
@@ -567,18 +574,18 @@ function AtlasManagerContent() {
                 if (!e.target.value) setFilteredIds(null)
               }}
               placeholder="Busca semântica..."
-              className="w-full pl-9 h-8 bg-[#05060a]/80 border border-[rgba(46,197,255,0.1)] rounded-lg text-xs text-[#e6eef6] placeholder:text-[#94a3b8]/40 focus:border-[#2ec5ff]/30 focus:ring-0 transition-all font-sans pr-8"
+              className="w-full pl-9 h-8 bg-[var(--orbit-bg-secondary)] border border-[var(--orbit-line)] rounded-lg text-xs text-[var(--orbit-text)] placeholder:text-[var(--orbit-text-muted)]/40 focus:border-[var(--orbit-glow)]/30 focus:ring-0 transition-all font-sans pr-8"
             />
           </form>
           {isSearchingNatural && (
-            <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 animate-spin text-[#2ec5ff]" />
+            <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 animate-spin text-[var(--orbit-glow)]" />
           )}
           {naturalSearch && !isSearchingNatural && (
             <button 
               onClick={() => { setNaturalSearch(""); setFilteredIds(null) }}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 hover:bg-white/10 rounded-full transition-colors"
+              className={`absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded-full transition-colors ${isDark ? 'hover:bg-white/10' : 'hover:bg-black/5'}`}
             >
-              <X className="h-3 w-3 text-[#94a3b8]" />
+              <X className="h-3 w-3 text-[var(--orbit-text-muted)]" />
             </button>
           )}
         </div>
@@ -587,21 +594,21 @@ function AtlasManagerContent() {
         <div className="flex items-center gap-2 ml-auto">
           <button 
             onClick={() => setIsMapModalOpen(true)}
-            className="p-2 rounded-lg border border-[rgba(46,197,255,0.1)] text-[#94a3b8] hover:text-[#2ec5ff] hover:bg-[rgba(46,197,255,0.08)] hover:border-[rgba(46,197,255,0.25)] transition-all"
+            className="p-2 rounded-lg border border-[var(--orbit-line)] bg-[var(--orbit-glow)]/5 text-[var(--orbit-glow)] hover:bg-[var(--orbit-glow)]/10 transition-all"
             title="Visualizar no Mapa"
           >
             <MapIcon className="h-4 w-4" />
           </button>
           <button 
             onClick={() => { setIngestStep("url"); setIsIngestModalOpen(true) }}
-            className="p-2 rounded-lg border border-[rgba(46,197,255,0.1)] text-[#94a3b8] hover:text-[#2ec5ff] hover:bg-[rgba(46,197,255,0.08)] hover:border-[rgba(46,197,255,0.25)] transition-all"
+            className="p-2 rounded-lg border border-[var(--orbit-line)] text-[var(--orbit-text-muted)] hover:text-[var(--orbit-glow)] hover:bg-[var(--orbit-glow)]/10 transition-all"
             title="Cadastrar via URL"
           >
             <Link2 className="h-4 w-4" />
           </button>
           <button 
             onClick={() => setIsVoiceModalOpen(true)}
-            className="h-8 px-4 bg-[#2ec5ff] hover:bg-[#2ec5ff]/90 text-[#05060a] rounded-lg flex items-center gap-2 shadow-[0_0_15px_rgba(46,197,255,0.2)] transition-all font-mono text-[10px] uppercase tracking-wider font-bold"
+            className="h-8 px-4 bg-[var(--orbit-glow)] hover:bg-[var(--orbit-glow)]/90 text-white rounded-lg flex items-center gap-2 shadow-[var(--orbit-shadow)] transition-all font-mono text-[10px] uppercase tracking-wider font-bold"
           >
             <Mic className="h-3.5 w-3.5" />
             Voz
@@ -621,32 +628,32 @@ function AtlasManagerContent() {
                 exit={{ opacity: 0, y: -10 }}
                 className="max-w-7xl mx-auto space-y-8"
               >
-                <div className="flex items-center justify-between border-b border-[rgba(46,197,255,0.15)] pb-6">
+                <div className="flex items-center justify-between border-b border-[var(--orbit-line)] pb-6">
                   <div>
-                    <h2 className="font-sans font-medium text-2xl text-[#e6eef6]">Curadoria Inteligente</h2>
-                    <p className="text-xs text-[#94a3b8] mt-1 font-sans">Ativos recomendados para leads estratégicos da Orbit.</p>
+                    <h2 className="font-display font-medium text-3xl text-[var(--orbit-text)]">Curadoria Inteligente</h2>
+                    <p className="text-xs text-[var(--orbit-text-muted)] mt-1 font-sans">Ativos recomendados para leads estratégicos da Orbit.</p>
                   </div>
                   
                   <div className="flex items-center gap-3">
                     <div className="relative">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#94a3b8]" />
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--orbit-text-muted)]" />
                       <Input 
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                         placeholder="Filtrar base..."
-                        className="pl-9 h-9 w-48 text-xs bg-[#0b1220] border border-[rgba(46,197,255,0.2)] rounded-lg text-[#e6eef6] placeholder:text-[#94a3b8]/60 focus:border-[#2ec5ff]/40 shadow-sm transition-all"
+                        className="pl-9 h-9 w-48 text-xs bg-[var(--orbit-bg-secondary)] border border-[var(--orbit-line)] rounded-lg text-[var(--orbit-text)] placeholder:text-[var(--orbit-text-muted)]/60 focus:border-[var(--orbit-glow)]/40 shadow-sm transition-all"
                       />
                     </div>
-                    <Button variant="outline" size="sm" className="h-9 px-4 gap-2 text-xs border-[rgba(46,197,255,0.2)] text-[#e6eef6] bg-[#0b1220] hover:bg-white/5 hover:border-[#2ec5ff]/40 transition-colors">
-                      <Filter className="h-4 w-4 text-[#94a3b8]" />
+                    <Button variant="outline" size="sm" className="h-9 px-4 gap-2 text-xs border-[var(--orbit-line)] text-[var(--orbit-text)] bg-[var(--orbit-bg-secondary)] hover:bg-[var(--orbit-glow)]/5 hover:border-[var(--orbit-glow)]/40 transition-colors">
+                      <Filter className="h-4 w-4 text-[var(--orbit-text-muted)]" />
                       Filtros
                     </Button>
-                    <div className="w-px h-8 bg-[rgba(46,197,255,0.15)] mx-2" />
+                    <div className="w-px h-8 bg-[var(--orbit-line)] mx-2" />
                     <Button 
                       onClick={() => setIsMapModalOpen(true)}
                       variant="outline" 
                       size="sm" 
-                      className="h-9 px-4 gap-2 bg-[#2ec5ff]/10 border border-[#2ec5ff]/30 text-[10px] font-mono uppercase tracking-wider text-[#2ec5ff] hover:bg-[#2ec5ff]/20 hover:border-[#2ec5ff]/50 shadow-[0_0_10px_rgba(46,197,255,0.1)] transition-all"
+                      className="h-9 px-4 gap-2 bg-[var(--orbit-glow)]/10 border border-[var(--orbit-glow)]/20 text-[10px] font-mono uppercase tracking-wider text-[var(--orbit-glow)] hover:bg-[var(--orbit-glow)]/20 hover:border-[var(--orbit-glow)]/40 shadow-[var(--orbit-shadow)] transition-all"
                     >
                       <MapIcon className="h-3.5 w-3.5" />
                       Visualizar no Mapa
@@ -688,14 +695,14 @@ function AtlasManagerContent() {
         </main>
 
         {/* Orbit Selection Sidebar */}
-        <aside className="w-80 bg-[#0b1220] border-l border-[rgba(46,197,255,0.12)] flex flex-col relative z-20 shadow-[-10px_0_40px_rgba(0,0,0,0.3)] shrink-0">
-          <div className="p-6 border-b border-[rgba(46,197,255,0.12)] bg-[#05060a]/60">
+        <aside className="w-80 bg-[var(--orbit-bg-secondary)] border-l border-[var(--orbit-line)] flex flex-col relative z-20 shadow-[-10px_0_40px_rgba(0,0,0,0.05)] shrink-0">
+          <div className="p-6 border-b border-[var(--orbit-line)] bg-[var(--orbit-bg)]/60">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2.5">
-                <div className="p-1.5 rounded-lg bg-[#2ec5ff]/10 border border-[#2ec5ff]/20 text-[#2ec5ff]">
+                <div className="p-1.5 rounded-lg bg-[var(--orbit-glow)]/10 border border-[var(--orbit-glow)]/20 text-[var(--orbit-glow)]">
                   <ShoppingCart className="h-4 w-4" />
                 </div>
-                <h2 className="font-sans font-semibold text-[#e6eef6] text-base tracking-tight">Orbit Selection</h2>
+                <h2 className="font-display font-semibold text-[var(--orbit-text)] text-lg tracking-tight">Orbit Selection</h2>
               </div>
               {selectedPropertyIds.size > 0 && (
                 <button 
@@ -707,60 +714,60 @@ function AtlasManagerContent() {
               )}
             </div>
             
-            <div className="p-4 bg-[#2ec5ff]/5 rounded-xl border border-[#2ec5ff]/15">
+            <div className="p-4 bg-[var(--orbit-glow)]/5 rounded-xl border border-[var(--orbit-glow)]/15">
               <div className="flex justify-between items-baseline mb-1">
-                <span className="font-mono text-[9px] uppercase tracking-wider text-[#94a3b8]">Carrinho Ativo</span>
-                <span className="font-sans font-bold text-2xl text-[#2ec5ff]">{selectedPropertyIds.size}</span>
+                <span className="font-mono text-[9px] uppercase tracking-wider text-[var(--orbit-text-muted)]">Carrinho Ativo</span>
+                <span className="font-display font-bold text-2xl text-[var(--orbit-glow)]">{selectedPropertyIds.size}</span>
               </div>
-              <p className="text-[10px] text-[#94a3b8] font-sans">Imóveis prontos para curadoria</p>
+              <p className="text-[10px] text-[var(--orbit-text-muted)] font-sans">Imóveis prontos para curadoria</p>
             </div>
           </div>
 
           <div className="flex-1 overflow-y-auto p-6 space-y-8 custom-scrollbar">
             {/* Target Lead Selection */}
             <div className="space-y-4">
-              <label className="font-mono text-[9px] uppercase tracking-[0.2em] text-[#94a3b8] flex items-center gap-2">
+              <label className="font-mono text-[9px] uppercase tracking-[0.2em] text-[var(--orbit-text-muted)] flex items-center gap-2">
                 <Users size={10} /> 1. Lead Destinatário
               </label>
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#94a3b8]" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[var(--orbit-text-muted)]" />
                 <Input 
                   value={leadSearch}
                   onChange={(e) => setLeadSearch(e.target.value)}
                   placeholder="Buscar lead para envio..."
-                  className="pl-9 h-10 text-xs border border-[rgba(46,197,255,0.15)] focus:border-[#2ec5ff]/40 rounded-xl bg-[#05060a]/50 text-[#e6eef6] placeholder:text-[#94a3b8]/50"
+                  className="pl-9 h-10 text-xs border border-[var(--orbit-line)] focus:border-[var(--orbit-glow)]/40 rounded-xl bg-[var(--orbit-bg)]/50 text-[var(--orbit-text)] placeholder:text-[var(--orbit-text-muted)]/50"
                 />
               </div>
 
               <div className="space-y-1.5">
                 {selectedLeadId && searchParams.get('leadId') === selectedLeadId ? (
-                  <div className="w-full flex items-center gap-3 p-3 rounded-xl border border-[#2ec5ff]/30 bg-[#2ec5ff]/5 shadow-sm">
-                    <div className="w-9 h-9 rounded-lg bg-[#0b1220] border border-[#2ec5ff]/20 flex items-center justify-center text-[11px] font-bold text-[#2ec5ff]">
+                  <div className="w-full flex items-center gap-3 p-3 rounded-xl border border-[var(--orbit-glow)]/30 bg-[var(--orbit-glow)]/5 shadow-sm">
+                    <div className="w-9 h-9 rounded-lg bg-[var(--orbit-bg-secondary)] border border-[var(--orbit-glow)]/20 flex items-center justify-center text-[11px] font-bold text-[var(--orbit-glow)]">
                       {leads?.find(l => l.id === selectedLeadId)?.name[0] || 'L'}
                     </div>
                     <div className="flex-1 text-left min-w-0">
-                      <p className="text-[12px] font-semibold leading-none truncate text-[#e6eef6]">
+                      <p className="text-[12px] font-semibold leading-none truncate text-[var(--orbit-text)]">
                         {leads?.find(l => l.id === selectedLeadId)?.name || 'Lead Selecionado'}
                       </p>
-                      <p className="text-[9px] text-[#2ec5ff] mt-1 uppercase font-mono tracking-widest font-bold">Lid Ativo</p>
+                      <p className="text-[9px] text-[var(--orbit-glow)] mt-1 uppercase font-mono tracking-widest font-bold">Lid Ativo</p>
                     </div>
-                    <Check className="h-4 w-4 text-[#2ec5ff]" />
+                    <Check className="h-4 w-4 text-[var(--orbit-glow)]" />
                   </div>
                 ) : (
                   filteredLeads.map(lead => (
                     <button
                       key={lead.id}
                       onClick={() => setSelectedLeadId(lead.id)}
-                      className={`w-full flex items-center gap-3 p-2.5 rounded-xl border transition-all ${selectedLeadId === lead.id ? 'bg-[#2ec5ff]/5 border-[#2ec5ff]/25 shadow-sm' : 'border-transparent hover:bg-white/5'}`}
+                      className={`w-full flex items-center gap-3 p-2.5 rounded-xl border transition-all ${selectedLeadId === lead.id ? 'bg-[var(--orbit-glow)]/5 border-[var(--orbit-glow)]/25 shadow-sm' : 'border-transparent hover:bg-[var(--orbit-glow)]/5'}`}
                     >
-                      <div className="w-8 h-8 rounded-lg bg-[#0b1220] border border-[rgba(46,197,255,0.1)] flex items-center justify-center text-[10px] font-bold text-[#e6eef6]">
+                      <div className="w-8 h-8 rounded-lg bg-[var(--orbit-bg-secondary)] border border-[var(--orbit-line)] flex items-center justify-center text-[10px] font-bold text-[var(--orbit-text)]">
                         {lead.name[0]}
                       </div>
                       <div className="flex-1 text-left min-w-0">
-                        <p className="text-[11px] font-medium leading-none truncate text-[#e6eef6]">{lead.name}</p>
-                        <p className="text-[9px] text-[#94a3b8] mt-1 uppercase font-mono tracking-tighter">{lead.orbitStage || 'Exploração'}</p>
+                        <p className="text-[11px] font-medium leading-none truncate text-[var(--orbit-text)]">{lead.name}</p>
+                        <p className="text-[9px] text-[var(--orbit-text-muted)] mt-1 uppercase font-mono tracking-tighter">{lead.orbitStage || 'Exploração'}</p>
                       </div>
-                      {selectedLeadId === lead.id && <Check className="h-3 w-3 text-[#2ec5ff]" />}
+                      {selectedLeadId === lead.id && <Check className="h-3 w-3 text-[var(--orbit-glow)]" />}
                     </button>
                   ))
                 )}
@@ -770,24 +777,24 @@ function AtlasManagerContent() {
             {/* Selection Preview */}
             {selectedPropertyIds.size > 0 && (
               <div className="space-y-4">
-                <label className="font-mono text-[9px] uppercase tracking-[0.2em] text-[#94a3b8]">
+                <label className="font-mono text-[9px] uppercase tracking-[0.2em] text-[var(--orbit-text-muted)]">
                   2. Itens da Curadoria
                 </label>
                 <div className="space-y-2">
                   {properties.filter(p => selectedPropertyIds.has(p.id)).map(p => (
-                    <div key={p.id} className="flex items-center gap-3 p-2.5 bg-white/5 rounded-xl border border-[rgba(46,197,255,0.08)] hover:bg-white/8 hover:border-[rgba(46,197,255,0.15)] transition-colors group">
-                      <div className="w-10 h-10 rounded-lg bg-[#0b1220] overflow-hidden shrink-0 border border-[rgba(46,197,255,0.1)]">
+                    <div key={p.id} className="flex items-center gap-3 p-2.5 bg-[var(--orbit-bg)] rounded-xl border border-[var(--orbit-line)] hover:bg-[var(--orbit-bg-secondary)] hover:border-[var(--orbit-glow)]/15 transition-colors group">
+                      <div className="w-10 h-10 rounded-lg bg-[var(--orbit-bg-secondary)] overflow-hidden shrink-0 border border-[var(--orbit-line)]">
                         {p.cover_image && <img src={p.cover_image} className="w-full h-full object-cover" />}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-[10px] font-medium truncate text-[#e6eef6]">{p.title || p.internal_name}</p>
-                        <p className="text-[9px] text-[#2ec5ff] font-bold mt-0.5">
+                        <p className="text-[10px] font-medium truncate text-[var(--orbit-text)]">{p.title || p.internal_name}</p>
+                        <p className="text-[9px] text-[var(--orbit-glow)] font-bold mt-0.5">
                           {p.value ? `R$ ${(p.value / 1000000).toFixed(1)}M` : 'Sob consulta'}
                         </p>
                       </div>
                       <button 
                         onClick={() => togglePropertySelection(p)}
-                        className="p-1.5 opacity-0 group-hover:opacity-100 hover:text-red-400 text-[#94a3b8] transition-all"
+                        className="p-1.5 opacity-0 group-hover:opacity-100 hover:text-rose-500 text-[var(--orbit-text-muted)] transition-all"
                       >
                         <X className="h-3 w-3" />
                       </button>

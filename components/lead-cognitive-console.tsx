@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useEffect, useCallback, memo, useMemo } from "react";
+import { useTheme } from "next-themes";
 import {
   X, ArrowUp, Play, Loader2, Check, Brain,
   Mic, Zap, Star, Building2, ExternalLink, Copy, CheckCheck,
@@ -148,7 +149,7 @@ function humanCogState(raw: string | null | undefined): string {
 
 
 // ─── Cognitive Ring ────────────────────────────────────────────────────────────
-const CognitiveRing = memo(function CognitiveRing({ value, label, color = "#d4af35" }: { value: number; label: string; color?: string }) {
+const CognitiveRing = memo(function CognitiveRing({ value, label, color = "var(--orbit-glow)" }: { value: number; label: string; color?: string }) {
   const r = 18;
   const circ = 2 * Math.PI * r;
   const offset = circ - ((Math.min(100, Math.max(0, value)) / 100) * circ);
@@ -156,13 +157,13 @@ const CognitiveRing = memo(function CognitiveRing({ value, label, color = "#d4af
     <div className="flex flex-col items-center gap-1">
       <div className="relative flex items-center justify-center">
         <svg className="w-10 h-10 -rotate-90" viewBox="0 0 40 40">
-          <circle cx="20" cy="20" r={r} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="2" />
+          <circle cx="20" cy="20" r={r} fill="none" stroke="var(--orbit-line)" strokeWidth="2" />
           <circle cx="20" cy="20" r={r} fill="none" stroke={color} strokeWidth="2"
             strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round" />
         </svg>
-        <span className="absolute text-[10px] font-bold text-white">{Math.round(value)}%</span>
+        <span className="absolute text-[10px] font-display font-medium text-[var(--orbit-text)]">{Math.round(value)}%</span>
       </div>
-      <span className="text-[9px] uppercase tracking-widest text-slate-400">{label}</span>
+      <span className="text-[9px] uppercase tracking-widest text-[var(--orbit-text-muted)] font-sans">{label}</span>
     </div>
   );
 });
@@ -173,29 +174,35 @@ function AudioWaveform() {
   return (
     <div className="flex items-center gap-0.5 h-8 flex-1">
       {bars.current.map((h, i) => (
-        <div key={i} className="w-0.5 rounded-full bg-[#d4af35]/60" style={{ height: `${h}%` }} />
+        <div key={i} className="w-0.5 rounded-full bg-[var(--orbit-glow)]/40" style={{ height: `${h}%` }} />
       ))}
     </div>
   );
 }
 
 // ─── Message Bubble ────────────────────────────────────────────────────────────
-const MessageBubble = memo(function MessageBubble({ msg, leadPhoto, leadName }: { msg: Message; leadPhoto: string | null; leadName: string | null }) {
+const MessageBubble = memo(function MessageBubble({ msg, leadPhoto, leadName }: { msg: Message, leadPhoto: string | null, leadName: string | null }) {
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === "dark";
+  
+  const isOperator = msg.source === "operator";
   if (msg.source === "internal") {
     return (
-      <div className="flex justify-center my-3">
-        <div className="bg-[#d4af35]/10 border border-[#d4af35]/30 rounded-2xl px-5 py-4 max-w-[85%] relative overflow-hidden group">
-          <div className="absolute top-0 right-0 p-1 opacity-10 group-hover:opacity-20 transition-opacity">
-             <Star className="w-12 h-12 text-[#d4af35]" />
+      <div className="flex justify-center my-3 w-full">
+        <div className={`border rounded-2xl px-5 py-4 max-w-[85%] relative overflow-hidden group ${
+          isDark ? 'bg-[var(--orbit-glow)]/5 border-[var(--orbit-glow)]/10' : 'bg-[var(--orbit-glow)]/5 border-[var(--orbit-line)] shadow-sm'
+        }`}>
+          <div className="absolute top-0 right-0 p-1 opacity-5 group-hover:opacity-10 transition-opacity">
+             <Star className="w-12 h-12 text-[var(--orbit-glow)]" />
           </div>
           <div className="flex items-center gap-2 mb-2">
-            <div className="w-5 h-5 rounded bg-[#d4af35]/20 flex items-center justify-center">
-              <Star className="w-3 h-3 text-[#d4af35] fill-current" />
+            <div className={`w-5 h-5 rounded flex items-center justify-center ${isDark ? 'bg-[var(--orbit-glow)]/20' : 'bg-[var(--orbit-glow)]/10'}`}>
+              <Star className="w-3 h-3 text-[var(--orbit-glow)] fill-current" />
             </div>
-            <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#d4af35]">Nota Interna</span>
-            <span className="text-[9px] text-[#d4af35]/40 ml-auto">{formatTime(msg.timestamp)}</span>
+            <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-[var(--orbit-glow)]">Nota Interna</span>
+            <span className="text-[9px] text-[var(--orbit-glow)]/40 ml-auto">{formatTime(msg.timestamp)}</span>
           </div>
-          <p className="text-sm text-slate-200 leading-relaxed font-medium">
+          <p className={`text-sm leading-relaxed font-medium ${isDark ? 'text-[var(--orbit-text)]' : 'text-[var(--orbit-text)]'}`}>
             {msg.content}
           </p>
         </div>
@@ -226,26 +233,30 @@ const MessageBubble = memo(function MessageBubble({ msg, leadPhoto, leadName }: 
 
       return (
         <div className="flex flex-col items-end gap-1 self-end max-w-[90%] w-full">
-          <div className="w-full bg-[#1a1a2e] border border-[#2ec5ff]/20 rounded-2xl rounded-tr-none overflow-hidden shadow-lg">
+          <div className={`w-full border rounded-2xl rounded-tr-none overflow-hidden shadow-[var(--orbit-shadow)] ${
+            isDark ? 'bg-[var(--orbit-bg)] border-[var(--orbit-glow)]/20' : 'bg-white border-[var(--orbit-line)]'
+          }`}>
             {/* Header */}
-            <div className="flex items-center gap-2 px-3 py-2 border-b border-white/5 bg-[#2ec5ff]/5">
-              <div className="w-5 h-5 rounded-full bg-[#2ec5ff]/20 flex items-center justify-center">
-                <Mic className="h-3 w-3 text-[#2ec5ff]" />
+            <div className={`flex items-center gap-2 px-3 py-2 border-b ${
+              isDark ? 'border-[var(--orbit-line)] bg-[var(--orbit-glow)]/5' : 'border-[var(--orbit-line)] bg-[var(--orbit-bg-secondary)]'
+            }`}>
+              <div className={`w-5 h-5 rounded-full flex items-center justify-center ${isDark ? 'bg-[var(--orbit-glow)]/20' : 'bg-[var(--orbit-glow)]/10'}`}>
+                <Mic className="h-3 w-3 text-[var(--orbit-glow)]" />
               </div>
-              <span className="text-[10px] font-mono uppercase tracking-widest text-[#2ec5ff]/70">Transcrição de Áudio</span>
-              <span className="ml-auto text-[10px] text-slate-500">{formatTime(msg.timestamp)}</span>
+              <span className={`text-[10px] font-mono uppercase tracking-widest ${isDark ? 'text-[var(--orbit-glow)]/70' : 'text-[var(--orbit-glow)]'}`}>Transcrição de Áudio</span>
+              <span className="ml-auto text-[10px] text-[var(--orbit-text-muted)]">{formatTime(msg.timestamp)}</span>
             </div>
 
             {/* Audio Player (basic) */}
-            <div className="flex items-center gap-3 px-3 py-2 border-b border-white/5">
-              <audio controls src={p.url} className="w-full h-8 opacity-70" style={{ filter: "invert(0.9) hue-rotate(180deg) saturate(0.6)" }} />
+            <div className={`flex items-center gap-3 px-3 py-2 border-b ${isDark ? 'border-white/5' : 'border-[var(--orbit-line)]'}`}>
+              <audio controls src={p.url} className="w-full h-8 opacity-70" style={{ filter: isDark ? "invert(0.9) hue-rotate(180deg) saturate(0.6)" : "none" }} />
             </div>
 
             {/* Transcript */}
             {p.transcript && (
-              <div className="px-3 py-2 border-b border-white/5">
-                <p className="text-[10px] uppercase tracking-wider text-slate-500 mb-1">Transcrição</p>
-                <p className="text-xs text-slate-200 leading-relaxed italic">"{p.transcript}"</p>
+              <div className={`px-3 py-2 border-b ${isDark ? 'border-[var(--orbit-line)]' : 'border-[var(--orbit-line)]'}`}>
+                <p className="text-[10px] uppercase tracking-wider text-[var(--orbit-text-muted)] mb-1">Transcrição</p>
+                <p className={`text-xs leading-relaxed italic ${isDark ? 'text-[var(--orbit-text)]' : 'text-[var(--orbit-text)] font-medium'}`}>"{p.transcript}"</p>
               </div>
             )}
 
@@ -260,18 +271,18 @@ const MessageBubble = memo(function MessageBubble({ msg, leadPhoto, leadName }: 
                     </span>
                   )}
                   {ana.intention && (
-                    <span className="text-[9px] font-medium text-slate-400 truncate">{ana.intention}</span>
+                    <span className={`text-[9px] font-medium truncate ${isDark ? 'text-slate-400' : 'text-[var(--orbit-text-muted)]'}`}>{ana.intention}</span>
                   )}
                 </div>
 
                 {/* Urgency bar */}
                 {typeof ana.urgency === "number" && (
                   <div>
-                    <div className="flex justify-between text-[9px] text-slate-500 mb-0.5">
+                    <div className="flex justify-between text-[9px] text-[var(--orbit-text-muted)] mb-0.5">
                       <span>Urgência</span><span>{ana.urgency}%</span>
                     </div>
-                    <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
-                      <div className="h-full bg-[#2ec5ff] rounded-full transition-all duration-700" style={{ width: urgencyWidth }} />
+                    <div className={`h-1 w-full rounded-full overflow-hidden ${isDark ? 'bg-[var(--orbit-bg-secondary)]' : 'bg-gray-100'}`}>
+                      <div className="h-full bg-[var(--orbit-glow)] rounded-full transition-all duration-700" style={{ width: urgencyWidth }} />
                     </div>
                   </div>
                 )}
@@ -280,7 +291,9 @@ const MessageBubble = memo(function MessageBubble({ msg, leadPhoto, leadName }: 
                 {Array.isArray(ana.signals) && ana.signals.length > 0 && (
                   <div className="flex flex-wrap gap-1">
                     {ana.signals.map((s: string, i: number) => (
-                      <span key={i} className="text-[9px] bg-white/5 border border-white/10 px-2 py-0.5 rounded-full text-slate-300">
+                      <span key={i} className={`text-[9px] border px-2 py-0.5 rounded-full ${
+                        isDark ? 'bg-white/5 border-white/10 text-slate-300' : 'bg-gray-50 border-[var(--orbit-line)] text-[var(--orbit-text-muted)]'
+                      }`}>
                         {s}
                       </span>
                     ))}
@@ -288,13 +301,15 @@ const MessageBubble = memo(function MessageBubble({ msg, leadPhoto, leadName }: 
                 )}
 
                 {/* Summary */}
-                <p className="text-[10px] text-slate-400 leading-relaxed border-l border-[#2ec5ff]/30 pl-2">{ana.summary}</p>
+                <p className={`text-[10px] leading-relaxed border-l pl-2 ${isDark ? 'text-slate-400 border-[#2ec5ff]/30' : 'text-[var(--orbit-text-muted)] border-[var(--orbit-glow)]/30'}`}>{ana.summary}</p>
 
                 {/* Suggested action */}
                 {ana.suggested_action && (
-                  <div className="flex items-start gap-1.5 bg-[#d4af35]/5 border border-[#d4af35]/20 rounded-lg px-2 py-1.5">
-                    <Zap className="h-3 w-3 text-[#d4af35] shrink-0 mt-0.5" />
-                    <p className="text-[10px] text-[#d4af35]">{ana.suggested_action}</p>
+                  <div className={`flex items-start gap-1.5 border rounded-lg px-2 py-1.5 ${
+                    isDark ? 'bg-[#d4af35]/5 border-[#d4af35]/20' : 'bg-[var(--orbit-glow)]/5 border-[var(--orbit-glow)]/20'
+                  }`}>
+                    <Zap className={`h-3 w-3 shrink-0 mt-0.5 ${isDark ? 'text-[#d4af35]' : 'text-[var(--orbit-glow)]'}`} />
+                    <p className={`text-[10px] ${isDark ? 'text-[#d4af35]' : 'text-[var(--orbit-glow)] font-bold'}`}>{ana.suggested_action}</p>
                   </div>
                 )}
               </div>
@@ -305,53 +320,63 @@ const MessageBubble = memo(function MessageBubble({ msg, leadPhoto, leadName }: 
     }
     if (p.type && p.url) { mediaType = p.type; mediaUrl = p.url; text = p.caption || ""; }
     else if (p.type && p.summary) { manualKind = p.type; text = p.summary; manualNextContact = p.next_contact_at; }
-    else if (p.type === "property") {
+    if (p.type === "property") {
       return (
         <div className="flex flex-col items-end gap-1 self-end max-w-[80%]">
-          <div className="flex bg-[#d4af35]/10 border border-[#d4af35]/30 rounded-2xl rounded-tr-none overflow-hidden max-w-[280px]">
+          <div className={`flex border shadow-[var(--orbit-shadow)] rounded-2xl rounded-tr-none overflow-hidden max-w-[280px] ${
+            isDark ? 'bg-[var(--orbit-bg)] border-[var(--orbit-line)]' : 'bg-white border-[var(--orbit-line)]'
+          }`}>
             {p.cover_image && p.cover_image !== "null" && (
-              <div className="w-20 shrink-0 bg-black/40">
+              <div className={`w-20 shrink-0 ${isDark ? 'bg-[var(--orbit-bg-secondary)]' : 'bg-gray-100'}`}>
                 <img src={p.cover_image} className="w-full h-full object-cover" alt={p.title} />
               </div>
             )}
             <div className="p-3 flex flex-col justify-center">
-              <span className="text-[10px] text-[#d4af35] uppercase font-bold tracking-wider mb-0.5">Vincular Imóvel</span>
-              <span className="text-sm font-medium text-slate-200 line-clamp-2 leading-tight">{p.title}</span>
-              {p.value && <span className="text-xs text-slate-400 mt-1">R$ {(p.value / 1000000).toFixed(1)}M</span>}
+              <span className={`text-[10px] uppercase font-bold tracking-wider mb-0.5 ${isDark ? 'text-[var(--orbit-glow)]' : 'text-[var(--orbit-glow)]'}`}>Vincular Imóvel</span>
+              <span className={`text-sm font-medium line-clamp-2 leading-tight ${isDark ? 'text-[var(--orbit-text)]' : 'text-[var(--orbit-text)]'}`}>{p.title}</span>
+              {p.value && <span className={`text-xs mt-1 ${isDark ? 'text-[var(--orbit-text-muted)]' : 'text-[var(--orbit-text-muted)]'}`}>{formatValue(p.value)}</span>}
             </div>
           </div>
-          <span className="text-[10px] text-slate-500 mr-1">{formatTime(msg.timestamp)}</span>
+          <span className="text-[10px] text-[var(--orbit-text-muted)] mr-1">{formatTime(msg.timestamp)}</span>
         </div>
       );
     }
     else if (p.type === "property_question") {
       return (
         <div className="flex gap-3 max-w-[90%]">
-          <div className="w-8 h-8 rounded-full border border-white/10 shrink-0 overflow-hidden bg-[#d4af35]/20 flex items-center justify-center text-[10px] font-bold text-[#d4af35]">
+          <div className={`w-8 h-8 rounded-full border shrink-0 overflow-hidden flex items-center justify-center text-[10px] font-bold ${
+            isDark ? 'border-[var(--orbit-line)] bg-[var(--orbit-glow)]/10 text-[var(--orbit-glow)]' : 'border-[var(--orbit-line)] bg-[var(--orbit-glow)]/10 text-[var(--orbit-glow)]'
+          }`}>
             {leadPhoto ? <img src={leadPhoto} className="w-full h-full object-cover" alt="" /> : getInitials(leadName)}
           </div>
           <div className="flex flex-col gap-1 w-full">
-            <div className="bg-[#1a1a2e] border border-[#d4af35]/30 rounded-2xl rounded-tl-none overflow-hidden shadow-lg">
-              <div className="flex items-center gap-2 px-3 py-2 border-b border-white/5 bg-[#d4af35]/5">
-                <div className="w-5 h-5 rounded-full bg-[#d4af35]/20 flex items-center justify-center">
-                  <HelpCircle className="h-3 w-3 text-[#d4af35]" />
+            <div className={`border rounded-2xl rounded-tl-none overflow-hidden shadow-[var(--orbit-shadow)] ${
+              isDark ? 'bg-[var(--orbit-bg)] border-[var(--orbit-glow)]/30' : 'bg-white border-[var(--orbit-glow)]/20 shadow-sm'
+            }`}>
+              <div className={`flex items-center gap-2 px-3 py-2 border-b ${
+                isDark ? 'border-[var(--orbit-line)] bg-[var(--orbit-glow)]/5' : 'border-[var(--orbit-line)] bg-[var(--orbit-bg-secondary)]'
+              }`}>
+                <div className={`w-5 h-5 rounded-full flex items-center justify-center ${isDark ? 'bg-[var(--orbit-glow)]/20' : 'bg-[var(--orbit-glow)]/10'}`}>
+                  <HelpCircle className="h-3 w-3 text-[var(--orbit-glow)]" />
                 </div>
-                <span className="text-[10px] font-mono uppercase tracking-widest text-[#d4af35]/80">Dúvida do Portal</span>
+                <span className={`text-[10px] font-mono uppercase tracking-widest ${isDark ? 'text-[var(--orbit-glow)]/80' : 'text-[var(--orbit-glow)]'}`}>Dúvida do Portal</span>
               </div>
               <div className="p-4">
-                <p className="text-sm text-slate-200 leading-relaxed italic mb-3">"{p.text}"</p>
-                <div className="flex items-center gap-3 p-2 bg-black/40 rounded-xl border border-white/5">
-                  <div className="w-10 h-10 rounded-lg overflow-hidden bg-zinc-800 shrink-0">
-                    {p.propertyCover ? <img src={p.propertyCover} className="w-full h-full object-cover" /> : <Building2 className="w-4 h-4 text-slate-600 m-3" />}
+                <p className={`text-sm leading-relaxed italic mb-3 ${isDark ? 'text-[var(--orbit-text)]' : 'text-[var(--orbit-text)] font-medium'}`}>"{p.text}"</p>
+                <div className={`flex items-center gap-3 p-2 rounded-xl border ${
+                  isDark ? 'bg-[var(--orbit-bg-secondary)] border-[var(--orbit-line)]' : 'bg-gray-50 border-[var(--orbit-line)]'
+                }`}>
+                  <div className={`w-10 h-10 rounded-lg overflow-hidden shrink-0 ${isDark ? 'bg-zinc-800' : 'bg-zinc-200'}`}>
+                    {p.propertyCover ? <img src={p.propertyCover} className="w-full h-full object-cover" /> : <Building2 className={`w-4 h-4 m-3 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />}
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-0.5">Sobre o imóvel</p>
-                    <p className="text-xs font-medium text-[#d4af35] truncate">{p.propertyTitle || "Imóvel selecionado"}</p>
+                    <p className={`text-[9px] uppercase tracking-wider mb-0.5 ${isDark ? 'text-[var(--orbit-text-muted)]' : 'text-[var(--orbit-text-muted)]'}`}>Sobre o imóvel</p>
+                    <p className={`text-xs font-semibold truncate ${isDark ? 'text-[var(--orbit-glow)]' : 'text-[var(--orbit-glow)]'}`}>{p.propertyTitle || "Imóvel selecionado"}</p>
                   </div>
                 </div>
               </div>
             </div>
-            <span className="text-[10px] text-slate-500 ml-1">{formatTime(msg.timestamp)}</span>
+            <span className="text-[10px] text-[var(--orbit-text-muted)] ml-1">{formatTime(msg.timestamp)}</span>
           </div>
         </div>
       );
@@ -373,13 +398,17 @@ const MessageBubble = memo(function MessageBubble({ msg, leadPhoto, leadName }: 
     const meta = MANUAL_ICONS[manualKind] || MANUAL_ICONS.note;
     return (
       <div className="flex justify-center my-1">
-        <div className="flex items-start gap-3 bg-[#d4af35]/5 border border-[#d4af35]/20 rounded-xl px-4 py-3 max-w-[80%]">
+        <div className={`flex items-start gap-3 rounded-xl px-4 py-3 max-w-[80%] border ${
+          isDark ? 'bg-[#d4af35]/5 border-[#d4af35]/20' : 'bg-[var(--orbit-glow)]/5 border-[var(--orbit-glow)]/20 shadow-sm'
+        }`}>
           <span className="text-base">{meta.iconChar}</span>
           <div>
-            <p className={`text-[10px] font-bold uppercase tracking-wider mb-0.5 ${meta.colorClass}`}>{meta.label}</p>
-            <p className="text-xs text-slate-300">{text}</p>
+            <p className={`text-[10px] font-bold uppercase tracking-wider mb-0.5 ${
+              isDark ? meta.colorClass : 'text-[var(--orbit-glow)]'
+            }`}>{meta.label}</p>
+            <p className={`text-xs ${isDark ? 'text-slate-300' : 'text-[var(--orbit-text)]'}`}>{text}</p>
             {manualNextContact && (
-              <p className="text-[10px] text-[#d4af35]/60 mt-1">
+              <p className={`text-[10px] mt-1 ${isDark ? 'text-[#d4af35]/60' : 'text-[var(--orbit-glow)]/60'}`}>
                 {new Date(manualNextContact).toLocaleString("pt-BR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
               </p>
             )}
@@ -392,35 +421,35 @@ const MessageBubble = memo(function MessageBubble({ msg, leadPhoto, leadName }: 
   if (msg.source === "whatsapp") {
     return (
       <div className="flex gap-3 max-w-[80%]">
-        <div className="w-8 h-8 rounded-full border border-white/10 shrink-0 overflow-hidden bg-[#d4af35]/20 flex items-center justify-center text-[10px] font-bold text-[#d4af35]">
+        <div className="w-8 h-8 rounded-full border border-[var(--orbit-line)] shrink-0 overflow-hidden bg-[var(--orbit-glow)]/10 flex items-center justify-center text-[10px] font-bold text-[var(--orbit-glow)]">
           {leadPhoto ? <img src={leadPhoto} className="w-full h-full object-cover" alt="" /> : getInitials(leadName)}
         </div>
         <div className="flex flex-col gap-1">
-          <div className={`bg-white/5 border border-white/5 border-l-2 ${signalBorder} rounded-2xl rounded-tl-none px-4 py-3 text-sm leading-relaxed`}>
+          <div className={`bg-[var(--orbit-bg-secondary)] border border-[var(--orbit-line)] border-l-2 ${signalBorder} rounded-2xl rounded-tl-none px-4 py-3 text-sm leading-relaxed shadow-[var(--orbit-shadow)]`}>
             {mediaType === "audio" ? (
               <div className="flex items-center gap-3 min-w-[240px]">
-                <button className="w-8 h-8 rounded-full bg-[#d4af35] flex items-center justify-center shrink-0 hover:brightness-110 transition-all">
-                  <Play className="h-3.5 w-3.5 fill-current text-black" />
+                <button className="w-8 h-8 rounded-full bg-[var(--orbit-glow)] flex items-center justify-center shrink-0 hover:brightness-110 transition-all">
+                  <Play className="h-3.5 w-3.5 fill-current text-white" />
                 </button>
                 <AudioWaveform />
-                <Mic className="h-3 w-3 text-[#d4af35]/50 shrink-0" />
+                <Mic className="h-3 w-3 text-[var(--orbit-glow)]/50 shrink-0" />
               </div>
             ) : (mediaType === "image" && mediaUrl) ? (
               <img src={mediaUrl} alt="" className="rounded-lg max-w-[240px] max-h-40 object-cover" />
-            ) : (
-              <p className="text-slate-200">{text || "[mídia]"}</p>
+             ) : (
+              <p className="text-[var(--orbit-text)]">{text || "[mídia]"}</p>
             )}
             {intention && (
               <div className={`mt-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[9px] font-bold uppercase tracking-wide ${
-                signal === "positive" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" :
-                signal === "negative" ? "bg-red-500/10 text-red-400 border-red-500/20" :
-                "bg-blue-500/10 text-blue-400 border-blue-400/20"
+                signal === "positive" ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" :
+                signal === "negative" ? "bg-rose-500/10 text-rose-600 border-rose-500/20" :
+                "bg-[var(--orbit-glow)]/10 text-[var(--orbit-glow)] border-[var(--orbit-glow)]/20"
               }`}>
                 <Brain className="h-2.5 w-2.5" /> {intention}
               </div>
             )}
           </div>
-          <span className="text-[10px] text-slate-500 ml-1">{formatTime(msg.timestamp)}</span>
+          <span className="text-[10px] text-[var(--orbit-text-muted)] ml-1">{formatTime(msg.timestamp)}</span>
         </div>
       </div>
     );
@@ -428,17 +457,22 @@ const MessageBubble = memo(function MessageBubble({ msg, leadPhoto, leadName }: 
 
   return (
     <div className="flex flex-col items-end gap-1 self-end max-w-[80%]">
-      <div className="bg-[#d4af35]/10 border border-[#d4af35]/30 rounded-2xl rounded-tr-none px-4 py-3 text-sm leading-relaxed text-slate-200">
+      <div className={`border rounded-2xl rounded-tr-none px-4 py-3 text-sm leading-relaxed shadow-[var(--orbit-shadow)] ${
+        isDark ? 'bg-[var(--orbit-glow)]/10 border-[var(--orbit-glow)]/20 text-[var(--orbit-text)]' : 'bg-[var(--orbit-glow)]/5 border-[var(--orbit-glow)]/20 text-[var(--orbit-text)] font-medium shadow-sm'
+      }`}>
         {text}
       </div>
-      <span className="text-[10px] text-slate-500 mr-1">{formatTime(msg.timestamp)}</span>
+      <span className="text-[10px] text-[var(--orbit-text-muted)] mr-1">{formatTime(msg.timestamp)}</span>
     </div>
   );
 });
 
 // ─── Property Card ──────────────────────────────────────────────────────────────
 const PropertyCard = memo(function PropertyCard({ interaction }: { interaction: PropertyInteraction }) {
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === "dark";
   const prop = interaction.property;
+
   if (!prop) return null;
 
   const typeLabel: Record<string, string> = {
@@ -454,12 +488,12 @@ const PropertyCard = memo(function PropertyCard({ interaction }: { interaction: 
   };
 
   return (
-    <div className="flex items-center justify-between p-2.5 bg-white/5 hover:bg-white/8 rounded-xl border border-white/5 transition-colors group">
+    <div className="flex items-center justify-between p-2.5 bg-[var(--orbit-bg-secondary)] hover:bg-[var(--orbit-bg)] rounded-xl border border-[var(--orbit-line)] transition-all group shadow-sm hover:shadow-[var(--orbit-shadow)]">
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-lg overflow-hidden bg-zinc-800 shrink-0">
+        <div className="w-10 h-10 rounded-lg overflow-hidden bg-zinc-200 shrink-0">
           {prop.cover_image
             ? <img src={prop.cover_image} alt="" className="w-full h-full object-cover" />
-            : <div className="w-full h-full flex items-center justify-center"><Building2 className="w-4 h-4 text-slate-600" /></div>
+            : <div className="w-full h-full flex items-center justify-center"><Building2 className="w-4 h-4 text-slate-400" /></div>
           }
         </div>
         <div>
@@ -467,11 +501,11 @@ const PropertyCard = memo(function PropertyCard({ interaction }: { interaction: 
             href={`/atlas?id=${prop.id}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-xs font-medium text-slate-200 hover:text-[#d4af35] transition-colors truncate max-w-[130px] block"
+            className="text-xs font-medium text-[var(--orbit-text)] hover:text-[var(--orbit-glow)] transition-colors truncate max-w-[130px] block"
           >
             {prop.title || "Imóvel"}
           </a>
-          <p className="text-[10px] text-[#d4af35]/70">{formatValue(prop.value)}</p>
+          <p className="text-[10px] text-[var(--orbit-glow)]/70 font-mono">{formatValue(prop.value)}</p>
         </div>
       </div>
       <div className="flex items-center gap-2">
@@ -490,10 +524,14 @@ const PropertyCard = memo(function PropertyCard({ interaction }: { interaction: 
 });
 
 // ─── GLASS PANEL STYLE (reused) ────────────────────────────────────────────────
-const glass = "bg-[rgba(12,12,12,0.85)] backdrop-blur-[16px] border border-white/[0.07]";
+const glass = "bg-[var(--orbit-glass)] backdrop-blur-[16px] border border-[var(--orbit-glass-border)] shadow-[var(--orbit-shadow)]";
 
 // ─── Main Component ────────────────────────────────────────────────────────────
 export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveConsoleProps) {
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === "dark";
+  const ringGold = isDark ? "#d4af35" : "var(--orbit-glow)";
+  
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const isMobile = useIsMobile();
@@ -1012,13 +1050,15 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
         animate={{ x: 0 }}
         exit={{ x: "100%" }}
         transition={{ type: "spring", damping: 28, stiffness: 220 }}
-        className="h-full w-full max-w-[1400px] bg-[#050505] text-slate-100 flex flex-col font-sans overflow-hidden border-l border-white/[0.06]"
+        className={`h-full w-full max-w-[1400px] flex flex-col font-sans overflow-hidden border-l ${
+          isDark ? 'bg-[#050505] text-slate-100 border-white/[0.06]' : 'bg-[var(--orbit-bg)] text-[var(--orbit-text)] border-[var(--orbit-line)]'
+        }`}
       >
         {loading ? (
           <div className="flex-1 flex items-center justify-center">
             <div className="flex flex-col items-center gap-3">
-              <Loader2 className="w-8 h-8 text-[#d4af35] animate-spin" />
-              <span className="text-xs text-slate-500 uppercase tracking-widest">Carregando...</span>
+              <Loader2 className={`w-8 h-8 animate-spin ${isDark ? 'text-[#d4af35]' : 'text-[var(--orbit-glow)]'}`} />
+              <span className={`text-xs uppercase tracking-widest ${isDark ? 'text-slate-500' : 'text-[var(--orbit-text-muted)]'}`}>Carregando...</span>
             </div>
           </div>
         ) : (
@@ -1031,41 +1071,49 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
                 <div className="flex items-center gap-5">
                   <button
                     onClick={onClose}
-                    className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors"
+                    className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors ${
+                      isDark ? 'bg-white/5 border border-white/10 hover:bg-white/10' : 'bg-white border border-[var(--orbit-line)] hover:bg-gray-50 shadow-sm'
+                    }`}
                     title="Fechar"
                   >
-                    <X className="w-4 h-4 text-white" />
+                    <X className={`w-4 h-4 ${isDark ? 'text-white' : 'text-[var(--orbit-text)]'}`} />
                   </button>
 
-                  <div className="h-7 w-px bg-white/10" />
+                  <div className={`h-7 w-px ${isDark ? 'bg-white/10' : 'bg-[var(--orbit-line)]'}`} />
 
                   <div className="flex items-center gap-3">
                     <div className="relative">
                       {lead?.photo_url ? (
                         <img
                           src={lead.photo_url}
-                          className="w-10 h-10 rounded-full border border-[#d4af35]/30 object-cover"
+                          className={`w-10 h-10 rounded-full border object-cover ${isDark ? 'border-[#d4af35]/30' : 'border-[var(--orbit-glow)]/30'}`}
                           alt=""
                         />
                       ) : (
-                        <div className="w-10 h-10 rounded-full border border-[#d4af35]/30 bg-[#d4af35]/10 flex items-center justify-center text-sm font-bold text-[#d4af35]">
+                        <div className={`w-10 h-10 rounded-full border flex items-center justify-center text-sm font-bold ${
+                          isDark ? 'border-[#d4af35]/30 bg-[#d4af35]/10 text-[#d4af35]' : 'border-[var(--orbit-glow)]/30 bg-[var(--orbit-glow)]/10 text-[var(--orbit-glow)]'
+                        }`}>
                           {getInitials(lead?.name || null)}
                         </div>
                       )}
-                      <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 border-[#050505]" />
+                      <div className={`absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 ${isDark ? 'border-[#050505]' : 'border-white'}`} />
                     </div>
                     <div>
                       <p className="text-sm font-semibold">{lead?.name || "—"}</p>
                       <div className="relative">
                         <button
                           onClick={() => setShowStageDropdown(prev => !prev)}
-                          className="text-[10px] text-[#d4af35]/70 font-medium uppercase tracking-wider hover:text-[#d4af35] transition-colors cursor-pointer"
+                          className={`text-[10px] font-medium uppercase tracking-wider transition-colors cursor-pointer ${
+                            isDark ? 'text-[#d4af35]/70 hover:text-[#d4af35]' : 'text-[var(--orbit-glow)]/70 hover:text-[var(--orbit-glow)]'
+                          }`}
                         >
                           {humanStage(lead?.orbit_stage)}
                         </button>
                         {showStageDropdown && (
                           <div
-                            className="absolute top-6 left-0 z-50 bg-[#0a0a0c] border border-white/10 rounded-xl shadow-2xl p-2 flex flex-col gap-0.5 min-w-[180px]"
+                            className={`absolute top-6 left-0 z-50 border rounded-xl shadow-2xl p-2 flex flex-col gap-0.5 min-w-[180px] ${
+                              isDark ? 'bg-[#0a0a0c] border-white/10' : 'bg-white border-[var(--orbit-line)]'
+                            }`}
                             onMouseLeave={() => setShowStageDropdown(false)}
                           >
                             {Object.entries(STAGE_LABELS).filter(([k]) =>
@@ -1081,7 +1129,9 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
                                   setLead(prev => prev ? { ...prev, orbit_stage: key } : prev);
                                   setShowStageDropdown(false);
                                 }}
-                                className="text-left text-[11px] px-3 py-1.5 rounded-lg hover:bg-white/5 text-slate-300 hover:text-[#d4af35] transition-colors"
+                                className={`text-left text-[11px] px-3 py-1.5 rounded-lg transition-colors ${
+                                  isDark ? 'hover:bg-white/5 text-slate-300 hover:text-[#d4af35]' : 'hover:bg-[var(--orbit-bg-secondary)] text-[var(--orbit-text)] hover:text-[var(--orbit-glow)]'
+                                }`}
                               >
                                 {label}
                               </button>
@@ -1092,20 +1142,20 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
                     </div>
                   </div>
 
-                  <div className="h-7 w-px bg-white/10" />
+                   <div className={`h-7 w-px ${isDark ? 'bg-white/10' : 'bg-[var(--orbit-line)]'}`} />
 
                   <div>
-                    <p className="text-[9px] text-slate-500 uppercase tracking-widest font-bold">ORBIT 3.0</p>
-                    <p className="text-[9px] text-slate-600 uppercase tracking-tight">Cognitive Terminal</p>
+                    <p className={`text-[9px] uppercase tracking-widest font-bold ${isDark ? 'text-slate-500' : 'text-[var(--orbit-text-muted)]'}`}>ORBIT 3.0</p>
+                    <p className={`text-[9px] uppercase tracking-tight ${isDark ? 'text-slate-600' : 'text-[var(--orbit-text-muted)]/60'}`}>Cognitive Terminal</p>
                   </div>
                 </div>
 
                 {/* Center: 4 Cognitive Rings */}
                 <div className="flex items-center gap-7">
-                  <CognitiveRing value={cog?.interest_score ?? 0} label="Interesse" color="#d4af35" />
-                  <CognitiveRing value={cog?.momentum_score ?? 0} label="Momentum" color="#d4af35" />
+                  <CognitiveRing value={cog?.interest_score ?? 0} label="Interesse" color={ringGold} />
+                  <CognitiveRing value={cog?.momentum_score ?? 0} label="Momentum" color={ringGold} />
                   <CognitiveRing value={cog?.risk_score ?? 0} label="Risco" color="#ef4444" />
-                  <CognitiveRing value={cog?.clarity_level ?? 0} label="Clareza" color="#d4af35" />
+                  <CognitiveRing value={cog?.clarity_level ?? 0} label="Clareza" color={ringGold} />
                 </div>
 
                 {/* Right: last analysis */}
@@ -1137,23 +1187,23 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
                 {/* Memória */}
                 <div className={`${glass} rounded-xl p-5 flex flex-col gap-3`}>
                   <div className="flex items-center gap-2">
-                    <Brain className="w-4 h-4 text-[#d4af35]" />
-                    <h3 className="text-[10px] font-bold uppercase tracking-widest text-slate-300">Memória do Cliente</h3>
+                    <Brain className={`w-4 h-4 ${isDark ? 'text-[#d4af35]' : 'text-[var(--orbit-glow)]'}`} />
+                    <h3 className={`text-[10px] font-bold uppercase tracking-widest ${isDark ? 'text-slate-300' : 'text-[var(--orbit-text)]'}`}>Memória do Cliente</h3>
                   </div>
                   {profileMems.length === 0 ? (
-                    <p className="text-xs text-slate-600 italic">Nenhuma memória registrada ainda.</p>
+                    <p className={`text-xs italic ${isDark ? 'text-slate-600' : 'text-[var(--orbit-text-muted)]'}`}>Nenhuma memória registrada ainda.</p>
                   ) : (
                     <div className="space-y-2">
                       {profileMems.map(m => (
-                        <div key={m.id} className="bg-white/4 rounded-lg p-3 border border-white/5">
-                          <p className="text-[9px] uppercase text-slate-500 font-bold mb-1 tracking-wider">
+                        <div key={m.id} className={`rounded-lg p-3 border ${isDark ? 'bg-white/4 border-white/5' : 'bg-[var(--orbit-bg-secondary)] border-[var(--orbit-line)]'}`}>
+                          <p className={`text-[9px] uppercase font-bold mb-1 tracking-wider ${isDark ? 'text-slate-500' : 'text-[var(--orbit-text-muted)]'}`}>
                             {m.type.replace(/_/g, " ")}
                           </p>
-                          <p className="text-xs font-medium text-slate-200 leading-snug">{m.content}</p>
+                          <p className={`text-xs font-medium leading-snug ${isDark ? 'text-slate-200' : 'text-[var(--orbit-text)]'}`}>{m.content}</p>
                           {m.confidence && (
-                            <div className="mt-1.5 h-0.5 bg-white/5 rounded-full overflow-hidden">
+                            <div className={`mt-1.5 h-0.5 rounded-full overflow-hidden ${isDark ? 'bg-white/5' : 'bg-gray-200'}`}>
                               <div
-                                className="h-full bg-[#d4af35]/60 rounded-full"
+                                className={`h-full rounded-full ${isDark ? 'bg-[#d4af35]/60' : 'bg-[var(--orbit-glow)]/60'}`}
                                 style={{ width: `${m.confidence * 100}%` }}
                               />
                             </div>
@@ -1167,21 +1217,25 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
                 {/* Insights Cognitivos */}
                 <div className={`${glass} rounded-xl p-5 flex flex-col gap-3`}>
                   <div className="flex items-center gap-2">
-                    <Zap className="w-4 h-4 text-[#d4af35]" />
-                    <h3 className="text-[10px] font-bold uppercase tracking-widest text-slate-300">Insights Cognitivos</h3>
+                    <Zap className={`w-4 h-4 ${isDark ? 'text-[#d4af35]' : 'text-[var(--orbit-glow)]'}`} />
+                    <h3 className={`text-[10px] font-bold uppercase tracking-widest ${isDark ? 'text-slate-300' : 'text-[var(--orbit-text)]'}`}>Insights Cognitivos</h3>
                   </div>
                   {topInsight ? (
                     <div className="space-y-3">
-                      <div className="p-3 border-l-2 border-[#d4af35] bg-[#d4af35]/5 rounded-r-lg">
-                        <p className="text-xs text-slate-200 leading-relaxed">{topInsight.content}</p>
-                        <p className="text-[10px] text-[#d4af35]/60 mt-1.5 font-bold uppercase tracking-wider">
+                      <div className={`p-3 border-l-2 rounded-r-lg ${
+                        isDark ? 'border-[#d4af35] bg-[#d4af35]/5' : 'border-[var(--orbit-glow)] bg-[var(--orbit-glow)]/5'
+                      }`}>
+                        <p className={`text-xs leading-relaxed ${isDark ? 'text-slate-200' : 'text-[var(--orbit-text)]'}`}>{topInsight.content}</p>
+                        <p className={`text-[10px] mt-1.5 font-bold uppercase tracking-wider ${
+                          isDark ? 'text-[#d4af35]/60' : 'text-[var(--orbit-glow)]/70'
+                        }`}>
                           Urgência: {topInsight.urgency}%
                         </p>
                       </div>
                       {insights.length > 1 && (
                         <div className="space-y-1.5">
                           {insights.slice(1).map(ins => (
-                            <div key={ins.id} className="text-[11px] text-slate-500 pl-2 border-l border-white/5">
+                            <div key={ins.id} className={`text-[11px] pl-2 border-l ${isDark ? 'text-slate-500 border-white/5' : 'text-[var(--orbit-text-muted)] border-[var(--orbit-line)]'}`}>
                               {ins.content.slice(0, 80)}…
                             </div>
                           ))}
@@ -1189,7 +1243,7 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
                       )}
                     </div>
                   ) : (
-                    <p className="text-xs text-slate-600 italic">Sem insights recentes.</p>
+                    <p className={`text-xs italic ${isDark ? 'text-slate-600' : 'text-[var(--orbit-text-muted)]'}`}>Sem insights recentes.</p>
                   )}
 
                   {/* NOVO: Conflito Central e What Not To Do */}
@@ -1220,8 +1274,8 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
                 <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-4 custom-scrollbar min-h-0">
                   {messages.length === 0 ? (
                     <div className="flex-1 flex flex-col items-center justify-center gap-3 opacity-30">
-                      <Brain className="w-10 h-10 text-[#d4af35]/40" />
-                      <p className="text-sm text-slate-500 font-mono">Nenhuma interação registrada</p>
+                      <Brain className={`w-10 h-10 ${isDark ? 'text-[#d4af35]/40' : 'text-[var(--orbit-glow)]/40'}`} />
+                      <p className={`text-sm font-mono ${isDark ? 'text-slate-500' : 'text-[var(--orbit-text-muted)]'}`}>Nenhuma interação registrada</p>
                     </div>
                   ) : (
                     messages.map((msg, idx) => (
@@ -1267,19 +1321,27 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
                     <button
                       onClick={handleFileAttach}
                       title="Anexar imagem ou arquivo"
-                      className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 hover:text-[#d4af35] hover:border-[#d4af35]/30 transition-all shrink-0 mb-[1px]"
+                      className={`w-9 h-9 rounded-full flex items-center justify-center transition-all shrink-0 mb-[1px] ${
+                        isDark 
+                          ? 'bg-white/5 border border-white/10 text-slate-400 hover:text-[#d4af35] hover:border-[#d4af35]/30' 
+                          : 'bg-white border border-[var(--orbit-line)] text-[var(--orbit-text-muted)] hover:text-[var(--orbit-glow)] hover:border-[var(--orbit-glow)]/30 shadow-sm'
+                      }`}
                     >
                       <Paperclip className="w-4 h-4" />
                     </button>
 
-                    {/* Attach property */}
+                    {/* Attach property */ }
                     <button
                       onClick={() => {
                         const url = `/atlas?leadId=${lead?.id}&tab=acervo`;
                         window.open(url, "_blank");
                       }}
                       title="Anexar imóvel"
-                      className="w-9 h-9 rounded-full border bg-white/5 border-white/10 flex items-center justify-center text-slate-400 hover:text-[#d4af35] hover:border-[#d4af35]/30 transition-all shrink-0 mb-[1px]"
+                      className={`w-9 h-9 rounded-full border flex items-center justify-center transition-all shrink-0 mb-[1px] ${
+                        isDark 
+                          ? 'bg-white/5 border border-white/10 text-slate-400 hover:text-[#d4af35] hover:border-[#d4af35]/30' 
+                          : 'bg-white border border-[var(--orbit-line)] text-[var(--orbit-text-muted)] hover:text-[var(--orbit-glow)] hover:border-[var(--orbit-glow)]/30 shadow-sm'
+                      }`}
                     >
                       <Building2 className="w-4 h-4" />
                     </button>
@@ -1292,8 +1354,8 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
                           onClick={() => setInteractionMode("whatsapp")}
                           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all ${
                             interactionMode === "whatsapp" 
-                              ? "bg-[#2ec5ff] text-black shadow-[0_0_12px_rgba(46,197,255,0.4)]" 
-                              : "text-slate-400 hover:text-white"
+                              ? isDark ? "bg-[#2ec5ff] text-black shadow-[0_0_12px_rgba(46,197,255,0.4)]" : "bg-[var(--orbit-glow)] text-white shadow-sm"
+                              : isDark ? "text-slate-400 hover:text-white" : "text-[var(--orbit-text-muted)] hover:text-[var(--orbit-glow)]"
                           }`}
                         >
                           <Zap className="w-3 h-3" /> WhatsApp
@@ -1302,8 +1364,8 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
                           onClick={() => setInteractionMode("note")}
                           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all ${
                             interactionMode === "note" 
-                              ? "bg-[#d4af35] text-black shadow-[0_0_12px_rgba(212,175,53,0.4)]" 
-                              : "text-slate-400 hover:text-white"
+                              ? isDark ? "bg-[#d4af35] text-black shadow-[0_0_12px_rgba(212,175,53,0.4)]" : "bg-[var(--orbit-glow)] text-white shadow-sm"
+                              : isDark ? "text-slate-400 hover:text-white" : "text-[var(--orbit-text-muted)] hover:text-[var(--orbit-glow)]"
                           }`}
                         >
                           <Star className="w-3 h-3" /> Anotação
@@ -1312,8 +1374,8 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
                           onClick={() => setInteractionMode("call")}
                           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all ${
                             interactionMode === "call" 
-                              ? "bg-emerald-500 text-black shadow-[0_0_12px_rgba(16,185,129,0.4)]" 
-                              : "text-slate-400 hover:text-white"
+                              ? isDark ? "bg-emerald-500 text-black shadow-[0_0_12px_rgba(16,185,129,0.4)]" : "bg-emerald-500 text-white shadow-sm"
+                              : isDark ? "text-slate-400 hover:text-white" : "text-[var(--orbit-text-muted)] hover:text-emerald-500"
                           }`}
                         >
                           <Mic className="w-3 h-3" /> Ligação
@@ -1397,10 +1459,10 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
                       title={isRecording ? "Parar gravação" : "Gravar áudio"}
                       className={`w-9 h-9 rounded-full border flex items-center justify-center transition-all shrink-0 mb-[2px] ${
                         isTranscribing
-                          ? "bg-[#2ec5ff]/80 border-[#2ec5ff] text-white"
+                          ? isDark ? "bg-[#2ec5ff]/80 border-[#2ec5ff] text-white" : "bg-[var(--orbit-glow)] border-[var(--orbit-glow)] text-white"
                           : isRecording
                             ? "bg-red-500 border-red-500 text-white animate-pulse"
-                            : "bg-white/5 border-white/10 text-slate-400 hover:text-white hover:border-white/30"
+                            : isDark ? "bg-white/5 border-white/10 text-slate-400 hover:text-white hover:border-white/30" : "bg-white border-[var(--orbit-line)] text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)] hover:border-[var(--orbit-glow)]/40 shadow-sm"
                       }`}
                     >
                       {isTranscribing ? <Loader2 className="w-4 h-4 animate-spin" /> : 
@@ -1414,8 +1476,9 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
                       disabled={!composerText.trim() || sendStatus === "sending" || isRecording}
                       className={`w-9 h-9 rounded-full flex items-center justify-center transition-all shrink-0 mb-[2px] ${
                         sendStatus === "done" ? "bg-emerald-500 text-black" :
-                        composerText.trim() && !isRecording ? "bg-[#d4af35] text-black shadow-[0_0_14px_rgba(212,175,53,0.3)]" :
-                        "bg-white/5 text-white/20"
+                        composerText.trim() && !isRecording 
+                          ? isDark ? "bg-[#d4af35] text-black shadow-[0_0_14px_rgba(212,175,53,0.3)]" : "bg-[var(--orbit-glow)] text-white shadow-[var(--orbit-shadow)]"
+                          : isDark ? "bg-white/5 text-white/20" : "bg-gray-100 text-gray-400"
                       }`}
                     >
                       {sendStatus === "sending" ? <Loader2 className="w-4 h-4 animate-spin" /> :
@@ -1424,7 +1487,7 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
                     </button>
                   </div>
 
-                  <p className="text-[9px] text-center text-slate-700 mt-2 tracking-widest uppercase">
+                  <p className={`text-[9px] text-center mt-2 tracking-widest uppercase ${isDark ? 'text-slate-700' : 'text-[var(--orbit-text-muted)]'}`}>
                     {lead?.phone ? `WhatsApp · ${lead.phone}` : "Sem número — gravando internamente"}
                   </p>
                 </div>
@@ -1440,22 +1503,24 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
                 {/* Seções da direita originais... vamos garantir padding correto */}
                 <div className="p-4 flex flex-col gap-4">
                   {/* Próxima Melhor Ação */}
-                  <div className={`${glass} border-[#d4af35]/15 border rounded-xl p-5`}>
+                  <div className={`${glass} border rounded-xl p-5 ${isDark ? 'border-[#d4af35]/15' : 'border-[var(--orbit-line)]'}`}>
                     <div className="flex items-center gap-2 mb-4">
-                      <Star className="w-4 h-4 text-[#d4af35]" />
-                      <h3 className="text-[10px] font-bold uppercase tracking-widest text-slate-300">Próxima Melhor Ação</h3>
+                      <Star className={`w-4 h-4 ${isDark ? 'text-[#d4af35]' : 'text-[var(--orbit-glow)]'}`} />
+                      <h3 className={`text-[10px] font-bold uppercase tracking-widest ${isDark ? 'text-slate-300' : 'text-[var(--orbit-text)]'}`}>Próxima Melhor Ação</h3>
                     </div>
 
                     {lead?.action_suggested ? (
-                    <div className="p-3 bg-[#d4af35]/8 border border-[#d4af35]/15 rounded-lg mb-4">
-                      <p className="text-sm font-semibold text-[#d4af35] mb-1 leading-snug">
+                    <div className={`p-3 border rounded-lg mb-4 ${
+                      isDark ? 'bg-[#d4af35]/8 border-[#d4af35]/15' : 'bg-[var(--orbit-glow)]/5 border-[var(--orbit-glow)]/10'
+                    }`}>
+                      <p className={`text-sm font-semibold mb-1 leading-snug ${isDark ? 'text-[#d4af35]' : 'text-[var(--orbit-glow)]'}`}>
                         {cog?.current_state === "deciding" ? "🎯 Acionar Agora" : "💡 Ação Recomendada"}
                       </p>
-                      <p className="text-[11px] text-slate-300 leading-relaxed">{lead.action_suggested || "Nenhuma ação sugerida"}</p>
+                      <p className={`text-[11px] leading-relaxed ${isDark ? 'text-slate-300' : 'text-[var(--orbit-text)]'}`}>{lead.action_suggested || "Nenhuma ação sugerida"}</p>
                     </div>
                   ) : (
-                    <div className="p-3 bg-white/3 border border-white/5 rounded-lg mb-4">
-                      <p className="text-[11px] text-slate-600 italic">Aguardando dados suficientes para recomenda …</p>
+                    <div className={`p-3 border rounded-lg mb-4 ${isDark ? 'bg-white/3 border-white/5' : 'bg-gray-50 border-[var(--orbit-line)]'}`}>
+                      <p className={`text-[11px] italic ${isDark ? 'text-slate-600' : 'text-[var(--orbit-text-muted)]'}`}>Aguardando dados suficientes para recomenda …</p>
                     </div>
                   )}
 
@@ -1467,13 +1532,17 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
                         const text = aiSuggestion ? encodeURIComponent(aiSuggestion) : "";
                         window.open(`https://wa.me/${phone}${text ? `?text=${text}` : ""}`, "_blank");
                       }}
-                      className="w-full bg-[#d4af35] py-2.5 rounded-lg text-black font-bold text-[10px] uppercase tracking-widest hover:brightness-110 transition-all"
+                      className={`w-full py-2.5 rounded-lg font-bold text-[10px] uppercase tracking-widest transition-all ${
+                        isDark ? 'bg-[#d4af35] text-black hover:brightness-110' : 'bg-[var(--orbit-glow)] text-white hover:brightness-110 shadow-sm'
+                      }`}
                     >
                       Abrir WhatsApp
                     </button>
                     <button
                       onClick={() => { if (aiSuggestion) setComposerText(aiSuggestion); }}
-                      className="w-full bg-white/5 border border-white/10 py-2.5 rounded-lg text-slate-300 font-bold text-[10px] uppercase tracking-widest hover:bg-white/10 transition-all"
+                      className={`w-full border py-2.5 rounded-lg font-bold text-[10px] uppercase tracking-widest transition-all ${
+                        isDark ? 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10' : 'bg-white border-[var(--orbit-line)] text-[var(--orbit-text)] hover:bg-gray-50 shadow-sm'
+                      }`}
                     >
                       Usar Sugestão da IA
                     </button>
@@ -1491,13 +1560,17 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
 
             {/* Footer status bar (Hidden on mobile to save space) */}
             <div className="hidden md:flex px-6 pb-3 items-center gap-3 shrink-0">
-              <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-black/40 border border-white/5">
-                <div className="w-1.5 h-1.5 rounded-full bg-[#d4af35] animate-pulse" />
-                <span className="text-[9px] uppercase tracking-[0.2em] font-bold text-slate-500">Atlas Neural Network Linked</span>
+              <div className={`flex items-center gap-2 px-3 py-1 rounded-full border ${
+                isDark ? 'bg-black/40 border-white/5' : 'bg-gray-100/50 border-[var(--orbit-line)]'
+              }`}>
+                <div className={`w-1.5 h-1.5 rounded-full animate-pulse ${isDark ? 'bg-[#d4af35]' : 'bg-[var(--orbit-glow)]'}`} />
+                <span className={`text-[9px] uppercase tracking-[0.2em] font-bold ${isDark ? 'text-slate-500' : 'text-[var(--orbit-text-muted)]'}`}>Atlas Neural Network Linked</span>
               </div>
               {lead?.last_interaction_at && (
-                <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-black/40 border border-white/5">
-                  <span className="text-[9px] text-slate-600">
+                <div className={`flex items-center gap-2 px-3 py-1 rounded-full border ${
+                  isDark ? 'bg-black/40 border-white/5' : 'bg-gray-100/50 border-[var(--orbit-line)]'
+                }`}>
+                  <span className={`text-[9px] ${isDark ? 'text-slate-600' : 'text-[var(--orbit-text-muted)]'}`}>
                     Último contato: {new Date(lead.last_interaction_at).toLocaleString("pt-BR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
                   </span>
                 </div>
