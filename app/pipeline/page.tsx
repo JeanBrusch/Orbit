@@ -5,7 +5,7 @@ import { getSupabase } from "@/lib/supabase";
 import { TopBar } from "@/components/top-bar";
 import { OrbitProvider } from "@/components/orbit-context";
 import { useTheme } from "next-themes";
-import { Columns, RefreshCw, X, MessageSquare, Phone, MoreHorizontal, AlertTriangle, ArrowRight, ArrowUp, ArrowDown } from "lucide-react";
+import { Columns, RefreshCw, X, MessageSquare, Phone, MoreHorizontal, AlertTriangle, ArrowRight, ArrowUp, ArrowDown, ArrowLeft } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { LeadFocusPanel } from "@/components/lead-focus-panel"; // Usamos isso para detalhe se quisermos o painel todo, ou construímos o mini-drawer no arquivo?
@@ -242,7 +242,10 @@ export default function PipelinePage() {
         
         {/* HEADER */}
         <div className="px-4 md:px-6 py-4 shrink-0 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[var(--orbit-glass-border)] bg-[var(--orbit-bg)]">
-          <div>
+          <div className="flex items-center gap-3">
+            <button onClick={() => router.push("/")} className="p-1.5 rounded-lg bg-[var(--orbit-glass)] border border-[var(--orbit-glass-border)] text-slate-400 hover:text-white transition-all">
+              <ArrowLeft className="w-4 h-4" />
+            </button>
             <h1 className="text-lg md:text-xl font-bold flex items-center gap-2">
               <Columns className="w-5 h-5 text-[#d4af35]" />
               Pipeline

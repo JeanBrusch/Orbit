@@ -42,8 +42,10 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
   const theme = space.theme || "paper"
   const [selectedItem, setSelectedItem] = useState<SelectionItem | null>(null)
   const [interactions, setInteractions] = useState<Record<string, string[]>>(initialInteractions || {})
-  const [questionText, setQuestionText] = useState<Record<string, string>>({})
-  const [isSubmitting, setIsSubmitting] = useState<Record<string, boolean>>({})
+  const [questionText, setQuestionText] = useState<string>("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isChatOpen, setIsChatOpen] = useState(false)
+  const [chatContext, setChatContext] = useState<SelectionItem | null>(null)
 
   // ── Session tracking ─────────────────────────────────────────────────────────
   const sessionStartRef = useRef<number>(Date.now())
@@ -236,11 +238,11 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lead?.id])
 
-  const handleAskQuestion = async (item: SelectionItem) => {
-    const text = questionText[item.id]?.trim()
+  const handleAskQuestion = async (item?: SelectionItem | null) => {
+    const text = questionText.trim()
     if (!text) return
 
-    setIsSubmitting(prev => ({ ...prev, [item.id]: true }))
+    setIsSubmitting(true)
 
     try {
       const response = await fetch('/api/property-interactions', {
@@ -248,11 +250,11 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           leadId: lead?.id,
-          propertyId: item.id,
+          propertyId: item?.id || items[0]?.id,
           interaction_type: 'property_question',
           source: 'client_portal',
-          propertyTitle: item.title,
-          propertyCover: item.coverImage,
+          propertyTitle: item?.title || 'Dúvida Geral',
+          propertyCover: item?.coverImage,
           text: text
         })
       })
@@ -260,12 +262,14 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
       if (!response.ok) throw new Error("Falha ao enviar pergunta")
       
       toast.success("Pergunta enviada ao consultor!")
-      setQuestionText(prev => ({ ...prev, [item.id]: "" }))
+      setQuestionText("")
+      // Close chat after a short delay if it was a general question or just leave it open?
+      // For UX, better to clear text and maybe close drawer or show a success state.
     } catch (err: any) {
       toast.error("Erro ao enviar pergunta")
       console.error(err)
     } finally {
-      setIsSubmitting(prev => ({ ...prev, [item.id]: false }))
+      setIsSubmitting(false)
     }
   }
 
@@ -301,7 +305,7 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
         <main className="max-w-[1100px] mx-auto pt-[58px]">
           <div className="pb-20">
             {/* HERO */}
-            <section className="px-[72px] pt-[72px] pb-[56px] fu fu1">
+            <section className="px-6 lg:px-[72px] pt-[72px] pb-[56px] fu fu1">
               <div className="flex items-center gap-[10px] mb-5">
                 <div className="w-7 h-[1px] bg-[var(--ink4)]" />
                 <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--ink4)]">orbit.house / {firstName.toLowerCase()} · espaço privado</span>
@@ -317,7 +321,7 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
             </section>
 
             {/* INSIGHT BAR */}
-            <section className="mx-[72px] mb-[56px] bg-[var(--cream)] border border-[var(--gold-bd)] rounded-[16px] p-[22px_28px] flex items-center gap-6 fu fu2">
+            <section className="mx-6 lg:mx-[72px] mb-[56px] bg-[var(--cream)] border border-[var(--gold-bd)] rounded-[16px] p-[22px_28px] flex items-center gap-6 fu fu2">
               <div className="w-10 h-10 rounded-[10px] bg-[var(--gold-bg)] border border-[var(--gold-bd)] flex items-center justify-center text-lg shrink-0">
                 ✦
               </div>
@@ -334,7 +338,7 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
             </section>
 
             {/* MAIN GRID */}
-            <section className="px-[72px] pb-[72px]">
+            <section className="px-6 lg:px-[72px] pb-[72px]">
               <div className="flex items-baseline justify-between mb-8 pb-[18px] border-bottom border-[rgba(28,24,18,0.08)]">
                 <h2 className="text-[30px] font-serif font-normal tracking-[-0.01em]">Casas que selecionei para você</h2>
                 <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink4)]">curadas · não filtradas</span>
@@ -424,22 +428,16 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
                         </button>
                       </div>
 
-                      {/* Quick Question */}
-                      <div className="relative group/q">
-                        <textarea 
-                          value={questionText[item.id] || ""}
-                          onChange={e => setQuestionText(prev => ({ ...prev, [item.id]: e.target.value }))}
-                          placeholder="Alguma dúvida sobre este imóvel?"
-                          className="w-full bg-[var(--paper2)] border border-[rgba(28,24,18,0.08)] rounded-xl p-3 text-xs outline-none focus:border-[var(--gold)] transition-all resize-none h-[70px]"
-                        />
-                        <button 
-                          onClick={() => handleAskQuestion(item)}
-                          disabled={!questionText[item.id]?.trim() || isSubmitting[item.id]}
-                          className="absolute bottom-2 right-2 p-1.5 bg-[var(--gold)] text-white rounded-lg opacity-0 group-focus-within/q:opacity-100 disabled:opacity-30 transition-all hover:bg-[var(--gold2)]"
-                        >
-                          <Send size={14} />
-                        </button>
-                      </div>
+                      {/* Quick Question Button */}
+                      <button 
+                        onClick={() => {
+                          setChatContext(item)
+                          setIsChatOpen(true)
+                        }}
+                        className="w-full py-2.5 rounded-xl border border-[var(--gold)]/30 text-[var(--gold)] text-xs font-medium hover:bg-[var(--gold-bg)] transition-all flex items-center justify-center gap-2"
+                      >
+                        <MessageSquare size={14} /> Tem uma dúvida?
+                      </button>
                     </div>
                   </motion.div>
                 ))}
@@ -447,7 +445,7 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
             </section>
 
             {/* COMPARISON PLACEHOLDER */}
-            <section className="mx-[72px] mb-[72px] bg-white border border-[rgba(28,24,18,0.08)] rounded-[20px] overflow-hidden">
+            <section className="mx-6 lg:mx-[72px] mb-[72px] bg-white border border-[rgba(28,24,18,0.08)] rounded-[20px] overflow-hidden">
               <div className="p-[24px_28px] border-b border-[rgba(28,24,18,0.07)] flex items-baseline justify-between">
                 <h3 className="text-[22px] font-serif font-normal text-[var(--ink)]">Destaques da Curadoria</h3>
                 <span className="text-xs text-[var(--ink4)]">Comparativo técnico</span>
@@ -579,28 +577,16 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
                       </button>
                     </div>
 
-                    <div className="bg-[var(--paper2)] rounded-2xl p-6 border border-[rgba(28,24,18,0.05)]">
-                      <div className="flex items-center gap-2 mb-4">
-                        <MessageSquare size={16} className="text-[var(--gold)]" />
-                        <h4 className="font-mono text-[10px] uppercase tracking-widest text-[var(--gold)] font-medium">Dúvida sobre o imóvel?</h4>
-                      </div>
-                      <div className="relative">
-                        <textarea 
-                          value={questionText[selectedItem.id] || ""}
-                          onChange={e => setQuestionText(prev => ({ ...prev, [selectedItem.id]: e.target.value }))}
-                          placeholder="Pergunte ao seu consultor especializado..."
-                          className="w-full bg-[var(--paper)] border border-[rgba(28,24,18,0.08)] rounded-xl p-4 text-sm outline-none focus:border-[var(--gold)] transition-all resize-none h-[100px]"
-                        />
-                        <button 
-                          onClick={() => handleAskQuestion(selectedItem)}
-                          disabled={!questionText[selectedItem.id]?.trim() || isSubmitting[selectedItem.id]}
-                          className="mt-3 w-full py-3 bg-[var(--ink)] text-[var(--paper)] rounded-xl text-xs font-medium hover:bg-[#2d2920] transition-all flex items-center justify-center gap-2 disabled:opacity-40"
-                        >
-                          <Send size={14} />
-                          {isSubmitting[selectedItem.id] ? "Enviando..." : "Enviar Pergunta"}
-                        </button>
-                      </div>
-                    </div>
+                    <button 
+                      onClick={() => {
+                        setChatContext(selectedItem)
+                        setIsChatOpen(true)
+                      }}
+                      className="w-full py-4 rounded-xl border-2 border-[var(--gold)]/50 text-[var(--gold)] text-sm font-bold hover:bg-[var(--gold-bg)] transition-all flex items-center justify-center gap-2"
+                    >
+                      <MessageSquare size={18} />
+                      Tirar dúvida sobre este imóvel
+                    </button>
 
                     <button 
                       onClick={() => handleWhatsApp(selectedItem)}
@@ -625,6 +611,123 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
                 </div>
               </motion.div>
             </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* FLOATING ACTION BUTTON (FAB) */}
+        <button 
+          onClick={() => {
+            setChatContext(null)
+            setIsChatOpen(true)
+          }}
+          className="fixed bottom-6 right-6 z-[400] w-14 h-14 rounded-full bg-[var(--gold)] text-[#0a0907] shadow-2xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all group lg:bottom-10 lg:right-10"
+          title="Falar com consultor"
+        >
+          <div className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-[var(--paper)] animate-pulse" />
+          <MessageSquare size={24} className="group-hover:rotate-12 transition-transform" />
+        </button>
+
+        {/* SELECTION CHAT PANEL (Drawer) */}
+        <AnimatePresence>
+          {isChatOpen && (
+            <>
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setIsChatOpen(false)}
+                className="fixed inset-0 z-[600] bg-black/40 backdrop-blur-sm lg:backdrop-blur-[2px]"
+              />
+              <motion.div 
+                initial={{ x: "100%" }}
+                animate={{ x: 0 }}
+                exit={{ x: "100%" }}
+                transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                className="fixed top-0 right-0 bottom-0 z-[700] w-full max-w-md bg-[var(--paper)] shadow-2xl flex flex-col border-l border-[var(--selection-border)]"
+              >
+                {/* Chat Header */}
+                <div className="p-6 border-b border-[var(--selection-border)] flex items-center justify-between bg-[var(--gold-bg)]">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-[var(--gold)]/20 flex items-center justify-center text-[var(--gold)]">
+                      <Sparkles size={20} />
+                    </div>
+                    <div>
+                      <h3 className="font-serif text-lg text-[var(--ink)]">Orbit Assistant</h3>
+                      <p className="text-[10px] font-mono uppercase tracking-widest text-[var(--gold)]">Especialista disponível</p>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => setIsChatOpen(false)}
+                    className="w-10 h-10 rounded-full flex items-center justify-center text-[var(--ink3)] hover:bg-black/5 transition-colors"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+
+                {/* Chat Body */}
+                <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                  <div className="bg-[var(--paper2)] p-4 rounded-2xl border border-[var(--selection-border)]">
+                    <p className="text-sm text-[var(--ink2)] leading-relaxed">
+                      Olá {firstName}! Sou seu consultor Orbit. Como posso ajudar você hoje? Se tiver dúvida sobre algum dos imóveis selecionados, pode perguntar por aqui.
+                    </p>
+                  </div>
+
+                  {chatContext && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="p-3 rounded-xl border border-[var(--gold)]/30 bg-[var(--gold-bg)] flex items-center gap-3"
+                    >
+                      <div className="w-12 h-12 rounded-lg overflow-hidden shrink-0 border border-[var(--gold)]/20">
+                        {chatContext.coverImage ? (
+                          <img src={chatContext.coverImage} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full bg-black/5 flex items-center justify-center">🏢</div>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[9px] font-mono uppercase text-[var(--gold2)] font-bold">Em foco</p>
+                        <p className="text-[13px] text-[var(--ink)] font-medium truncate">{chatContext.title}</p>
+                      </div>
+                      <button 
+                        onClick={() => setChatContext(null)}
+                        className="text-[var(--ink4)] hover:text-[var(--ink2)]"
+                      >
+                        <X size={14} />
+                      </button>
+                    </motion.div>
+                  )}
+                </div>
+
+                {/* Chat Composer */}
+                <div className="p-6 border-t border-[var(--selection-border)] bg-[var(--paper2)]">
+                  <div className="relative">
+                    <textarea 
+                      value={questionText}
+                      onChange={e => setQuestionText(e.target.value)}
+                      placeholder={chatContext ? "Sua dúvida sobre este imóvel..." : "Escreva sua mensagem..."}
+                      className="w-full bg-[var(--paper)] border border-[var(--selection-border)] rounded-2xl p-4 pr-12 text-sm outline-none focus:border-[var(--gold)] transition-all resize-none h-32 shadow-inner"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault()
+                          handleAskQuestion(chatContext)
+                        }
+                      }}
+                    />
+                    <button 
+                      onClick={() => handleAskQuestion(chatContext)}
+                      disabled={!questionText.trim() || isSubmitting}
+                      className="absolute bottom-4 right-4 w-10 h-10 rounded-xl bg-[var(--gold)] text-[#0a0907] flex items-center justify-center hover:scale-105 active:scale-95 disabled:opacity-30 transition-all shadow-md"
+                    >
+                      <Send size={18} />
+                    </button>
+                  </div>
+                  <p className="mt-3 text-[10px] text-[var(--ink4)] text-center font-mono uppercase tracking-widest">
+                    Resposta em poucos minutos
+                  </p>
+                </div>
+              </motion.div>
+            </>
           )}
         </AnimatePresence>
       </div>

@@ -67,7 +67,7 @@ interface AiInsight {
 
 interface Message {
   id: string
-  source: "whatsapp" | "operator"
+  source: "whatsapp" | "operator" | "client_portal"
   content: string | null
   timestamp: string
   ai_analysis: any | null
@@ -1008,7 +1008,7 @@ export default function LeadTerminalPage({ params }: { params: Promise<{ id: str
       </main>
 
       {/* ── Footer status bar ──────────────────────────────────────────────── */}
-      <div className="fixed bottom-4 left-6 z-20 flex gap-3">
+      <div className="fixed bottom-4 left-6 z-20 hidden lg:flex gap-3">
         <div className="bg-[rgba(20,20,20,0.8)] backdrop-blur-xl px-3 py-1.5 rounded-full flex items-center gap-2 border border-white/8">
           <div className="w-1.5 h-1.5 rounded-full bg-[#d4af35] animate-pulse" />
           <span className="text-[9px] uppercase tracking-[0.2em] font-bold text-slate-400">Atlas Neural Network Linked</span>

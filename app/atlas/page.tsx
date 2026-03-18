@@ -161,7 +161,8 @@ function AtlasManagerContent() {
   const [ingestStep, setIngestStep] = useState<"url" | "review">("url")
   
   const [scrapedData, setScrapedData] = useState<any>({
-    title: "", image: "", value: "", condo_name: "", payment: ""
+    title: "", image: "", value: "", condo_name: "", payment: "",
+    source_link: "", source_domain: "", bedrooms: "", suites: "", area_privativa: ""
   })
 
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null)
@@ -220,12 +221,14 @@ function AtlasManagerContent() {
         city: data.city || "",
         area_privativa: data.area_privativa || null,
         bedrooms: data.bedrooms || null,
-        suites: data.suites || null,
-        parking_spots: data.parking_spots || null,
-        condo_fee: data.condo_fee || null,
-        iptu: data.iptu || null,
+        suites: data.suites || "",
+        parking_spots: data.parking_spots || "",
+        condo_fee: data.condo_fee || "",
+        iptu: data.iptu || "",
         features: data.features || [],
-        payment: ""
+        payment: "",
+        source_link: data.sourceLink || ingestUrl,
+        source_domain: data.sourceDomain || ""
       })
       setIngestStep("review")
       setIngestStatus("idle")
@@ -247,14 +250,16 @@ function AtlasManagerContent() {
         value: parseFloat(scrapedData.value) || null,
         neighborhood: scrapedData.neighborhood || null,
         city: scrapedData.city || null,
-        area_privativa: scrapedData.area_privativa || null,
-        bedrooms: scrapedData.bedrooms || null,
-        suites: scrapedData.suites || null,
-        parking_spots: scrapedData.parking_spots || null,
-        condo_fee: scrapedData.condo_fee || null,
-        iptu: scrapedData.iptu || null,
+        area_privativa: parseFloat(scrapedData.area_privativa) || null,
+        bedrooms: parseInt(scrapedData.bedrooms) || null,
+        suites: parseInt(scrapedData.suites) || null,
+        parking_spots: parseInt(scrapedData.parking_spots) || null,
+        condo_fee: parseFloat(scrapedData.condo_fee) || null,
+        iptu: parseFloat(scrapedData.iptu) || null,
         features: scrapedData.features || [],
-        payment_conditions: scrapedData.payment ? { custom: scrapedData.payment } : null
+        payment_conditions: scrapedData.payment ? { custom: scrapedData.payment } : null,
+        source_link: scrapedData.source_link,
+        source_domain: scrapedData.source_domain
       }
 
       const { data, error } = await (supabase.from("properties") as any).insert([payload]).select().single()
@@ -930,17 +935,32 @@ function AtlasManagerContent() {
                     </div>
 
                     <div className="grid grid-cols-3 gap-3 md:col-span-2">
-                      <div className="p-3 bg-[#2ec5ff]/5 rounded-xl border border-[rgba(46,197,255,0.1)] text-center">
-                        <span className="text-[8px] font-mono uppercase text-[#94a3b8]">Dorms</span>
-                        <p className="text-sm font-bold text-[#e6eef6]">{scrapedData.bedrooms || '-'}</p>
+                      <div className="space-y-1">
+                        <label className="text-[8px] font-mono uppercase text-[#94a3b8]">Dorms</label>
+                        <Input 
+                          type="number"
+                          value={scrapedData.bedrooms}
+                          onChange={(e) => setScrapedData({...scrapedData, bedrooms: e.target.value})}
+                          className="h-9 bg-[#2ec5ff]/5 border border-[rgba(46,197,255,0.1)] text-center text-xs font-bold"
+                        />
                       </div>
-                      <div className="p-3 bg-[#2ec5ff]/5 rounded-xl border border-[rgba(46,197,255,0.1)] text-center">
-                        <span className="text-[8px] font-mono uppercase text-[#94a3b8]">Suítes</span>
-                        <p className="text-sm font-bold text-[#e6eef6]">{scrapedData.suites || '-'}</p>
+                      <div className="space-y-1">
+                        <label className="text-[8px] font-mono uppercase text-[#94a3b8]">Suítes</label>
+                        <Input 
+                          type="number"
+                          value={scrapedData.suites}
+                          onChange={(e) => setScrapedData({...scrapedData, suites: e.target.value})}
+                          className="h-9 bg-[#2ec5ff]/5 border border-[rgba(46,197,255,0.1)] text-center text-xs font-bold"
+                        />
                       </div>
-                      <div className="p-3 bg-[#2ec5ff]/5 rounded-xl border border-[rgba(46,197,255,0.1)] text-center">
-                        <span className="text-[8px] font-mono uppercase text-[#94a3b8]">Área</span>
-                        <p className="text-sm font-bold text-[#e6eef6]">{scrapedData.area_privativa ? `${scrapedData.area_privativa}m²` : '-'}</p>
+                      <div className="space-y-1">
+                        <label className="text-[8px] font-mono uppercase text-[#94a3b8]">Área (m²)</label>
+                        <Input 
+                          type="number"
+                          value={scrapedData.area_privativa}
+                          onChange={(e) => setScrapedData({...scrapedData, area_privativa: e.target.value})}
+                          className="h-9 bg-[#2ec5ff]/5 border border-[rgba(46,197,255,0.1)] text-center text-xs font-bold"
+                        />
                       </div>
                     </div>
                   </div>
