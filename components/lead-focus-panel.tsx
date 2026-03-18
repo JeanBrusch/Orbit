@@ -59,7 +59,6 @@ function formatValue(value: number | null): string {
 }
 import { LeadMemory } from "./lead-memory";
 import { getSupabase } from "@/lib/supabase";
-import { normalizePhone } from "@/lib/phone-utils";
 
 export type LeadInternalState = "priority" | "focus" | "resolved" | "default";
 
@@ -203,7 +202,11 @@ export function LeadFocusPanel({
   const {
     messages,
     propertyInteractions,
-    loading: loadingDetails,
+    memories,
+    insights,
+    cognitiveState,
+    internalNote,
+    loading: loadingLeadDetails,
     refetch: refetchDetails,
   } = useLeadDetails(leadId);
   const [inputValue, setInputValue] = useState("");
@@ -293,6 +296,8 @@ export function LeadFocusPanel({
   // Cognitive State helpers
   const {
     invokeAtlasMap,
+    leadStates,
+    updateLeadState,
   } = useOrbitContext();
 
   const hasCapsuleToShow = sentProperties.length > 0;
@@ -363,6 +368,18 @@ export function LeadFocusPanel({
 
     fetchLead();
   }, [leadId]);
+  
+  // Sync the fetched internal note with the OrbitContext state
+  useEffect(() => {
+    if (leadId && internalNote) {
+      updateLeadState(leadId!, {
+        memory: {
+          ...leadStates[leadId!]?.memory || { notes: "", callLog: [], contactLog: [] },
+          notes: internalNote.content
+        }
+      });
+    }
+  }, [leadId, internalNote, updateLeadState]);
 
 
 
@@ -597,13 +614,9 @@ export function LeadFocusPanel({
     setSendError(null);
     const messageContent = inputValue.trim();
 
-    // Determine what identifier to use: phone (preferred) or LID
-    const hasPhone = !!lead?.phone && lead.phone.length >= 10;
-    const sendTo = hasPhone 
-      ? normalizePhone(lead!.phone!) 
-      : (lead?.lid ? (lead.lid.includes('@lid') ? lead.lid : `${lead.lid}@lid`) : null);
+    // Determine what identifier to use: LID (preferred) or phone
+    const sendTo = (lead?.lid ? `${lead.lid}@lid` : null) || lead?.phone;
       
-    console.log('[SEND] hasPhone:', hasPhone)
     console.log('[SEND] lead.phone:', lead?.phone)
     console.log('[SEND] lead.lid:', lead?.lid)
     console.log('[SEND] sendTo:', sendTo)
@@ -735,11 +748,7 @@ export function LeadFocusPanel({
       refetchDetails();
 
       // 3. Notify lead via WhatsApp
-      // Prioritize phone over LID for better reliability in Brazil
-      const hasPhone = !!lead.phone && lead.phone.length >= 10;
-      const sendTo = hasPhone 
-        ? normalizePhone(lead.phone!) 
-        : (lead.lid ? (lead.lid.includes('@lid') ? lead.lid : `${lead.lid}@lid`) : null);
+      const sendTo = (lead.lid ? (lead.lid.includes('@lid') ? lead.lid : `${lead.lid}@lid`) : null) || lead.phone;
       if (sendTo) {
         const propertyName = linkedProperty.name || 'Imóvel selecionado';
         const message = `Olá ${lead.name.split(' ')[0]}! Veja esse imóvel que acabei de encontrar para você: ${propertyName} - ${linkedProperty.url || 'Consulte-me para mais detalhes'}`;

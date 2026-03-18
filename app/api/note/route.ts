@@ -127,13 +127,17 @@ export async function PUT(request: NextRequest) {
     const trimmedContent = content?.trim() || "";
 
     // Find existing note
-    const { data: existing } = await supabase
+    const { data: existing, error: fetchError } = await supabase
       .from("internal_notes")
       .select("id, content")
       .eq("lead_id", leadId)
       .order("created_at", { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle();
+
+    if (fetchError && fetchError.code !== 'PGRST116') {
+      console.error("Error fetching existing note:", fetchError);
+    }
 
     let note;
     const contentChanged = existing

@@ -490,6 +490,7 @@ export function useLeadDetails(leadId: string | null) {
   const [memories, setMemories] = useState<MemoryItemRow[]>([])
   const [insights, setInsights] = useState<AIInsightRow[]>([])
   const [cognitiveState, setCognitiveState] = useState<LeadCognitiveStateRow | null>(null)
+  const [internalNote, setInternalNote] = useState<{ id: string, content: string } | null>(null)
   const [loading, setLoading] = useState(false)
 
   const fetchDetails = useCallback(async () => {
@@ -498,18 +499,20 @@ export function useLeadDetails(leadId: string | null) {
       setMemories([])
       setInsights([])
       setCognitiveState(null)
+      setInternalNote(null)
       return
     }
 
     setLoading(true)
     try {
       const supabase = getSupabase()
-      const [propIntRes, messagesRes, memoryRes, insightsRes, cognitiveRes] = await Promise.all([
+      const [propIntRes, messagesRes, memoryRes, insightsRes, cognitiveRes, noteRes] = await Promise.all([
         supabase.from('property_interactions').select('*').eq('lead_id', leadId).order('timestamp', { ascending: false }),
         supabase.from('messages').select('*').eq('lead_id', leadId).order('timestamp', { ascending: true }),
         supabase.from('memory_items').select('*').eq('lead_id', leadId).order('created_at', { ascending: false }),
         supabase.from('ai_insights').select('*').eq('lead_id', leadId).order('created_at', { ascending: false }),
         supabase.from('lead_cognitive_state').select('*').eq('lead_id', leadId).maybeSingle(),
+        supabase.from('internal_notes').select('id, content').eq('lead_id', leadId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
       ])
 
       const propIntRows = (propIntRes.data || []) as PropertyInteractionRow[]
@@ -534,6 +537,7 @@ export function useLeadDetails(leadId: string | null) {
       setMemories((memoryRes.data || []) as MemoryItemRow[])
       setInsights((insightsRes.data || []) as AIInsightRow[])
       setCognitiveState(cognitiveRes.data as LeadCognitiveStateRow | null)
+      setInternalNote(noteRes.data as { id: string, content: string } | null)
     } catch (err) {
       console.error('Error fetching lead details:', err)
     } finally {
@@ -597,11 +601,18 @@ export function useLeadDetails(leadId: string | null) {
           fetchDetails()
         }
       )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'internal_notes', filter: `lead_id=eq.${leadId}` },
+        () => {
+          fetchDetails()
+        }
+      )
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
   }, [leadId, fetchDetails])
 
-  return { propertyInteractions, messages, memories, insights, cognitiveState, loading, refetch: fetchDetails }
+  return { propertyInteractions, messages, memories, insights, cognitiveState, internalNote, loading, refetch: fetchDetails }
 }
 

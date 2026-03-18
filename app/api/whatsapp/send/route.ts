@@ -60,10 +60,14 @@ export async function POST(request: NextRequest) {
             console.log('[SEND] Message already exists (race condition/constraint):', idempotencyKey)
           } else {
             console.error('[SEND] Error saving message to historical table:', error)
-            return NextResponse.json(
-              { error: `Mensagem enviada no WhatsApp (${result.messageId}), mas falhou ao salvar no histórico: ${error.message}` },
-              { status: 500 }
-            )
+            // CRITICAL: We don't return 500 here because the message WAS sent via Z-API.
+            // Returning 500 makes the user think it failed.
+            return NextResponse.json({ 
+              success: true, 
+              messageId: result.messageId,
+              phone: sendTo,
+              warning: 'Mensagem enviada, mas houve um erro ao salvar no histórico (possivelmente limite do banco de dados excedido)'
+            })
           }
         } else {
           console.log('[SEND] Message saved in historical table:', idempotencyKey)
