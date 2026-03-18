@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
 import { Home, ExternalLink, MapPin, MessageSquare, Star, Sparkles, Map as MapIcon, Grid } from 'lucide-react'
-import { createClient } from '@supabase/supabase-js'
+import { getSupabaseServer } from '@/lib/supabase-server'
 import { Metadata } from 'next'
 import ClientSelectionView from '@/components/orbit-selection/ClientSelectionView'
 
@@ -11,9 +11,7 @@ export const metadata: Metadata = {
 }
 
 async function getSelectionData(slug: string) {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  const supabase = createClient(supabaseUrl, supabaseKey)
+  const supabase = getSupabaseServer()
 
   // 1. Get Client Space
   const { data: space, error: spaceError } = await supabase
@@ -67,7 +65,6 @@ async function getSelectionData(slug: string) {
     .from('property_interactions')
     .select('property_id, interaction_type')
     .eq('lead_id', leadId)
-    .eq('source', 'client_portal')
 
   const initialInteractions: Record<string, string[]> = {}
   if (interactionsRaw) {

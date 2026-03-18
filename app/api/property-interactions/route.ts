@@ -248,52 +248,41 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Erro ao registrar interação' }, { status: 500 })
     }
 
-    // 3b. If 'sent' from operator, replicate Atlas Manager full flow:
-    //     1) ensure client_spaces exists  2) upsert capsule_items
-    if (itype === 'sent') {
+    // 3b. Sync state to capsule_items for portal consistency and sidebar indicators
+    const stateSyncTypes = ['sent', 'favorited', 'visited', 'discarded']
+    if (stateSyncTypes.includes(itype)) {
       try {
-        // ── 1. Get or create client_space for this lead ────────────────────────
-        const { data: existingSpace } = await supabase
-          .from('client_spaces')
-          .select('id, slug')
-          .eq('lead_id', leadId)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle()
-
-        if (!existingSpace) {
-          // Fetch lead name for slug generation
-          const slug = `lead-${leadId.substring(0, 8)}-${Math.random().toString(36).substring(7)}`
-          const { error: spaceError } = await supabase
+        // 1) Ensure client_space exists (only strictly needed for 'sent', but harmless for others)
+        if (itype === 'sent') {
+          const { data: existingSpace } = await supabase
             .from('client_spaces')
-            .insert({
+            .select('id, slug')
+            .eq('lead_id', leadId)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle()
+
+          if (!existingSpace) {
+            const slug = `lead-${leadId.substring(0, 8)}-${Math.random().toString(36).substring(7)}`
+            await supabase.from('client_spaces').insert({
               lead_id: leadId,
               slug,
               theme: 'paper',
               theme_config: { mode: 'light', variant: 'paper' },
               title: `Seleção Orbit`,
             })
-          if (spaceError) {
-            console.warn('[PROP_INT] Could not create client_space:', spaceError.message)
-          } else {
-            console.log('[PROP_INT] client_space created for lead:', leadId, 'slug:', slug)
           }
         }
 
-        // ── 2. Upsert capsule_item ─────────────────────────────────────────────
-        const { error: ciError } = await supabase
+        // 2) Upsert capsule_item state
+        await supabase
           .from('capsule_items')
           .upsert(
-            { lead_id: leadId, property_id: propertyId, state: 'sent' },
+            { lead_id: leadId, property_id: propertyId, state: itype },
             { onConflict: 'lead_id,property_id' }
           )
-        if (ciError) {
-          console.warn('[PROP_INT] Could not upsert capsule_item:', ciError.message)
-        } else {
-          console.log('[PROP_INT] capsule_item upserted for lead:', leadId, 'property:', propertyId)
-        }
-      } catch (portalErr) {
-        console.warn('[PROP_INT] Portal setup error (non-fatal):', portalErr)
+      } catch (syncErr) {
+        console.warn('[PROP_INT] State sync error:', syncErr)
       }
     }
 
