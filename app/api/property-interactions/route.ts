@@ -248,32 +248,52 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Erro ao registrar interação' }, { status: 500 })
     }
 
-    // 3b. If 'sent' from operator, upsert into capsule_items so the portal sidebar shows it immediately
+    // 3b. If 'sent' from operator, replicate Atlas Manager full flow:
+    //     1) ensure client_spaces exists  2) upsert capsule_items
     if (itype === 'sent') {
-      // Check if capsule_items row already exists for this lead+property
-      const { data: existingItem } = await supabase
-        .from('capsule_items')
-        .select('id, state')
-        .eq('lead_id', leadId)
-        .eq('property_id', propertyId)
-        .maybeSingle()
+      try {
+        // ── 1. Get or create client_space for this lead ────────────────────────
+        const { data: existingSpace } = await supabase
+          .from('client_spaces')
+          .select('id, slug')
+          .eq('lead_id', leadId)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
 
-      if (!existingItem) {
+        if (!existingSpace) {
+          // Fetch lead name for slug generation
+          const slug = `lead-${leadId.substring(0, 8)}-${Math.random().toString(36).substring(7)}`
+          const { error: spaceError } = await supabase
+            .from('client_spaces')
+            .insert({
+              lead_id: leadId,
+              slug,
+              theme: 'paper',
+              theme_config: { mode: 'light', variant: 'paper' },
+              title: `Seleção Orbit`,
+            })
+          if (spaceError) {
+            console.warn('[PROP_INT] Could not create client_space:', spaceError.message)
+          } else {
+            console.log('[PROP_INT] client_space created for lead:', leadId, 'slug:', slug)
+          }
+        }
+
+        // ── 2. Upsert capsule_item ─────────────────────────────────────────────
         const { error: ciError } = await supabase
           .from('capsule_items')
-          .insert({
-            lead_id: leadId,
-            property_id: propertyId,
-            state: 'sent',
-          })
+          .upsert(
+            { lead_id: leadId, property_id: propertyId, state: 'sent' },
+            { onConflict: 'lead_id,property_id' }
+          )
         if (ciError) {
-          // Non-fatal: log but don't block the response
           console.warn('[PROP_INT] Could not upsert capsule_item:', ciError.message)
         } else {
-          console.log('[PROP_INT] capsule_item created for lead:', leadId, 'property:', propertyId)
+          console.log('[PROP_INT] capsule_item upserted for lead:', leadId, 'property:', propertyId)
         }
-      } else {
-        console.log('[PROP_INT] capsule_item already exists:', existingItem.id, 'state:', existingItem.state)
+      } catch (portalErr) {
+        console.warn('[PROP_INT] Portal setup error (non-fatal):', portalErr)
       }
     }
 
