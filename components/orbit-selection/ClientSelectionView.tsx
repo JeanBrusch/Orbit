@@ -22,6 +22,9 @@ interface SelectionItem {
   audioUrl?: string;
   highlightLevel?: number;
   recommendedReason?: string;
+  bedrooms?: number;
+  suites?: number;
+  areaPrivativa?: number;
 }
 
 interface ClientSelectionViewProps {
@@ -378,7 +381,17 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
                   <div className="jb-modal-price">{formatPrice(selectedItem.price)}</div>
                   
                   <dl className="jb-modal-specs">
-                    {/* Assuming properties have beds and area from internal structure, but we only have general right now. We fallback to general or static info if unknown */}
+                    <div className="jb-spec">
+                      <dt>Dormitórios</dt>
+                      <dd>
+                        {selectedItem.bedrooms || 0} {selectedItem.bedrooms === 1 ? 'Quarto' : 'Quartos'}
+                        {selectedItem.suites ? ` (${selectedItem.suites} ${selectedItem.suites === 1 ? 'Suíte' : 'Suítes'})` : ''}
+                      </dd>
+                    </div>
+                    <div className="jb-spec">
+                      <dt>Área Útil</dt>
+                      <dd>{selectedItem.areaPrivativa ? `${selectedItem.areaPrivativa} m²` : 'Sob consulta'}</dd>
+                    </div>
                     <div className="jb-spec"><dt>Identificador</dt><dd>#{selectedItem.id.slice(0, 8)}</dd></div>
                     <div className="jb-spec"><dt>Tipo</dt><dd>Residencial</dd></div>
                   </dl>

@@ -35,6 +35,7 @@ import {
   MessageSquare,
   Phone,
   Users,
+  Globe,
 } from "lucide-react";
 
 
@@ -78,7 +79,7 @@ export interface LeadFocusData {
 }
 
 // Property state for the Capsule View
-export type PropertyState = "sent" | "favorited" | "discarded" | "visited";
+export type PropertyState = "sent" | "favorited" | "discarded" | "visited" | "viewed" | "portal_opened" | "property_question" | "visited_site" | "session_end";
 
 export interface SentProperty {
   id: string;
@@ -806,6 +807,41 @@ export function LeadFocusPanel({
           color: "text-emerald-400",
           bg: "bg-emerald-500/20",
           label: "Visitado",
+        };
+      case "viewed":
+        return {
+          icon: Search,
+          color: "text-blue-400",
+          bg: "bg-blue-500/20",
+          label: "Visualizou Detalhes",
+        };
+      case "portal_opened":
+        return {
+          icon: Globe,
+          color: "text-purple-400",
+          bg: "bg-purple-500/20",
+          label: "Acessou o Portal",
+        };
+      case "property_question":
+        return {
+          icon: MessageSquare,
+          color: "text-[var(--orbit-glow)]",
+          bg: "bg-[var(--orbit-glow)]/20",
+          label: "Fez uma Pergunta",
+        };
+      case "visited_site":
+        return {
+          icon: ExternalLink,
+          color: "text-orange-400",
+          bg: "bg-orange-500/20",
+          label: "Visitou Site Externo",
+        };
+      case "session_end":
+        return {
+          icon: Clock,
+          color: "text-zinc-500",
+          bg: "bg-zinc-500/10",
+          label: "Encerrou Sessão",
         };
       default:
         return {
@@ -1691,6 +1727,7 @@ export function LeadFocusPanel({
             // -----------------------------
             if (event.type === "capsule_property") {
               const sp = event.data;
+              const stateConfig = getPropertyStateConfig(sp.state);
               return (
                 <div key={event.id} className="flex justify-center my-6 relative animate-in zoom-in-95 duration-500">
                   <div className="absolute left-1/2 -ml-[1px] top-0 bottom-0 w-[2px] bg-gradient-to-b from-transparent via-[var(--orbit-glow)]/20 to-transparent -z-10" />
@@ -1703,8 +1740,10 @@ export function LeadFocusPanel({
                     {/* Header bar */}
                     <div className="px-3 py-1.5 bg-white/5 border-b border-white/5 flex justify-between items-center">
                       <div className="flex items-center gap-1.5">
-                        <Building2 className="h-3 w-3 text-[var(--orbit-glow)]" />
-                        <span className="text-[10px] font-mono font-medium tracking-widest uppercase text-white/60">Imóvel Enviado</span>
+                        <stateConfig.icon className={`h-3 w-3 ${stateConfig.color}`} />
+                        <span className="text-[10px] font-mono font-medium tracking-widest uppercase text-white/60">
+                          {stateConfig.label}
+                        </span>
                       </div>
                       <span className="text-[9px] font-mono text-white/30">
                         {event.timestamp.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}

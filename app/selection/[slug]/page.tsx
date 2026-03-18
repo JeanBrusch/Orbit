@@ -47,7 +47,10 @@ async function getSelectionData(slug: string) {
         location_text,
         value,
         lat,
-        lng
+        lng,
+        bedrooms,
+        suites,
+        area_privativa
       )
     `)
     .eq('lead_id', leadId) // Assuming capsule_items are linked directly or via active capsule
@@ -99,7 +102,10 @@ async function getSelectionData(slug: string) {
         videoUrl: ctx?.video_url,
         audioUrl: ctx?.audio_url,
         highlightLevel: ctx?.highlight_level || 0,
-        recommendedReason: ctx?.recommended_reason
+        recommendedReason: ctx?.recommended_reason,
+        bedrooms: prop.bedrooms,
+        suites: prop.suites,
+        areaPrivativa: prop.area_privativa
       }
     })
 
