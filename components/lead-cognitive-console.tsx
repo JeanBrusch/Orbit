@@ -5,7 +5,8 @@ import { useTheme } from "next-themes";
 import {
   X, ArrowUp, Play, Loader2, Check, Brain,
   Mic, Zap, Star, Building2, ExternalLink, Copy, CheckCheck,
-  Square, Paperclip, Search, StopCircle, FileText, User, HelpCircle
+  Square, Paperclip, Search, StopCircle, FileText, User, HelpCircle,
+  Trash2, AlertTriangle
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { getSupabase } from "@/lib/supabase";
