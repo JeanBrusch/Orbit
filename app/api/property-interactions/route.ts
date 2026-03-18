@@ -248,6 +248,35 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Erro ao registrar interação' }, { status: 500 })
     }
 
+    // 3b. If 'sent' from operator, upsert into capsule_items so the portal sidebar shows it immediately
+    if (itype === 'sent') {
+      // Check if capsule_items row already exists for this lead+property
+      const { data: existingItem } = await supabase
+        .from('capsule_items')
+        .select('id, state')
+        .eq('lead_id', leadId)
+        .eq('property_id', propertyId)
+        .maybeSingle()
+
+      if (!existingItem) {
+        const { error: ciError } = await supabase
+          .from('capsule_items')
+          .insert({
+            lead_id: leadId,
+            property_id: propertyId,
+            state: 'sent',
+          })
+        if (ciError) {
+          // Non-fatal: log but don't block the response
+          console.warn('[PROP_INT] Could not upsert capsule_item:', ciError.message)
+        } else {
+          console.log('[PROP_INT] capsule_item created for lead:', leadId, 'property:', propertyId)
+        }
+      } else {
+        console.log('[PROP_INT] capsule_item already exists:', existingItem.id, 'state:', existingItem.state)
+      }
+    }
+
     // 4. Se é pergunta, cria mensagem + insight
     if (itype === 'property_question') {
       const { error: msgError } = await supabase
