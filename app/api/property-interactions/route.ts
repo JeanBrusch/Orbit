@@ -245,7 +245,15 @@ export async function POST(request: NextRequest) {
 
     if (intError) {
       console.error('[PROP_INT] Error creating interaction:', intError)
-      return NextResponse.json({ error: 'Erro ao registrar interação' }, { status: 500 })
+      // Check for constraint violation specifically
+      if (intError.code === '23514') {
+        console.error('[PROP_INT] Constraint violation. Please run patch-7-interaction-and-message-fixes.sql')
+      }
+      return NextResponse.json({ 
+        error: 'Erro ao registrar interação', 
+        details: intError.message,
+        hint: 'Verifique se as restrições (check constraints) do banco aceitam property_question'
+      }, { status: 500 })
     }
 
     // 3b. Sync state to capsule_items for portal consistency and sidebar indicators
@@ -304,7 +312,10 @@ export async function POST(request: NextRequest) {
       
       if (msgError) {
         console.error('[PROP_INT] Error creating message:', msgError)
-        return NextResponse.json({ error: 'Erro ao registrar pergunta no histórico' }, { status: 500 })
+        return NextResponse.json({ 
+          error: 'Erro ao registrar pergunta no histórico', 
+          details: msgError.message 
+        }, { status: 500 })
       }
 
       await supabase.from('ai_insights').insert({
