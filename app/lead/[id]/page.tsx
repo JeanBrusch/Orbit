@@ -798,14 +798,31 @@ export default function LeadTerminalPage({ params }: { params: Promise<{ id: str
                   onClick={async () => {
                     if (!linkedProperty || !sendTo) return
                     const propName = linkedProperty.title || linkedProperty.internal_name || 'Imóvel selecionado'
-                    const msg = composerText.trim()
-                      || `Olá ${lead?.name?.split(' ')[0] || ''}! Encontrei esse imóvel para você: ${propName}${linkedProperty.source_link ? ' - ' + linkedProperty.source_link : ''}`
+
+                    // 1. Register property interaction in the portal
+                    await fetch('/api/property-interactions', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        leadId: id,
+                        propertyId: linkedProperty.id,
+                        interaction_type: 'sent',
+                        source: 'lead_panel',
+                        propertyTitle: propName,
+                        propertyCover: linkedProperty.cover_image,
+                      }),
+                    }).catch(err => console.error('[SEND PROPERTY]', err))
+
+                    // 2. Pre-fill composer with property message
+                    const msg = `Olá ${lead?.name?.split(' ')[0] || ''}! Encontrei esse imóvel para você: ${propName}${linkedProperty.source_link ? ' — ' + linkedProperty.source_link : ''}`
                     setComposerText(msg)
                     setLinkedProperty(null)
+                    setTimelineKey(k => k + 1)
+                    fetchAll()
                   }}
                   className="mt-3 w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold bg-[#d4af35] text-[#0a0907] hover:brightness-110 transition-all"
                 >
-                  <Send className="w-4 h-4" /> Usar no Composer
+                  <Send className="w-4 h-4" /> Enviar Imóvel para o Portal
                 </button>
               </div>
             ) : (
