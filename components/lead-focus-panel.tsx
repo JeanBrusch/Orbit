@@ -59,6 +59,7 @@ function formatValue(value: number | null): string {
 }
 import { LeadMemory } from "./lead-memory";
 import { getSupabase } from "@/lib/supabase";
+import { normalizePhone } from "@/lib/phone-utils";
 
 export type LeadInternalState = "priority" | "focus" | "resolved" | "default";
 
@@ -596,10 +597,15 @@ export function LeadFocusPanel({
     setSendError(null);
     const messageContent = inputValue.trim();
 
-    // Determine what identifier to use: LID (preferred) or phone
-    const sendTo = (lead?.lid ? `${lead.lid}@lid` : null) || lead?.phone;
-    console.log('[SEND] lead.lid:', lead?.lid)
+    // Determine what identifier to use: phone (preferred) or LID
+    const hasPhone = !!lead?.phone && lead.phone.length >= 10;
+    const sendTo = hasPhone 
+      ? normalizePhone(lead!.phone!) 
+      : (lead?.lid ? (lead.lid.includes('@lid') ? lead.lid : `${lead.lid}@lid`) : null);
+      
+    console.log('[SEND] hasPhone:', hasPhone)
     console.log('[SEND] lead.phone:', lead?.phone)
+    console.log('[SEND] lead.lid:', lead?.lid)
     console.log('[SEND] sendTo:', sendTo)
 
     if (!sendTo) {
@@ -729,7 +735,11 @@ export function LeadFocusPanel({
       refetchDetails();
 
       // 3. Notify lead via WhatsApp
-      const sendTo = (lead.lid ? (lead.lid.includes('@lid') ? lead.lid : `${lead.lid}@lid`) : null) || lead.phone;
+      // Prioritize phone over LID for better reliability in Brazil
+      const hasPhone = !!lead.phone && lead.phone.length >= 10;
+      const sendTo = hasPhone 
+        ? normalizePhone(lead.phone!) 
+        : (lead.lid ? (lead.lid.includes('@lid') ? lead.lid : `${lead.lid}@lid`) : null);
       if (sendTo) {
         const propertyName = linkedProperty.name || 'Imóvel selecionado';
         const message = `Olá ${lead.name.split(' ')[0]}! Veja esse imóvel que acabei de encontrar para você: ${propertyName} - ${linkedProperty.url || 'Consulte-me para mais detalhes'}`;
