@@ -159,7 +159,7 @@ export function useSupabaseLeads(options: Options = {}) {
         
         return {
           id: row.lead_id,
-          lid: row.lead_id,
+          lid: row.lid,
           name: row.name || 'Sem nome',
           role: row.origin || 'Lead',
           avatar: getInitials(row.name),

@@ -819,7 +819,7 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
 
     const [leadRes, cogRes, memRes, insRes, msgRes] = (await Promise.all([
       supabase.from("leads")
-        .select("id,name,phone,photo_url,orbit_stage,action_suggested,last_interaction_at")
+        .select("id,name,phone,photo_url,orbit_stage,action_suggested,last_interaction_at,lid")
         .eq("id", leadId).single(),
       supabase.from("lead_cognitive_state")
         .select("interest_score,momentum_score,risk_score,clarity_level,current_state,last_ai_analysis_at,central_conflict,what_not_to_do")
@@ -1097,9 +1097,14 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
         }
 
         // WhatsApp Mode
-        const sendTo =
-          (lead?.lid ? (lead.lid.includes("@lid") ? lead.lid : `${lead.lid}@lid`) : null) ||
-          lead?.phone;
+        const sendTo = (lead?.lid && lead.lid.includes("@lid") ? lead.lid : lead?.lid ? `${lead.lid}@lid` : null) || lead?.phone;
+        
+        console.log('[SEND DEBUG]', { 
+          phone: lead?.phone, 
+          lid: lead?.lid, 
+          sendTo,
+          interactionMode 
+        });
 
         if (!sendTo) {
           alert("Este lead não possui telefone nem identificador do WhatsApp (LID) cadastrados.");
