@@ -191,7 +191,7 @@ export default function ClientSpacesManager({ leadId, onClose }: ClientSpacesMan
   return (
     <div className="flex flex-col h-full bg-[var(--orbit-bg)] text-[var(--orbit-text)]">
       {/* Header */}
-      <div className="px-6 pt-5 pb-0 border-b border-[var(--orbit-line)] shrink-0">
+      <div className="px-4 pt-4 md:px-6 md:pt-5 pb-0 border-b border-[var(--orbit-line)] shrink-0">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-[var(--orbit-glow)]/10 border border-[var(--orbit-glow)]/15 flex items-center justify-center text-[var(--orbit-glow)]">
@@ -223,7 +223,7 @@ export default function ClientSpacesManager({ leadId, onClose }: ClientSpacesMan
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`flex-1 py-1.5 text-[10px] font-mono uppercase tracking-wider rounded-md transition-all ${
+              className={`flex-1 min-h-[40px] py-2 text-[10px] font-mono uppercase tracking-wider rounded-md transition-all ${
                 activeTab === tab.id 
                   ? 'bg-[var(--orbit-glow)] text-white shadow-sm border border-[var(--orbit-glow)]/20' 
                   : 'text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)] hover:bg-[var(--orbit-bg)]/5'
@@ -236,7 +236,7 @@ export default function ClientSpacesManager({ leadId, onClose }: ClientSpacesMan
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-5 space-y-5" style={{ scrollbarWidth: "thin", scrollbarColor: "var(--orbit-line) transparent" }}>
+      <div className="flex-1 overflow-y-auto p-3 md:p-5 space-y-4 md:space-y-5" style={{ scrollbarWidth: "thin", scrollbarColor: "var(--orbit-line) transparent" }}>
         <AnimatePresence mode="wait">
           {activeTab === 'slug' ? (
             <motion.div 
@@ -334,15 +334,15 @@ export default function ClientSpacesManager({ leadId, onClose }: ClientSpacesMan
                         <div className="flex items-center gap-1 shrink-0">
                           <button 
                             onClick={() => setEditingContext(prop)}
-                            className={`p-1.5 rounded-lg transition-colors ${prop.context.note || prop.context.video_url ? 'bg-[var(--orbit-glow)]/10 text-[var(--orbit-glow)]' : 'text-[var(--orbit-text-muted)] hover:bg-[var(--orbit-line)]'}`}
+                            className={`p-2 min-w-[36px] min-h-[36px] flex items-center justify-center rounded-lg transition-colors ${prop.context.note || prop.context.video_url ? 'bg-[var(--orbit-glow)]/10 text-[var(--orbit-glow)]' : 'text-[var(--orbit-text-muted)] hover:bg-[var(--orbit-line)]'}`}
                           >
-                            <Pencil size={12} />
+                            <Pencil size={14} />
                           </button>
                           <button 
                             onClick={() => handleRemoveProperty(prop.property_id)}
-                            className="p-1.5 rounded-lg text-rose-500/60 hover:bg-rose-500/10 hover:text-rose-500 transition-colors"
+                            className="p-2 min-w-[36px] min-h-[36px] flex items-center justify-center rounded-lg text-rose-500/60 hover:bg-rose-500/10 hover:text-rose-500 transition-colors"
                           >
-                            <Trash2 size={12} />
+                            <Trash2 size={14} />
                           </button>
                         </div>
                       </div>
@@ -420,7 +420,7 @@ export default function ClientSpacesManager({ leadId, onClose }: ClientSpacesMan
                 <div className="flex gap-2 pt-1">
                   <button 
                     onClick={() => setEditingContext(null)} 
-                    className="flex-1 h-10 rounded-xl border border-[var(--orbit-line)] text-[var(--orbit-text-muted)] hover:bg-[var(--orbit-line)] hover:text-[var(--orbit-text)] text-[10px] font-mono uppercase tracking-widest transition-colors"
+                    className="flex-1 min-h-[44px] rounded-xl border border-[var(--orbit-line)] text-[var(--orbit-text-muted)] hover:bg-[var(--orbit-line)] hover:text-[var(--orbit-text)] text-[10px] font-mono uppercase tracking-widest transition-colors"
                   >
                     Cancelar
                   </button>
@@ -430,7 +430,7 @@ export default function ClientSpacesManager({ leadId, onClose }: ClientSpacesMan
                       const video_url = (document.getElementById('ctx-video') as HTMLInputElement).value
                       saveContext(editingContext.property_id, { note, video_url })
                     }}
-                    className="flex-1 h-10 bg-[var(--orbit-glow)] text-white text-[10px] font-bold uppercase tracking-widest rounded-xl shadow-[var(--orbit-shadow)] transition-all hover:brightness-110"
+                    className="flex-1 min-h-[44px] bg-[var(--orbit-glow)] text-white text-[10px] font-bold uppercase tracking-widest rounded-xl shadow-[var(--orbit-shadow)] transition-all hover:brightness-110"
                   >
                     Salvar Insight
                   </button>

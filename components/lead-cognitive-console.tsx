@@ -6,7 +6,7 @@ import {
   X, ArrowUp, Play, Loader2, Check, Brain,
   Mic, Zap, Star, Building2, ExternalLink, Copy, CheckCheck,
   Square, Paperclip, Search, StopCircle, FileText, User, HelpCircle,
-  Trash2, AlertTriangle
+  Trash2, AlertTriangle, MessageSquare
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { getSupabase } from "@/lib/supabase";
@@ -1065,8 +1065,8 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
         ) : (
           <>
             {/* ── TOP BAR ── */}
-            <header className="shrink-0 px-6 py-4">
-              <div className={`${glass} rounded-xl px-6 py-3 flex items-center justify-between shadow-2xl`}>
+            <header className="shrink-0 px-2 md:px-6 py-2 md:py-4">
+              <div className={`${glass} rounded-xl px-3 md:px-6 py-2 md:py-3 flex items-center justify-between shadow-2xl gap-3 overflow-x-auto custom-scrollbar`}>
                 
                 {/* Left: close + lead info */}
                 <div className="flex items-center gap-5">
@@ -1180,10 +1180,10 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
             </header>
 
             {/* ── MAIN 3-COLUMN GRID ── */}
-            <main className="flex-1 flex gap-5 px-6 pb-5 min-h-0 overflow-hidden">
+            <main className="flex-1 flex gap-0 md:gap-5 px-0 md:px-6 pb-0 md:pb-5 min-h-0 overflow-hidden">
 
               {/* ── LEFT PANEL ── */}
-              <aside className="w-72 flex flex-col gap-4 overflow-y-auto shrink-0 pr-1 custom-scrollbar">
+              <aside className="w-72 flex-col gap-4 overflow-y-auto shrink-0 pr-1 custom-scrollbar hidden md:flex">
 
                 {/* Memória */}
                 <div className={`${glass} rounded-xl p-5 flex flex-col gap-3`}>
@@ -1270,9 +1270,9 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
               </aside>
 
               {/* ── CENTRAL AREA: Chat ── */}
-              <section className={`flex-1 flex flex-col ${glass} rounded-xl overflow-hidden min-w-0`}>
+              <section className={`flex-1 flex-col ${glass} rounded-none md:rounded-xl overflow-hidden min-w-0 ${isMobile && activeMobileTab !== "chat" ? 'hidden' : 'flex'}`}>
                 {/* Chat stream */}
-                <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-4 custom-scrollbar min-h-0">
+                <div className="flex-1 overflow-y-auto p-3 md:p-5 flex flex-col gap-4 custom-scrollbar min-h-0">
                   {messages.length === 0 ? (
                     <div className="flex-1 flex flex-col items-center justify-center gap-3 opacity-30">
                       <Brain className={`w-10 h-10 ${isDark ? 'text-[#d4af35]/40' : 'text-[var(--orbit-glow)]/40'}`} />
@@ -1287,7 +1287,7 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
                 </div>
 
                 {/* ── Composer ── */}
-                <div className={`px-5 py-4 border-t ${
+                <div className={`px-3 md:px-5 py-3 md:py-4 border-t ${
                   isDark ? 'border-white/[0.06] bg-black/30' : 'border-[var(--orbit-line)] bg-[var(--orbit-bg-secondary)]'
                 }`}>
                   {/* Recording indicator */}
@@ -1564,6 +1564,37 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
 
               </aside>
             </main>
+
+            {/* Mobile Bottom Navigation */}
+            {isMobile && (
+              <div className={`flex items-center justify-around h-[68px] shrink-0 border-t pb-safe ${
+                isDark ? 'bg-[#050505] border-white/10' : 'bg-[var(--orbit-bg)] border-[var(--orbit-line)]'
+              }`}>
+                <button
+                  onClick={() => setActiveMobileTab("chat")}
+                  className={`flex flex-col items-center justify-center flex-1 h-full gap-1 transition-all ${
+                    activeMobileTab === "chat" 
+                      ? (isDark ? 'text-[#d4af35]' : 'text-[var(--orbit-glow)]')
+                      : (isDark ? 'text-slate-500 hover:text-slate-300' : 'text-[var(--orbit-text-muted)] hover:text-[var(--orbit-glow)]')
+                  }`}
+                >
+                  <MessageSquare className="w-5 h-5" />
+                  <span className="text-[10px] font-bold uppercase tracking-wider mt-0.5">Chat</span>
+                </button>
+                <div className={`w-px h-6 ${isDark ? 'bg-white/10' : 'bg-[var(--orbit-line)]'}`} />
+                <button
+                  onClick={() => setActiveMobileTab("info")}
+                  className={`flex flex-col items-center justify-center flex-1 h-full gap-1 transition-all ${
+                    activeMobileTab === "info" 
+                      ? (isDark ? 'text-[#d4af35]' : 'text-[var(--orbit-glow)]')
+                      : (isDark ? 'text-slate-500 hover:text-slate-300' : 'text-[var(--orbit-text-muted)] hover:text-[var(--orbit-glow)]')
+                  }`}
+                >
+                  <Building2 className="w-5 h-5" />
+                  <span className="text-[10px] font-bold uppercase tracking-wider mt-0.5">Info & Imóveis</span>
+                </button>
+              </div>
+            )}
 
             {/* Footer status bar (Hidden on mobile to save space) */}
             <div className="hidden md:flex px-6 pb-3 items-center gap-3 shrink-0">
