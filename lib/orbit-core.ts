@@ -47,6 +47,7 @@ interface CoreAnalysis {
   current_cognitive_state: 'latent' | 'curious' | 'exploring' | 'evaluating' | 'deciding' | 'resolved' | 'dormant';
   action_suggested: string;
   action_description: string;
+  summary: string; // Resumo curto da interação
 }
 
 // ─── Decaimento temporal de scores ───────────────────────────────────────────
@@ -197,7 +198,7 @@ async function findCompatibleProperties(
   );
 
   // 3. Chamar função RPC match_properties no Supabase
-  const { data, error } = await supabase.rpc("match_properties", {
+  const { data, error } = await (supabase.rpc as any)("match_properties", {
     query_embedding: profileVector,
     match_threshold: 0.60,
     match_count: 5,
@@ -422,6 +423,7 @@ Responda APENAS com JSON puro:
   "memory_events": [{"type": "property_sent|visited|discarded|price_objection|proposal_made|visit_scheduled", "content": "string"}] | null,
   "action_suggested": "needs_attention|follow_up|none",
   "action_description": "[canal] · [ação com dado concreto] · [critério de sucesso mensurável]",
+  "summary": "resumo desta interação específica em até 2 frases",
   "rag_property_recommended": "título do imóvel recomendado ou null",
   "generic_check_passed": true
 }`;
@@ -477,7 +479,16 @@ async function getContext(leadId: string) {
   return {
     lastMessages: [...messages]
       .reverse()
-      .map((m) => `[${m.source}] ${m.content}`)
+      .map((m) => {
+        let content = m.content || "";
+        if (content.trim().startsWith("{")) {
+          try {
+            const parsed = JSON.parse(content);
+            content = parsed.transcript || parsed.caption || parsed.text || content;
+          } catch {}
+        }
+        return `[${m.source}] ${content}`;
+      })
       .join("\n"),
     rawMessages: messages,
     memory: memoryItems.map((m) => `${m.type}: ${m.content}`).join(" | "),
@@ -501,6 +512,14 @@ export async function processEventWithCore(
   if (!content || content.trim() === "") return;
 
   console.log(`[ORBIT CORE] Iniciando análise de 5 camadas: leadId=${leadId}`);
+  
+  let cleanContent = content;
+  if (content.trim().startsWith("{")) {
+    try {
+      const parsed = JSON.parse(content);
+      cleanContent = parsed.transcript || parsed.caption || parsed.text || content;
+    } catch {}
+  }
 
   try {
     const context = await getContext(leadId);
@@ -522,7 +541,7 @@ export async function processEventWithCore(
     const compatiblePropertiesText = formatPropertiesForPrompt(compatibleProps);
 
     // Passar para analyzeContext
-    const analysis = await analyzeContext(leadId, content, type, {
+    const analysis = await analyzeContext(leadId, cleanContent, type, {
       ...context,
       compatibleProperties: compatiblePropertiesText,
     });
@@ -540,7 +559,7 @@ export async function processEventWithCore(
     // 1. Atualizar Mensagem
     console.log(`[ORBIT CORE] Passo 1 - atualizando mensagem...`);
     if (messageId) {
-      const currentEmbedding = await generateEmbedding(content);
+      const currentEmbedding = await generateEmbedding(cleanContent);
       const r1 = await (getSupabase()?.from("messages") as any)
         .update({ ai_analysis: analysis as any, embedding: currentEmbedding })
         .eq("id", messageId);

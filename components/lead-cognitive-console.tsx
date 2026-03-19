@@ -181,6 +181,64 @@ function AudioWaveform() {
   );
 }
 
+// ─── Image Group Bubble ────────────────────────────────────────────────────────────
+const ImageGroupBubble = memo(function ImageGroupBubble({ group, leadPhoto, leadName }: { group: any, leadPhoto: string | null, leadName: string | null }) {
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === "dark";
+  const items = group.items;
+  
+  if (items.length === 1) {
+    return <MessageBubble msg={items[0]} leadPhoto={leadPhoto} leadName={leadName} />;
+  }
+
+  if (group.source === "whatsapp") {
+    return (
+      <div className="flex gap-3 max-w-[80%]">
+        <div className="w-8 h-8 rounded-full border border-[var(--orbit-line)] shrink-0 overflow-hidden bg-[var(--orbit-glow)]/10 flex items-center justify-center text-[10px] font-bold text-[var(--orbit-glow)]">
+          {leadPhoto ? <img src={leadPhoto} className="w-full h-full object-cover" alt="" /> : getInitials(leadName)}
+        </div>
+        <div className="flex flex-col gap-1">
+          <div className={`bg-[var(--orbit-bg-secondary)] border border-[var(--orbit-line)] border-l-2 border-l-white/10 rounded-2xl rounded-tl-none p-2 shadow-[var(--orbit-shadow)]`}>
+            <div className={`grid gap-1 ${items.length === 2 ? "grid-cols-2" : items.length === 3 ? "grid-cols-3" : "grid-cols-2"}`}>
+              {items.map((msg: any) => {
+                 let p: any = {};
+                 try { p = JSON.parse(msg.content || "{}"); } catch {}
+                 return (
+                   <div key={msg.id} className="relative aspect-square">
+                     <img src={p.url} alt="" className="rounded-lg w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity" />
+                   </div>
+                 );
+              })}
+            </div>
+          </div>
+          <span className="text-[10px] text-[var(--orbit-text-muted)] ml-1">{formatTime(group.timestamp)}</span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col items-end gap-1 self-end max-w-[80%]">
+      <div className={`border rounded-2xl rounded-tr-none p-2 shadow-[var(--orbit-shadow)] ${
+        isDark ? 'bg-[var(--orbit-glow)]/10 border-[var(--orbit-glow)]/20' : 'bg-[var(--orbit-glow)]/5 border-[var(--orbit-glow)]/20 shadow-sm'
+      }`}>
+        <div className={`grid gap-1 ${items.length === 2 ? "grid-cols-2" : items.length === 3 ? "grid-cols-3" : "grid-cols-2"}`}>
+          {items.map((msg: any) => {
+             let p: any = {};
+             try { p = JSON.parse(msg.content || "{}"); } catch {}
+             return (
+               <div key={msg.id} className="relative aspect-square">
+                 <img src={p.url} alt="" className="rounded-lg w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity" />
+               </div>
+             );
+          })}
+        </div>
+      </div>
+      <span className="text-[10px] text-[var(--orbit-text-muted)] mr-1">{formatTime(group.timestamp)}</span>
+    </div>
+  );
+});
+
 // ─── Message Bubble ────────────────────────────────────────────────────────────
 const MessageBubble = memo(function MessageBubble({ msg, leadPhoto, leadName }: { msg: Message, leadPhoto: string | null, leadName: string | null }) {
   const { resolvedTheme } = useTheme();
@@ -428,25 +486,41 @@ const MessageBubble = memo(function MessageBubble({ msg, leadPhoto, leadName }: 
         <div className="flex flex-col gap-1">
           <div className={`bg-[var(--orbit-bg-secondary)] border border-[var(--orbit-line)] border-l-2 ${signalBorder} rounded-2xl rounded-tl-none px-4 py-3 text-sm leading-relaxed shadow-[var(--orbit-shadow)]`}>
             {mediaType === "audio" ? (
-              <div className="flex items-center gap-3 min-w-[240px]">
-                <button className="w-8 h-8 rounded-full bg-[var(--orbit-glow)] flex items-center justify-center shrink-0 hover:brightness-110 transition-all">
-                  <Play className="h-3.5 w-3.5 fill-current text-white" />
-                </button>
-                <AudioWaveform />
-                <Mic className="h-3 w-3 text-[var(--orbit-glow)]/50 shrink-0" />
+              <div className="flex flex-col gap-2 min-w-[240px]">
+                <div className="flex items-center gap-3">
+                  <button className="w-8 h-8 rounded-full bg-[var(--orbit-glow)] flex items-center justify-center shrink-0 hover:brightness-110 transition-all">
+                    <Play className="h-3.5 w-3.5 fill-current text-white" />
+                  </button>
+                  <AudioWaveform />
+                  <Mic className="h-3 w-3 text-[var(--orbit-glow)]/50 shrink-0" />
+                </div>
+                {text && text !== "[audio]" && (
+                  <p className={`text-xs italic border-l pl-2 py-0.5 mt-1 ${isDark ? 'text-slate-300 border-[var(--orbit-glow)]/30' : 'text-slate-600 border-[var(--orbit-glow)]/20'}`}>
+                    "{text.replace("[Áudio Transcrito] ", "")}"
+                  </p>
+                )}
               </div>
             ) : (mediaType === "image" && mediaUrl) ? (
               <img src={mediaUrl} alt="" className="rounded-lg max-w-[240px] max-h-40 object-cover" />
              ) : (
               <p className="text-[var(--orbit-text)]">{text || "[mídia]"}</p>
             )}
-            {intention && (
-              <div className={`mt-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[9px] font-bold uppercase tracking-wide ${
-                signal === "positive" ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" :
-                signal === "negative" ? "bg-rose-500/10 text-rose-600 border-rose-500/20" :
-                "bg-[var(--orbit-glow)]/10 text-[var(--orbit-glow)] border-[var(--orbit-glow)]/20"
-              }`}>
-                <Brain className="h-2.5 w-2.5" /> {intention}
+            {(intention || analysis?.summary) && (
+              <div className="mt-2 space-y-2">
+                {intention && (
+                  <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[9px] font-bold uppercase tracking-wide ${
+                    signal === "positive" ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" :
+                    signal === "negative" ? "bg-rose-500/10 text-rose-600 border-rose-500/20" :
+                    "bg-[var(--orbit-glow)]/10 text-[var(--orbit-glow)] border-[var(--orbit-glow)]/20"
+                  }`}>
+                    <Brain className="h-2.5 w-2.5" /> {intention}
+                  </div>
+                )}
+                {analysis?.summary && (
+                  <p className={`text-[10px] leading-relaxed border-l pl-2 ${isDark ? 'text-slate-400 border-[#2ec5ff]/30' : 'text-[var(--orbit-text-muted)] border-[var(--orbit-glow)]/30'}`}>
+                    {analysis.summary}
+                  </p>
+                )}
               </div>
             )}
           </div>
@@ -823,6 +897,7 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
 
   useEffect(() => {
     if (isOpen && leadId) {
+      isFirstChatLoad.current = true;
       setLead(null);
       setCognitive(null);
       setMemories([]);
@@ -911,6 +986,39 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
       supabase.removeChannel(channel);
     };
   }, [isOpen, leadId, fetchAll]);
+
+  const groupedItems = useMemo(() => {
+    const groups: (Message | { id: string, isImageGroup: true, items: Message[], source: string, timestamp: string })[] = [];
+    let currentImageGroup: { id: string, isImageGroup: true, items: Message[], source: string, timestamp: string } | null = null;
+
+    messages.forEach((msg) => {
+      let isImage = false;
+      try {
+        const p = JSON.parse(msg.content || "{}");
+        if (p.type === "image" && p.url) isImage = true;
+      } catch {}
+
+      if (isImage) {
+        // Group consecutive images from the same source within the same hour
+        if (currentImageGroup && currentImageGroup.source === msg.source && currentImageGroup.timestamp.slice(0, 13) === msg.timestamp.slice(0, 13)) {
+          currentImageGroup.items.push(msg);
+        } else {
+          currentImageGroup = {
+             id: msg.id + "-group",
+             isImageGroup: true,
+             source: msg.source,
+             timestamp: msg.timestamp,
+             items: [msg]
+          };
+          groups.push(currentImageGroup);
+        }
+      } else {
+        currentImageGroup = null;
+        groups.push(msg);
+      }
+    });
+    return groups;
+  }, [messages]);
 
   const isFirstChatLoad = useRef(true);
   useEffect(() => {
@@ -1279,9 +1387,12 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
                       <p className={`text-sm font-mono ${isDark ? 'text-slate-500' : 'text-[var(--orbit-text-muted)]'}`}>Nenhuma interação registrada</p>
                     </div>
                   ) : (
-                    messages.map((msg, idx) => (
-                      <MessageBubble key={msg.id + idx} msg={msg} leadPhoto={lead?.photo_url || null} leadName={lead?.name || null} />
-                    ))
+                    groupedItems.map((item, idx) => {
+                      if ("isImageGroup" in item && item.isImageGroup) {
+                        return <ImageGroupBubble key={item.id} group={item} leadPhoto={lead?.photo_url || null} leadName={lead?.name || null} />;
+                      }
+                      return <MessageBubble key={item.id + idx} msg={item as Message} leadPhoto={lead?.photo_url || null} leadName={lead?.name || null} />;
+                    })
                   )}
                   <div ref={bottomRef} style={{ overflowAnchor: "none" }} />
                 </div>

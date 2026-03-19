@@ -422,8 +422,41 @@ export async function POST(request: NextRequest) {
       messageText = payload.video.caption || ''
       mediaData = { type: 'video', url: payload.video.videoUrl, caption: payload.video.caption }
     } else if (payload.audio?.audioUrl) {
-      messageText = '[audio]'
-      mediaData = { type: 'audio', url: payload.audio.audioUrl }
+      let transcript = '[audio]'
+      try {
+        const audioUrl = payload.audio.audioUrl;
+        const openaiApiKey = process.env.OPENAI_API_KEY;
+        if (openaiApiKey && openaiApiKey !== "dummy-key") {
+           console.log(`[WEBHOOK:${requestId}] Downloading audio for transcription...`);
+           const audioRes = await fetch(audioUrl);
+           const audioBlob = await audioRes.blob();
+           const whisperForm = new FormData();
+           whisperForm.append("file", audioBlob, "audio.ogg");
+           whisperForm.append("model", "whisper-1");
+           whisperForm.append("language", "pt");
+           
+           console.log(`[WEBHOOK:${requestId}] Sending to OpenAI Whisper...`);
+           const whisperRes = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+             method: "POST",
+             headers: { Authorization: `Bearer ${openaiApiKey}` },
+             body: whisperForm,
+           });
+           
+           if (whisperRes.ok) {
+             const whisperData = await whisperRes.json();
+             if (whisperData.text) {
+               transcript = `[Áudio Transcrito] ${whisperData.text}`;
+               console.log(`[WEBHOOK:${requestId}] Audio transcribed successfully.`);
+             }
+           } else {
+             console.error(`[WEBHOOK:${requestId}] Whisper failed:`, await whisperRes.text());
+           }
+        }
+      } catch (e) {
+         console.error(`[WEBHOOK:${requestId}] Error transcribing audio:`, e);
+      }
+      messageText = transcript;
+      mediaData = { type: 'audio', url: payload.audio.audioUrl, caption: transcript !== '[audio]' ? transcript : undefined }
     } else if (payload.document?.documentUrl) {
       messageText = payload.document.caption || '[documento]'
       mediaData = { type: 'document', url: payload.document.documentUrl, caption: payload.document.caption }
