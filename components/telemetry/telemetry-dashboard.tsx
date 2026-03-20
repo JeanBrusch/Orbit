@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useTelemetryData } from "@/hooks/use-telemetry-data";
 import { useTheme } from "next-themes";
 import { useAuth } from "@/hooks/use-auth";
@@ -20,7 +21,8 @@ function initials(name: string) {
 }
 
 export function TelemetryDashboard() {
-  const { data, loading } = useTelemetryData();
+  const [timeframe, setTimeframe] = useState<7 | 30 | 90>(30);
+  const { data, loading } = useTelemetryData(timeframe);
   const { selectedLeadId, isLeadPanelOpen, openLeadPanel, closeLeadPanel } = useOrbitContext();
   const { resolvedTheme, setTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
@@ -41,7 +43,7 @@ export function TelemetryDashboard() {
 
   // Prep processed data for sidebar and table (Real data mapping)
   // Mapping OrbitLead from useSupabaseLeads to the component's expected format
-  const tableLeads = (data as any).rawLeads?.slice(0, 15).map((l: any) => ({
+  const tableLeads = (data as any)?.rawLeads?.slice(0, 15).map((l: any) => ({
     id: l.id,
     name: l.name,
     origin: l.origin,
@@ -49,13 +51,6 @@ export function TelemetryDashboard() {
     interest: l.interestScore || 0,
     risk: l.riskScore || 0,
     daysInactive: l.daysSinceInteraction || 0,
-  })) || [];
-
-  const attentionLeads = (data as any).rawLeads?.filter((l: any) => l.riskScore > 60 || l.daysSinceInteraction > 10).slice(0, 5).map((l: any) => ({
-    id: l.id,
-    name: l.name,
-    initials: l.name?.split(' ').map((n:any)=>n[0]).join('').slice(0,2) || "L",
-    status: l.daysSinceInteraction > 10 ? `${l.daysSinceInteraction}d sem resposta` : "Alto risco detectado",
   })) || [];
 
   return (
@@ -95,13 +90,16 @@ export function TelemetryDashboard() {
              </div>
              <div className={`h-10 w-[1px] ${isDark ? 'bg-white/10' : 'bg-[var(--orbit-line)]'}`} />
              <div className={`flex gap-1 rounded-lg p-1 ${isDark ? 'bg-white/5' : 'bg-[var(--orbit-bg-secondary)] border border-[var(--orbit-line)]'}`}>
-                {['7d', '30d', '90d'].map(p => (
-                   <button key={p} className={`rounded-md px-3 py-1 font-mono text-[10px] uppercase transition-all ${
-                     p === '30d' 
+                {[7, 30, 90].map(p => (
+                   <button 
+                     key={p} 
+                     onClick={() => setTimeframe(p as 7 | 30 | 90)}
+                     className={`rounded-md px-3 py-1 font-mono text-[10px] uppercase transition-all ${
+                     p === timeframe 
                        ? isDark ? 'bg-[#2ec5ff]/10 text-[#2ec5ff] border border-[#2ec5ff]/20' : 'bg-[var(--orbit-glow)] text-white shadow-sm'
                        : 'text-[#94a3b8] hover:text-white dark:hover:text-white'
                    }`}>
-                      {p}
+                      {p}d
                    </button>
                 ))}
              </div>
@@ -188,19 +186,19 @@ export function TelemetryDashboard() {
                   <Card className={`border p-6 backdrop-blur-md ${isDark ? 'border-[var(--orbit-border)] bg-[var(--orbit-glass)]' : 'border-[var(--orbit-line)] bg-white shadow-sm'}`}>
                     <div className={`mb-1 font-mono text-[9px] font-semibold uppercase tracking-widest ${isDark ? 'text-[#2ec5ff]/70' : 'text-[var(--orbit-glow)]'}`}>Curva de Persistência</div>
                     <div className="mb-4 text-xs text-[#94a3b8]">probabilidade de conversão vs nº de contatos</div>
-                    <PersistenceCurve />
+                    <PersistenceCurve data={data.persistenceData} />
                   </Card>
 
                   <Card className={`border p-6 backdrop-blur-md ${isDark ? 'border-[var(--orbit-border)] bg-[var(--orbit-glass)]' : 'border-[var(--orbit-line)] bg-white shadow-sm'}`}>
                     <div className={`mb-1 font-mono text-[9px] font-semibold uppercase tracking-widest ${isDark ? 'text-[#2ec5ff]/70' : 'text-[var(--orbit-glow)]'}`}>Matriz de Qualidade</div>
                     <div className="mb-4 text-xs text-[#94a3b8]">sentimento vs clareza (AI analysis)</div>
-                    <QualityMatrix />
+                    <QualityMatrix data={data.qualityData} />
                   </Card>
 
                   <Card className={`border p-6 backdrop-blur-md ${isDark ? 'border-[var(--orbit-border)] bg-[var(--orbit-glass)]' : 'border-[var(--orbit-line)] bg-white shadow-sm'}`}>
                     <div className={`mb-1 font-mono text-[9px] font-semibold uppercase tracking-widest ${isDark ? 'text-[var(--orbit-glow)]/70' : 'text-[var(--orbit-glow)]'}`}>Heatmap de Inatividade</div>
                     <div className="mb-4 text-xs text-[var(--orbit-text-muted)]">distribuição de silêncio por período e dia</div>
-                    <InactivityHeatmap />
+                    <InactivityHeatmap data={data.inactivityData} />
                   </Card>
                </div>
             </section>
@@ -268,8 +266,8 @@ export function TelemetryDashboard() {
           {/* Sidebar */}
           <TelemetrySidebar 
             data={{ 
-              attentionLeads, 
-              followupLeads: [], 
+              attentionLeads: data.attentionLeads, 
+              followupLeads: data.followupLeads, 
               recentMessages: data.recentMessages.map(m => ({
                 lead_id: m.lead_id,
                 lead_name: m.lead_id, // TBD: Join with names

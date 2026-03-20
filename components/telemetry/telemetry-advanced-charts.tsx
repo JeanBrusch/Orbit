@@ -25,19 +25,10 @@ const LIGHT_COLORS = {
   muted: "var(--orbit-text-muted)",
 };
 
-export function PersistenceCurve() {
+export function PersistenceCurve({ data }: { data: Array<{ contact: string, rate: number }> }) {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
   const colors = isDark ? ORBIT_COLORS : LIGHT_COLORS;
-
-  // Calculated from interactions history
-  const data = [
-    { contact: "1º", rate: 45 },
-    { contact: "2º", rate: 38 },
-    { contact: "3º", rate: 22 },
-    { contact: "4º", rate: 8 },
-    { contact: "5º+", rate: 3 },
-  ];
 
   return (
     <div className="h-[200px] w-full">
@@ -78,7 +69,7 @@ export function PersistenceCurve() {
   );
 }
 
-export function InactivityHeatmap() {
+export function InactivityHeatmap({ data }: { data: Array<{ x: number, y: number, val: number }> }) {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
   const colors = isDark ? ORBIT_COLORS : LIGHT_COLORS;
@@ -86,17 +77,6 @@ export function InactivityHeatmap() {
   // Week days x 6-hour blocks
   const days = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
   const periods = ["00-06h", "06-12h", "12-18h", "18-00h"];
-  
-  const data = [];
-  for (let i = 0; i < 7; i++) {
-    for (let j = 0; j < 4; j++) {
-      data.push({
-        x: i,
-        y: j,
-        val: Math.floor(Math.random() * 100), // Real data would be 'avg response time' or 'count unattended'
-      });
-    }
-  }
 
   return (
     <div className="h-[200px] w-full mt-4">
@@ -146,17 +126,10 @@ export function InactivityHeatmap() {
   );
 }
 
-export function QualityMatrix() {
+export function QualityMatrix({ data }: { data: Array<{ sentiment: number, clarity: number, id: number }> }) {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
   const colors = isDark ? ORBIT_COLORS : LIGHT_COLORS;
-
-  // Random data representing sentiment vs clarity
-  const data = Array.from({ length: 15 }, (_, i) => ({
-    sentiment: Math.random() * 100,
-    clarity: Math.random() * 100,
-    id: i
-  }));
 
   return (
     <div className="h-[200px] w-full mt-4">
