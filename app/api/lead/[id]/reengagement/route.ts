@@ -17,34 +17,59 @@ export async function POST(
     const supabase = getSupabaseServer();
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-    // 1. Buscar imóveis compatíveis para o lead (RAG) se necessário
+    // 1. Buscar dados essenciais do lead (Nome e Histórico recente)
+    const { data: lead } = await supabase
+        .from("leads")
+        .select("name, semantic_vector")
+        .eq("id", leadId)
+        .single() as any;
+
+    const { data: messages } = await supabase
+        .from("messages")
+        .select("source, content, timestamp")
+        .eq("lead_id", leadId)
+        .order("timestamp", { ascending: false })
+        .limit(6) as any;
+
+    const historyContext = (messages || [])
+        .reverse()
+        .map((m: any) => `${m.source === 'whatsapp' ? 'LEAD' : 'CORRETOR'}: ${m.content}`)
+        .join("\n");
+
+    // 2. Buscar imóveis compatíveis para o lead (RAG) se necessário
     let matchedProperties: any[] = [];
-    if (silence_analysis.should_include_properties) {
-        // Buscamos o vetor semântico do lead
-        const { data: lead } = await supabase.from("leads").select("semantic_vector").eq("id", leadId).single();
-        
-        if (lead?.semantic_vector) {
-            const { data: properties } = await supabase.rpc("match_properties", {
-                query_embedding: lead.semantic_vector,
-                match_threshold: 0.65,
-                match_count: 2
-            });
-            matchedProperties = properties || [];
-        }
+    if (silence_analysis.should_include_properties && lead?.semantic_vector) {
+        const { data: properties } = await supabase.rpc("match_properties", {
+            query_embedding: lead.semantic_vector,
+            match_threshold: 0.65,
+            match_count: 2
+        }) as any;
+        matchedProperties = properties || [];
     }
 
     const propertiesContext = matchedProperties.length > 0
         ? `Imóveis recomendados:\n${matchedProperties.map(p => `- ${p.title} (${p.neighborhood}) - R$ ${p.value?.toLocaleString('pt-BR')}`).join('\n')}`
         : "Nenhum imóvel específico recomendado agora.";
 
-    // 2. Definir Tons
+    // 3. Definir Tons e Prompt
     const tones = ["casual", "curiosity", "direct", "reconnect", "value_anchor"];
     
-    const systemPrompt = `Você é um corretor de imóveis de elite que usa psicologia reversa e elegância para reativar leads em silêncio.
-Sua comunicação é curta, humana e nunca parece um spam automátizado.
-Você usa o "Orbit Core" para basear sua estratégia.`;
+    const systemPrompt = `Você é um corretor de imóveis de elite que usa o framework "Orbit" para reativação de leads.
+Sua comunicação segue a técnica da "Escrita Invisível": parece uma mensagem real de um humano no WhatsApp, não um bot.
 
-    const userPrompt = `Gere uma mensagem de reengajamento para o WhatsApp.
+REGRAS DE OURO:
+1. CURTO E DIRETO: Máximo 200 caracteres. No WhatsApp, menos é mais.
+2. SEM FORMALIDADES: Nunca use "Olá", "Tudo bem?", "Espero que esteja bem", "Atenciosamente". Comece como se estivesse continuando uma conversa.
+3. MINIMALISMO DE EMOJI: Use no máximo um emoji, ou nenhum.
+4. LINGUAGEM NATURAL: Use termos como "vi aqui", "lembrei", "faz sentido?", "conseguiu ver?".
+5. FOCO NA RESPOSTA: O objetivo é apenas que o lead responda algo.`;
+
+    const userPrompt = `Gere uma mensagem de reengajamento altamente personalizada.
+
+DADOS DO LEAD:
+Nome: ${lead?.name || "Cliente"}
+Últimas mensagens:
+${historyContext || "Sem histórico recente."}
 
 ESTRATÉGIA: ${silence_analysis.strategy}
 MOTIVO DO SILÊNCIO: ${silence_analysis.silence_reason}
@@ -55,11 +80,10 @@ CONTEXTO DE IMÓVEIS:
 ${propertiesContext}
 
 DIRETRIZES:
-- Máximo 250 caracteres.
-- Não use "Olá", "Tudo bem?", "Como vai?". Comece direto no ponto.
-- Use um dos tons: ${tones.join(", ")}.
-- Se houver imóveis, mencione-os de forma orgânica.
-- O objetivo é gerar uma resposta, não vender agora.
+- Use o nome dele: ${lead?.name || ""} (opcional, se soar natural no contexto).
+- Se houver imóveis, NÃO diga "Temos estes imóveis", diga algo como "Vi um aqui no [Bairro] que parece muito com o que a gente falou".
+- Se o silêncio for por PREÇO, tente reancorar valor ou perguntar do momento, sem pressionar.
+- Escolha um dos tons: ${tones.join(", ")}.
 
 Responda APENAS com este JSON:
 {
@@ -67,7 +91,7 @@ Responda APENAS com este JSON:
   "tone": "...",
   "confidence": 0.0,
   "matched_properties": [],
-  "reasoning": "..."
+  "reasoning": "Explique por que essa mensagem quebrará o silêncio baseado no histórico."
 }`;
 
     const response = await openai.chat.completions.create({
@@ -77,6 +101,7 @@ Responda APENAS com este JSON:
         { role: "user", content: userPrompt }
       ],
       response_format: { type: "json_object" },
+      temperature: 0.7,
     });
 
     const result = JSON.parse(response.choices[0].message.content || "{}");
@@ -90,9 +115,9 @@ Responda APENAS com este JSON:
         tone: result.tone,
         days_silent: silence_analysis.days_silent,
         had_property: matchedProperties.length > 0,
-        message_length: result.message.length,
+        message_length: result.message.length || 0,
         generated_at: new Date().toISOString()
-    });
+    } as any);
 
     return NextResponse.json(result);
 
@@ -119,7 +144,7 @@ export async function PATCH(
         .eq("lead_id", leadId)
         .order("generated_at", { ascending: false })
         .limit(1)
-        .single();
+        .single() as any;
 
     if (latest) {
         await supabase
@@ -127,7 +152,7 @@ export async function PATCH(
             .update({ 
                 sent_at_hour, 
                 sent_at: new Date().toISOString() 
-            })
+            } as any)
             .eq("id", latest.id);
             
         // Também atualizar na silence_analyses para manter o loop de aprendizado legado
@@ -137,7 +162,7 @@ export async function PATCH(
                 message_sent: true,
                 sent_at: new Date().toISOString(),
                 sent_at_hour
-            })
+            } as any)
             .eq("lead_id", leadId);
     }
 
