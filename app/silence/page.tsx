@@ -555,6 +555,8 @@ function SilenceAnalysisContent() {
 
 export default function SilenceAnalysisPage() {
   return (
-    <SilenceAnalysisContent />
+    <OrbitProvider>
+      <SilenceAnalysisContent />
+    </OrbitProvider>
   );
 }

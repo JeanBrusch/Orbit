@@ -33,11 +33,15 @@ export function TopBar({ totalLeads, isDark, onThemeToggle, onLogout }: TopBarPr
     setMounted(true);
   }, []);
 
+  const context = useOrbitContext();
+  
+  if (!mounted || !context) return null;
+
   const { 
     setIsAdminDrawerOpen, 
     setActiveAdminView,
     pendingLeadsCount,
-  } = useOrbitContext();
+  } = context;
 
   const handleNewLead = () => {
     setActiveAdminView("lead");
