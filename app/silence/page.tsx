@@ -509,7 +509,7 @@ function SilenceAnalysisContent() {
             </div>
             <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-white/20 animate-pulse">Varrendo Sistema...</p>
           </div>
-        ) : leads.length === 0 ? (
+        {!Array.isArray(leads) || leads.length === 0 ? (
           <div className="text-center py-40 bg-white/[0.01] border border-white/[0.03] rounded-[40px] border-dashed">
             <div className="relative w-20 h-20 mx-auto mb-8">
                 <Waves className="w-full h-full text-white/10" strokeWidth={0.5} />
@@ -519,8 +519,12 @@ function SilenceAnalysisContent() {
                     className="absolute inset-0 bg-blue-500/20 blur-3xl rounded-full" 
                 />
             </div>
-            <h2 className="text-2xl font-bold text-white/40 tracking-tight">Vácuo Indetectado</h2>
-            <p className="text-xs text-white/20 uppercase tracking-[0.2em] mt-2">Nenhuma anomalia de comunicação no radar.</p>
+            <h2 className="text-2xl font-bold text-white/40 tracking-tight">
+              {!Array.isArray(leads) ? "Erro de Sincronização" : "Vácuo Indetectado"}
+            </h2>
+            <p className="text-xs text-white/20 uppercase tracking-[0.2em] mt-2">
+              {!Array.isArray(leads) ? "Falha ao recuperar dados do radar." : "Nenhuma anomalia de comunicação no radar."}
+            </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
