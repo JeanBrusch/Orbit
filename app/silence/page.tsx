@@ -509,7 +509,7 @@ function SilenceAnalysisContent() {
             </div>
             <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-white/20 animate-pulse">Varrendo Sistema...</p>
           </div>
-        {!Array.isArray(leads) || leads.length === 0 ? (
+        ) : !Array.isArray(leads) || leads.length === 0 ? (
           <div className="text-center py-40 bg-white/[0.01] border border-white/[0.03] rounded-[40px] border-dashed">
             <div className="relative w-20 h-20 mx-auto mb-8">
                 <Waves className="w-full h-full text-white/10" strokeWidth={0.5} />
