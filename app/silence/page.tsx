@@ -43,13 +43,19 @@ interface SilentLead {
   current_state: string | null;
   silence_reason: string | null;
   strategy: string | null;
+  objective: string | null;
+  next_move_if_reply: string | null;
+  emotional_state: string | null;
+  analysis_confidence: number | null;
   has_fresh_analysis: boolean;
   priority_score: number;
 }
 
 interface ReengagementResult {
   message: string;
-  tone: string;
+  tone?: string;
+  objective?: string;
+  next_move_if_reply?: string;
   confidence: number;
   matched_properties: {
     id: string;
@@ -170,6 +176,16 @@ function LeadDossier({ lead, onSent }: { lead: SilentLead; onSent: (id: string) 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ silence_analysis: analysis }),
       });
+      
+      if (reengRes.status === 422) {
+        const err = await reengRes.json();
+        const msg = err.code === "WEAK_HOOK"
+          ? "Contexto insuficiente para gerar mensagem específica. Tente após nova interação com o lead."
+          : "Mensagem gerada era genérica demais. Tente novamente.";
+        setState(s => ({ ...s, status: "error", error: msg }));
+        return;
+      }
+      
       const reeng = await reengRes.json();
       if (reeng.error) throw new Error(reeng.error);
 
@@ -206,7 +222,8 @@ function LeadDossier({ lead, onSent }: { lead: SilentLead; onSent: (id: string) 
     }
   };
 
-  const reasonConfig = lead.silence_reason ? REASON_CONFIG[lead.silence_reason] : null;
+  const reasonConfig = (lead.silence_reason && REASON_CONFIG[lead.silence_reason]) ? REASON_CONFIG[lead.silence_reason] : null;
+
 
   return (
     <motion.div
@@ -331,7 +348,7 @@ function LeadDossier({ lead, onSent }: { lead: SilentLead; onSent: (id: string) 
                 </div>
                 
                 <span className="text-[9px] font-bold uppercase tracking-widest text-blue-400 mb-3 block">
-                    Tom sugerido: <span className="text-white/60">{state.reengagement.tone}</span>
+                    Objetivo: <span className="text-white/60">{state.reengagement.objective?.replace(/_/g, " ").toUpperCase() || "RECONEXÃO"}</span>
                 </span>
                 
                 {isEditing ? (
@@ -346,6 +363,16 @@ function LeadDossier({ lead, onSent }: { lead: SilentLead; onSent: (id: string) 
                     </p>
                 )}
               </div>
+
+              {state.reengagement.next_move_if_reply && (
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-emerald-500/15 bg-emerald-500/5 text-emerald-400 text-[10px]">
+                    <ChevronRight className="w-3 h-3 shrink-0" />
+                    <span>
+                        <span className="font-bold uppercase tracking-wider">Se responder: </span>
+                        {state.reengagement.next_move_if_reply.replace(/_/g, " ")}
+                    </span>
+                </div>
+              )}
               
               <button 
                 onClick={handleSend}
