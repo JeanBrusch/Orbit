@@ -84,13 +84,11 @@ const URGENT_RED = "#ff4d4d";
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function getInitials(name: string | null) {
-  if (!name) return "?";
-  return name
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
+  if (!name || typeof name !== 'string') return "?";
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0][0]?.toUpperCase() || "?";
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
 const REASON_CONFIG: Record<string, { label: string; color: string; bg: string; icon: React.ReactNode }> = {
@@ -263,7 +261,13 @@ function LeadDossier({ lead, onSent }: { lead: SilentLead; onSent: (id: string) 
           </div>
           <div>
             <h3 className="text-lg font-bold tracking-tight text-white/90 leading-tight">
-                {lead.name?.split(' ')[0]} <span className="text-white/40 font-light">{lead.name?.split(' ').slice(1).join(' ')}</span>
+                {lead.name ? (
+                  <>
+                    {lead.name.split(' ')[0]} <span className="text-white/40 font-light">{lead.name.split(' ').slice(1).join(' ')}</span>
+                  </>
+                ) : (
+                  <span className="text-white/40 italic">Sem Nome</span>
+                )}
             </h3>
             <div className="flex items-center gap-2 mt-1">
               <Activity className="w-3 h-3 text-white/30" />
