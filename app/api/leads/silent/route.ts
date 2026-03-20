@@ -28,7 +28,11 @@ export async function GET(req: NextRequest) {
         silence_analyses (
             silence_reason,
             strategy,
-            analyzed_at
+            emotional_state,
+            confidence,
+            analyzed_at,
+            objective,
+            next_move_if_reply
         )
       `)
       .not("orbit_stage", "eq", "resolved")
@@ -43,7 +47,14 @@ export async function GET(req: NextRequest) {
       const daysSilent = Math.floor((Date.now() - lastInteraction.getTime()) / (1000 * 60 * 60 * 24));
       
       const cog = l.lead_cognitive_state?.[0] || l.lead_cognitive_state || {};
-      const analysis = l.silence_analyses?.[0] || l.silence_analyses || null;
+      
+      // Pegar a análise mais recente (pelo analyzed_at)
+      const analyses = Array.isArray(l.silence_analyses) ? l.silence_analyses : [l.silence_analyses];
+      const analysis = analyses
+        .filter(Boolean)
+        .sort((a: any, b: any) => new Date(b.analyzed_at).getTime() - new Date(a.analyzed_at).getTime())[0] || null;
+
+      const priorityScore = (cog.interest_score || 0) + (daysSilent * 2);
 
       return {
         id: l.id,
@@ -56,9 +67,14 @@ export async function GET(req: NextRequest) {
         current_state: l.orbit_stage,
         silence_reason: analysis?.silence_reason || null,
         strategy: analysis?.strategy || null,
-        has_fresh_analysis: !!analysis,
-        // Score de prioridade simples: Interesse + (Dias de Silêncio * 2)
-        priority_score: (cog.interest_score || 0) + (daysSilent * 2)
+        objective: analysis?.objective || null,
+        next_move_if_reply: analysis?.next_move_if_reply || null,
+        emotional_state: analysis?.emotional_state || null,
+        analysis_confidence: analysis?.confidence || null,
+        has_fresh_analysis: analysis
+          ? (Date.now() - new Date(analysis.analyzed_at).getTime()) / 3600000 < 24
+          : false,
+        priority_score: priorityScore,
       };
     });
 
