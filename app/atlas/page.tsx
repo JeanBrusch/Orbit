@@ -20,9 +20,9 @@ import { getSupabase } from "@/lib/supabase"
 import { toast } from "sonner"
 import dynamic from "next/dynamic"
 
-const VoiceIngestion = dynamic(() => import("@/components/atlas/VoiceIngestion"), { ssr: false })
-const MapModal = dynamic(() => import("@/components/atlas/MapModal"), { ssr: false })
 const EditPropertyModal = dynamic(() => import("@/components/atlas/EditPropertyModal"), { ssr: false })
+import { TopBar } from "@/components/top-bar"
+import { useRouter } from "next/navigation"
 
 // ── Aesthetics & Tokens ──────────────────────────────────────────────────────
 const theme = {
@@ -153,8 +153,10 @@ function PropertyCard({
 }
 
 function AtlasManagerContent() {
-  const { resolvedTheme } = useTheme()
+  const { resolvedTheme, setTheme } = useTheme()
   const isDark = resolvedTheme === 'dark'
+  const { logout } = useAuth()
+  const router = useRouter()
   const { properties, loading: propsLoading, refetch } = useSupabaseProperties()
   const { leads, loading: leadsLoading } = useSupabaseLeads()
   const searchParams = useSearchParams()
@@ -528,6 +530,14 @@ function AtlasManagerContent() {
 
   return (
     <div className="min-h-screen bg-[var(--orbit-bg)] text-[var(--orbit-text)] relative overflow-hidden font-sans flex flex-col h-screen">
+      <TopBar 
+        totalLeads={leads?.length || 0}
+        isDark={isDark}
+        onThemeToggle={() => setTheme(isDark ? "light" : "dark")}
+        onLogout={logout}
+      />
+      
+      <div className="flex-1 flex flex-col mt-14 md:mt-16 overflow-hidden">
       {/* Decorative Glows */}
       {isDark && (
         <>
@@ -1027,9 +1037,9 @@ function AtlasManagerContent() {
       <style jsx global>{`
         .custom-scrollbar::-webkit-scrollbar { width: 5px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(46, 197, 255, 0.15); border-radius: 99px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(46, 197, 255, 0.3); }
       `}</style>
+      </div>
     </div>
   )
 }

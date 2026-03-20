@@ -213,9 +213,9 @@ export function WhatsAppInbox({ externalCount, onCountChange }: WhatsAppInboxPro
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
       <SheetTrigger asChild>
-        <button className="relative flex h-8 items-center gap-1.5 rounded-lg px-3 py-1.5 text-[10px] font-medium text-[var(--orbit-text-muted)] transition-all hover:bg-[var(--orbit-glow)]/10 hover:text-[var(--orbit-text)]">
-          <Inbox className="h-3.5 w-3.5" />
-          <span>Inbox</span>
+        <button className="relative flex h-7 items-center gap-1.5 rounded-md px-3 py-1 text-[9px] font-medium text-[var(--orbit-text-muted)] transition-all hover:bg-[var(--orbit-glow)]/10 hover:text-[var(--orbit-text)]">
+          <Inbox className="h-3 w-3" />
+          <span className="hidden sm:inline">Inbox</span>
           {badgeCount > 0 && (
             <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-indigo-500 text-[9px] font-bold text-white shadow-[0_0_8px_rgba(99,102,241,0.6)] animate-pulse">
               {badgeCount > 9 ? "9+" : badgeCount}

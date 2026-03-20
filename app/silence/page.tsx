@@ -25,6 +25,9 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useTheme } from "next-themes";
+import { useAuth } from "@/hooks/use-auth";
+import { TopBar } from "@/components/top-bar";
+import { useSupabaseLeads } from "@/hooks/use-supabase-data";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -391,6 +394,10 @@ function LeadDossier({ lead, onSent }: { lead: SilentLead; onSent: (id: string) 
 export default function SilenceAnalysisPage() {
   const [leads, setLeads] = useState<SilentLead[]>([]);
   const [loading, setLoading] = useState(true);
+  const { logout } = useAuth();
+  const { resolvedTheme, setTheme } = useTheme();
+  const isDark = resolvedTheme === "dark";
+  const { leads: allLeads } = useSupabaseLeads();
 
   const fetchLeads = async () => {
     try {
@@ -414,21 +421,24 @@ export default function SilenceAnalysisPage() {
 
   return (
     <div className="min-h-screen bg-[#020306] selection:bg-blue-500/30 text-white font-sans overflow-x-hidden">
+      <TopBar 
+        totalLeads={allLeads?.length || 0}
+        isDark={isDark}
+        onThemeToggle={() => setTheme(isDark ? "light" : "dark")}
+        onLogout={logout}
+      />
+      
       {/* Dynamic Background */}
       <div className="fixed inset-0 pointer-events-none">
-          <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-blue-500/10 blur-[120px] rounded-full animate-pulse" />
-          <div className="absolute bottom-0 right-1/4 w-[400px] h-[400px] bg-emerald-500/5 blur-[120px] rounded-full" />
-          <div className="absolute inset-0 bg-[#020306]/40 backdrop-blur-[2px]" />
-          <div className="absolute inset-0 opacity-[0.03] pointer-events-none select-none mix-blend-overlay" 
-               style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` }} />
+        <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-blue-500/10 blur-[120px] rounded-full animate-pulse" />
+        <div className="absolute bottom-0 right-1/4 w-[400px] h-[400px] bg-emerald-500/5 blur-[120px] rounded-full" />
+        <div className="absolute inset-0 bg-[#020306]/40 backdrop-blur-[2px]" />
+        <div className="absolute inset-0 opacity-[0.03] pointer-events-none select-none mix-blend-overlay" 
+             style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` }} />
       </div>
 
-      <header className="max-w-7xl mx-auto px-8 pt-12 pb-20 relative flex flex-col md:flex-row items-end justify-between gap-8">
+      <header className="max-w-7xl mx-auto px-8 pt-24 pb-20 relative flex flex-col md:flex-row items-end justify-between gap-8">
         <div>
-            <Link href="/atlas" className="inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.3em] text-white/30 hover:text-white/100 transition-all mb-8 group">
-                <ArrowLeft className="w-3.5 h-3.5 transition-transform group-hover:-translate-x-1" />
-                Regressar ao Atlas
-            </Link>
             <div className="flex items-center gap-4 mb-4">
                 <div className="w-12 h-px bg-gradient-to-r from-blue-500 to-transparent" />
                 <span className="text-[10px] font-bold uppercase tracking-[0.5em] text-blue-400">Core Awareness</span>

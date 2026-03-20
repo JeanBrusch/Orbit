@@ -2,6 +2,8 @@
 
 import { useTelemetryData } from "@/hooks/use-telemetry-data";
 import { useTheme } from "next-themes";
+import { useAuth } from "@/hooks/use-auth";
+import { TopBar } from "@/components/top-bar";
 import { MetricCard, EffortChart, CognitiveStateChart } from "./telemetry-elements";
 import { PersistenceCurve, InactivityHeatmap, QualityMatrix } from "./telemetry-advanced-charts";
 import { TelemetrySidebar, CognitiveTable } from "./telemetry-sections";
@@ -20,8 +22,9 @@ function initials(name: string) {
 export function TelemetryDashboard() {
   const { data, loading } = useTelemetryData();
   const { selectedLeadId, isLeadPanelOpen, openLeadPanel, closeLeadPanel } = useOrbitContext();
-  const { resolvedTheme } = useTheme();
+  const { resolvedTheme, setTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
+  const { logout } = useAuth();
 
   if (loading || !data) {
     return (
@@ -57,6 +60,12 @@ export function TelemetryDashboard() {
 
   return (
     <div className={`relative min-h-screen w-full overflow-x-hidden bg-[var(--orbit-bg)] text-[var(--orbit-text)]`}>
+      <TopBar 
+        totalLeads={data.rawLeads?.length || 0}
+        isDark={isDark}
+        onThemeToggle={() => setTheme(isDark ? "light" : "dark")}
+        onLogout={logout}
+      />
       <ParticleBackground />
 
       <div className="relative z-10 mx-auto max-w-[1400px] px-6 py-20 lg:px-8">
