@@ -74,12 +74,13 @@ export async function POST(
         .from("memory_items")
         .select("type, content, confidence, created_at")
         .eq("lead_id", leadId)
+        .order("confidence", { ascending: false })
         .order("created_at", { ascending: false })
-        .limit(20),
+        .limit(15),
 
       supabase
         .from("messages")
-        .select("source, content, timestamp, ai_analysis")
+        .select("source, content, timestamp")
         .eq("lead_id", leadId)
         .order("timestamp", { ascending: false })
         .limit(10),
@@ -90,7 +91,7 @@ export async function POST(
         .eq("lead_id", leadId)
         .order("created_at", { ascending: false })
         .limit(5),
-    ]);
+    ]) as any[];
 
     if (!leadRes.data) {
       return NextResponse.json({ error: "Lead not found" }, { status: 404 });
@@ -102,21 +103,34 @@ export async function POST(
     const messages = messagesRes.data || [];
     const insights = insightsRes.data || [];
 
-    // ── 2. Calcular dias de silêncio ───────────────────────────────────────
+    // ── 2. Calcular dias de silêncio (Correção Problema 2) ───────────────────
     const lastInteraction = lead.last_interaction_at
       ? new Date(lead.last_interaction_at)
       : null;
 
-    const daysSilent = lastInteraction
-      ? Math.floor((Date.now() - lastInteraction.getTime()) / (1000 * 60 * 60 * 24))
-      : 999;
+    if (!lastInteraction) {
+      return NextResponse.json({ error: "Lead sem interação registrada (nada a analisar)" }, { status: 422 });
+    }
 
-    // ── 3. Preparar contexto para o modelo ────────────────────────────────
+    const daysSilent = Math.floor((Date.now() - lastInteraction.getTime()) / (1000 * 60 * 60 * 24));
+
+    // ── 3. Traduzir Estágio (Correção Problema 5) ───────────────────────────
+    const stageLabels: Record<string, string> = {
+        "lead": "novo contato, apenas informações básicas",
+        "qualified": "perfil qualificado, aguardando avanço",
+        "visiting": "em fase de visitas aos imóveis",
+        "negotiating": "em negociação ativa de valores/contrato",
+        "closed": "venda/aluguel concluído",
+        "lost": "lead perdido ou descartado"
+    };
+    const stageDescription = stageLabels[lead.orbit_stage as string] ?? lead.orbit_stage;
+
+    // ── 4. Preparar contexto para o modelo ────────────────────────────────
     const conversationContext = [...messages]
       .reverse()
       .map(m => {
         const role = m.source === "whatsapp" ? "LEAD" : "CORRETOR";
-        const time = new Date(m.timestamp).toLocaleDateString("pt-BR", {
+        const time = new Date(m.timestamp as string).toLocaleDateString("pt-BR", {
           day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit"
         });
         return `[${time}] ${role}: ${m.content || "(mídia sem texto)"}`;
@@ -124,14 +138,14 @@ export async function POST(
       .join("\n");
 
     const memoriesContext = memories
-      .map(m => `• [${m.type}] ${m.content} (confiança: ${Math.round((m.confidence || 0) * 100)}%)`)
+      .map((m: any) => `• [${m.type}] ${m.content} (confiança: ${Math.round((m.confidence || 0) * 100)}%)`)
       .join("\n");
 
     const insightsContext = insights
-      .map(i => `• ${i.content} (urgência: ${i.urgency})`)
+      .map((i: any) => `• ${i.content} (urgência: ${i.urgency})`)
       .join("\n");
 
-    // ── 4. Prompt para o classificador ────────────────────────────────────
+    // ── 5. Prompt para o classificador ────────────────────────────────────
     const systemPrompt = `Você é um analista de comportamento humano especializado em decisões imobiliárias.
 Sua função é interpretar o silêncio de um potencial comprador/locatário como um analista clínico.
 
@@ -146,9 +160,9 @@ Responda APENAS com um objeto JSON válido.`;
 DADOS DO LEAD
 ═══════════════════════════════════════
 Nome: ${lead.name || "Desconhecido"}
-Estágio: ${lead.orbit_stage || "desconhecido"}
+Estágio: ${stageDescription}
 Dias em silêncio: ${daysSilent}
-Última interação: ${lastInteraction?.toLocaleDateString("pt-BR") || "desconhecida"}
+Última interação: ${lastInteraction.toLocaleDateString("pt-BR")}
 
 ═══════════════════════════════════════
 ESTADO COGNITIVO (última análise da IA)
@@ -156,6 +170,7 @@ ESTADO COGNITIVO (última análise da IA)
 Interest Score: ${cog?.interest_score ?? "N/A"}
 Momentum Score: ${cog?.momentum_score ?? "N/A"}
 Risk Score: ${cog?.risk_score ?? "N/A"}
+Clarity Level: ${cog?.clarity_level ?? "N/A"} (0.0 a 1.0 - quanto ele entende do processo)
 Estado atual: ${cog?.current_state || "desconhecido"}
 Conflito central: ${cog?.central_conflict || "não identificado"}
 O que NÃO fazer: ${cog?.what_not_to_do || "não registrado"}
@@ -182,7 +197,7 @@ SUA TAREFA
 Raciocine em etapas antes de classificar:
 1. O que estava acontecendo ANTES do silêncio? Qual era o momentum?
 2. Quem enviou a última mensagem? O que isso sinaliza?
-3. O que o conflito central e as memórias revelam sobre o bloqueio?
+3. O que o conflito central, a clareza (${cog?.clarity_level}) e as memórias revelam sobre o bloqueio?
 4. Qual é a temperatura emocional inferida deste lead agora?
 5. O silêncio é evitação, timing, desinteresse ou outra coisa?
 
@@ -204,7 +219,7 @@ Responda APENAS com este formato JSON:
   "next_step_if_ignore": "o que fazer se ignorar"
 }`;
 
-    // ── 5. Chamar o modelo (GPT-4) ─────────────────────────────────────────
+    // ── 6. Chamar o modelo (GPT-4) ─────────────────────────────────────────
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
     const response = await openai.chat.completions.create({
@@ -220,7 +235,7 @@ Responda APENAS com este formato JSON:
     const rawContent = response.choices[0].message.content || "{}";
     const parsed = JSON.parse(rawContent);
 
-    // ── 6. Montar resposta final ───────────────────────────────────────────
+    // ── 7. Montar resposta final ───────────────────────────────────────────
     const analysis: SilenceAnalysis = {
       lead_id: leadId,
       days_silent: daysSilent,
@@ -228,8 +243,8 @@ Responda APENAS com este formato JSON:
       ...parsed,
     };
 
-    // ── 7. Persistir no Supabase ──────────────────────────────────────────
-    await supabase.from("silence_analyses").upsert({
+    // ── 8. Persistir no Supabase (Correção Problema 1: insert simples) ──────
+    await supabase.from("silence_analyses").insert({
       lead_id: leadId,
       days_silent: daysSilent,
       silence_reason: analysis.silence_reason,
@@ -245,7 +260,7 @@ Responda APENAS com este formato JSON:
       next_step_if_ignore: analysis.next_step_if_ignore,
       analyzed_at: analysis.analyzed_at,
       message_sent: false,
-    }, { onConflict: "lead_id" });
+    } as any);
 
     return NextResponse.json(analysis);
 
