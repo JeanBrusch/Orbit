@@ -28,6 +28,7 @@ import { useTheme } from "next-themes";
 import { useAuth } from "@/hooks/use-auth";
 import { TopBar } from "@/components/top-bar";
 import { useSupabaseLeads } from "@/hooks/use-supabase-data";
+import { OrbitProvider } from "@/components/orbit-context";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -391,7 +392,7 @@ function LeadDossier({ lead, onSent }: { lead: SilentLead; onSent: (id: string) 
 
 // ─── Página Principal ─────────────────────────────────────────────────────────
 
-export default function SilenceAnalysisPage() {
+function SilenceAnalysisContent() {
   const [leads, setLeads] = useState<SilentLead[]>([]);
   const [loading, setLoading] = useState(true);
   const { logout } = useAuth();
@@ -518,5 +519,13 @@ export default function SilenceAnalysisPage() {
         }
       `}</style>
     </div>
+  );
+}
+
+export default function SilenceAnalysisPage() {
+  return (
+    <OrbitProvider>
+      <SilenceAnalysisContent />
+    </OrbitProvider>
   );
 }
