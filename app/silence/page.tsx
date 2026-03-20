@@ -449,7 +449,10 @@ function SilenceAnalysisContent() {
     setLeads(l => l.filter(lead => lead.id !== id));
   };
 
-  const criticalCount = useMemo(() => leads.filter(l => l.days_silent > 7).length, [leads]);
+  const criticalCount = useMemo(() => {
+    if (!Array.isArray(leads)) return 0;
+    return leads.filter(l => l.days_silent > 7).length;
+  }, [leads]);
 
   return (
     <div className="min-h-screen bg-[#020306] selection:bg-blue-500/30 text-white font-sans overflow-x-hidden">

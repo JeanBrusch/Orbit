@@ -46,13 +46,17 @@ export async function GET(req: NextRequest) {
       const lastInteraction = new Date(l.last_interaction_at);
       const daysSilent = Math.floor((Date.now() - lastInteraction.getTime()) / (1000 * 60 * 60 * 24));
       
-      const cog = l.lead_cognitive_state?.[0] || l.lead_cognitive_state || {};
+      const cog = l.lead_cognitive_state || {};
       
-      // Pegar a análise mais recente (pelo analyzed_at)
-      const analyses = Array.isArray(l.silence_analyses) ? l.silence_analyses : [l.silence_analyses];
+      // Pegar a análise mais recente
+      const analyses = Array.isArray(l.silence_analyses) ? l.silence_analyses : (l.silence_analyses ? [l.silence_analyses] : []);
       const analysis = analyses
         .filter(Boolean)
-        .sort((a: any, b: any) => new Date(b.analyzed_at).getTime() - new Date(a.analyzed_at).getTime())[0] || null;
+        .sort((a: any, b: any) => {
+          const timeA = a.analyzed_at ? new Date(a.analyzed_at).getTime() : 0;
+          const timeB = b.analyzed_at ? new Date(b.analyzed_at).getTime() : 0;
+          return timeB - timeA;
+        })[0] || null;
 
       const priorityScore = (cog.interest_score || 0) + (daysSilent * 2);
 
