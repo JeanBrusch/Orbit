@@ -4,8 +4,10 @@ import type { ZAPIWebhookMessage } from '@/lib/zapi/types'
 import { getContactProfile } from '@/lib/zapi/client'
 import { normalizePhone, isLidFormat, extractLid, hasRealPhone } from '@/lib/phone-utils'
 import { processEventWithCore } from '@/lib/orbit-core'
+import OpenAI from "openai"
 
 const supabase = getSupabaseServer() as any
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
 const leadCreationLocks = new Map<string, Promise<any>>()
 
@@ -21,6 +23,78 @@ async function withLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
     return await promise
   } finally {
     leadCreationLocks.delete(key)
+  }
+}
+
+// ── Fechamento do loop de reengajamento ───────────────────────────────────────
+
+async function closeReengagementLoop(
+  leadId: string,
+  incomingMessage: string,
+  supabase: any
+) {
+  try {
+    // Busca experimento enviado e ainda sem resposta
+    const { data: experiment, error: fetchError } = await supabase
+      .from("reengagement_experiments")
+      .select("id, objective, sent_at")
+      .eq("lead_id", leadId)
+      .not("sent_at", "is", null)
+      .is("had_response", null)
+      .order("sent_at", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (fetchError || !experiment) return
+
+    // Classifica semanticamente com GPT-4o-mini (rápido e barato)
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        { 
+          role: "system", 
+          content: "Você classifica respostas de leads imobiliários após uma abordagem de reengajamento. Responda APENAS com JSON puro." 
+        },
+        {
+          role: "user",
+          content: `Objetivo da mensagem enviada: "${experiment.objective}"
+Resposta do lead: "${incomingMessage}"
+
+Classifique em exatamente um valor:
+- "positive_progress": abre caminho, avança o objetivo
+- "neutral_reply": responde mas não avança nem recua
+- "deflection": desvia sem rejeitar (ex: "tô ocupado", "depois vejo")
+- "rejection": recusa direta ou encerra
+- "confusion": não faz sentido no contexto
+
+Retorne: {"response_type": "...", "confidence": 0.0, "signal": "palavra ou frase que determinou a classificação"}`
+        }
+      ],
+      response_format: { type: "json_object" },
+      temperature: 0,
+    });
+
+    const classification = JSON.parse(response.choices[0].message.content || "{}");
+
+    if (!classification.response_type) return;
+
+    const sentAt = new Date(experiment.sent_at);
+    const responseTimeMinutes = Math.round((Date.now() - sentAt.getTime()) / 60000);
+
+    await supabase
+      .from("reengagement_experiments")
+      .update({
+        had_response: true,
+        response_type: classification.response_type,
+        response_signal: classification.signal,
+        response_confidence: classification.confidence,
+        response_time_minutes: responseTimeMinutes,
+      })
+      .eq("id", experiment.id);
+
+    console.log(`[REENGAGEMENT LOOP] Lead ${leadId} respondeu. Tipo: ${classification.response_type}`);
+  } catch (err) {
+    console.error("[REENGAGEMENT LOOP] Error:", err);
   }
 }
 
@@ -310,6 +384,12 @@ async function saveMessage(
           .eq('lead_id', leadId)
       ])
       
+      // ── Fechamento do loop de reengajamento ──
+      // Não await — não pode segurar o webhook
+      closeReengagementLoop(leadId, content, supabase).catch(err =>
+        console.error("[REENGAGEMENT LOOP]", err)
+      )
+
       // Acionar Orbit Core com o ID da nova mensagem
       console.log(`[WEBHOOK] Disparando Orbit Core para lead=${leadId}`);
       processEventWithCore(leadId, content, 'message_inbound', data.id).catch((err) => {
