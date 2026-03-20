@@ -17,81 +17,101 @@ export async function POST(
     const supabase = getSupabaseServer();
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-    // 1. Buscar dados essenciais do lead (Nome e Histórico recente)
-    const { data: lead } = await supabase
-        .from("leads")
-        .select("name, semantic_vector")
-        .eq("id", leadId)
-        .single() as any;
+    // 1. Buscar dados essenciais do lead (Nome, Memórias, e Histórico real)
+    const [leadRes, memoriesRes, messagesRes] = await Promise.all([
+        supabase.from("leads").select("name, semantic_vector, location_focus, property_type_focus").eq("id", leadId).single(),
+        supabase.from("memory_items")
+            .select("type, content, confidence")
+            .eq("lead_id", leadId)
+            .order("confidence", { ascending: false })
+            .limit(20),
+        supabase.from("messages")
+            .select("source, content, timestamp")
+            .eq("lead_id", leadId)
+            .order("timestamp", { ascending: false })
+            .limit(8)
+    ]) as any[];
 
-    const { data: messages } = await supabase
-        .from("messages")
-        .select("source, content, timestamp")
-        .eq("lead_id", leadId)
-        .order("timestamp", { ascending: false })
-        .limit(6) as any;
+    const lead = leadRes.data;
+    const memories = memoriesRes.data || [];
+    const messages = messagesRes.data || [];
 
-    const historyContext = (messages || [])
+    // Contexto de mensagens reais (Problema 1)
+    const conversationContext = [...messages]
         .reverse()
         .map((m: any) => `${m.source === 'whatsapp' ? 'LEAD' : 'CORRETOR'}: ${m.content}`)
         .join("\n");
 
-    // 2. Buscar imóveis compatíveis para o lead (RAG) se necessário
+    // Contexto de memórias expandido (Problema 2)
+    const memoriesContext = memories
+        .map((m: any) => `• [${m.type}] ${m.content} (confiança: ${Math.round((m.confidence || 0) * 100)}%)`)
+        .join("\n");
+
+    // 2. Buscar imóveis compatíveis (Melhorado - Problema 5)
     let matchedProperties: any[] = [];
-    if (silence_analysis.should_include_properties && lead?.semantic_vector) {
-        const { data: properties } = await supabase.rpc("match_properties", {
-            query_embedding: lead.semantic_vector,
-            match_threshold: 0.65,
-            match_count: 2
-        }) as any;
-        matchedProperties = properties || [];
+    if (silence_analysis.should_include_properties) {
+        if (lead?.semantic_vector) {
+            const { data: properties } = await supabase.rpc("match_properties", {
+                query_embedding: lead.semantic_vector,
+                match_threshold: 0.65,
+                match_count: 3
+            }) as any;
+            matchedProperties = properties || [];
+        }
     }
 
     const propertiesContext = matchedProperties.length > 0
-        ? `Imóveis recomendados:\n${matchedProperties.map(p => `- ${p.title} (${p.neighborhood}) - R$ ${p.value?.toLocaleString('pt-BR')}`).join('\n')}`
-        : "Nenhum imóvel específico recomendado agora.";
+        ? `IMÓVEIS REAIS DISPONÍVEIS:\n${matchedProperties.map(p => `- ${p.title} em ${p.neighborhood} (R$ ${p.value?.toLocaleString('pt-BR')})`).join('\n')}`
+        : "NÃO HÁ IMÓVEIS NOVOS PARA CITAR AGORA.";
 
-    // 3. Definir Tons e Prompt
-    const tones = ["casual", "curiosity", "direct", "reconnect", "value_anchor"];
-    
-    const systemPrompt = `Você é um corretor de imóveis de elite que usa o framework "Orbit" para reativação de leads.
-Sua comunicação segue a técnica da "Escrita Invisível": parece uma mensagem real de um humano no WhatsApp, não um bot.
+    // 3. Prompt de Elite (Correção Problemas 3, 4 e 6)
+    const systemPrompt = `Você é um corretor de imóveis de elite que usa o framework "Orbit".
+Sua fala é curta, humana e impossível de distinguir de um corretor real no WhatsApp.
 
-REGRAS DE OURO:
-1. CURTO E DIRETO: Máximo 200 caracteres. No WhatsApp, menos é mais.
-2. SEM FORMALIDADES: Nunca use "Olá", "Tudo bem?", "Espero que esteja bem", "Atenciosamente". Comece como se estivesse continuando uma conversa.
-3. MINIMALISMO DE EMOJI: Use no máximo um emoji, ou nenhum.
-4. LINGUAGEM NATURAL: Use termos como "vi aqui", "lembrei", "faz sentido?", "conseguiu ver?".
-5. FOCO NA RESPOSTA: O objetivo é apenas que o lead responda algo.`;
+DIRETRIZES DE ESCRITA:
+1. SEM PRETEXTOS FALSOS: Se não houver imóveis reais na lista, não invente que "chegou algo". Use reconexão humana.
+2. ÂNCORA DE INTENÇÃO: Se sabe que o lead queria "3 quartos no Itaim", use isso para contextualizar a volta.
+3. CONVERSA CONTÍNUA: A mensagem deve soar como se você tivesse acabado de lembrar de algo relativo à última conversa real.
+4. ZERO FORMALIDADE: Sem "Olá", "Tudo bem?", "Espero que esteja bem". Vá direto ao ponto.
 
-    const userPrompt = `Gere uma mensagem de reengajamento altamente personalizada.
+EXEMPLOS DE CONTRASTE:
+- RUIM (Genérico): "Olá [Nome], tudo bem? Vi que não nos falamos mais. Tem interesse em continuar?"
+- BOM (Personalizado): "[Nome], lembrei do que você falou sobre a garagem. Vi um aqui no Itaim que resolve exatamente aquele ponto. Consegue ver o link?"
+- BOM (Sem imóvel): "[Nome], sumiu! Faz tempo que não nos falamos. O plano do apartamento novo ainda faz sentido ou mudou o foco?"`;
 
-DADOS DO LEAD:
-Nome: ${lead?.name || "Cliente"}
-Últimas mensagens:
-${historyContext || "Sem histórico recente."}
+    const userPrompt = `Gere uma mensagem de reengajamento baseada em fatos reais.
 
-ESTRATÉGIA: ${silence_analysis.strategy}
-MOTIVO DO SILÊNCIO: ${silence_analysis.silence_reason}
-ESTADO EMOCIONAL: ${silence_analysis.emotional_state}
-INTENÇÃO ORIGINAL: ${silence_analysis.last_known_intent}
+════════════════════════════
+HISTÓRICO REAL DA CONVERSA
+════════════════════════════
+${conversationContext || "Nenhuma mensagem registrada."}
 
-CONTEXTO DE IMÓVEIS:
+════════════════════════════
+DIAGNÓSTICO DO SILÊNCIO
+════════════════════════════
+Motivo: ${silence_analysis.silence_reason}
+Estado Emocional: ${silence_analysis.emotional_state}
+Intenção Original: ${silence_analysis.last_known_intent}
+
+════════════════════════════
+CONTEXTO DE MEMÓRIA E ATIVOS
+════════════════════════════
+Memórias:
+${memoriesContext}
+
 ${propertiesContext}
 
-DIRETRIZES:
-- Use o nome dele: ${lead?.name || ""} (opcional, se soar natural no contexto).
-- Se houver imóveis, NÃO diga "Temos estes imóveis", diga algo como "Vi um aqui no [Bairro] que parece muito com o que a gente falou".
-- Se o silêncio for por PREÇO, tente reancorar valor ou perguntar do momento, sem pressionar.
-- Escolha um dos tons: ${tones.join(", ")}.
+TAREFA:
+Escreva a mensagem. Se houver imóveis, cite-os de forma orgânica. 
+Se NÃO houver, foque na intenção original (${silence_analysis.last_known_intent}) ou no estado emocional (${silence_analysis.emotional_state}).
 
 Responda APENAS com este JSON:
 {
   "message": "...",
   "tone": "...",
-  "confidence": 0.0,
-  "matched_properties": [],
-  "reasoning": "Explique por que essa mensagem quebrará o silêncio baseado no histórico."
+  "reasoning": "...",
+  "what_makes_it_work": "Por que esta abordagem específica quebrará o silêncio deste lead?",
+  "risk_if_sent": "Qual o risco desta mensagem (ex: parecer insistente)?"
 }`;
 
     const response = await openai.chat.completions.create({
