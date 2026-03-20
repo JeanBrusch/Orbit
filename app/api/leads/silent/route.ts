@@ -39,7 +39,10 @@ export async function GET(req: NextRequest) {
       .lt("last_interaction_at", threeDaysAgo.toISOString())
       .order("last_interaction_at", { ascending: false });
 
-    if (error) throw error;
+    if (error) {
+      console.error("[SILENT LEADS] Supabase Error:", error);
+      throw error;
+    }
 
     // Mapear para o formato esperado pelo frontend
     const leads = (data || []).map((l: any) => {
