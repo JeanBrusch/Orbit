@@ -23,6 +23,7 @@ import dynamic from "next/dynamic"
 const EditPropertyModal = dynamic(() => import("@/components/atlas/EditPropertyModal"), { ssr: false })
 import { TopBar } from "@/components/top-bar"
 import { useRouter } from "next/navigation"
+import { OrbitProvider } from "@/components/orbit-context"
 
 // ── Aesthetics & Tokens ──────────────────────────────────────────────────────
 const theme = {
@@ -1225,12 +1226,14 @@ function SelectionsHistory() {
 }
 export default function AtlasManager() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-[#05060a] flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-[#2ec5ff]" />
-      </div>
-    }>
-      <AtlasManagerContent />
-    </Suspense>
+    <OrbitProvider>
+      <Suspense fallback={
+        <div className="min-h-screen bg-[#05060a] flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-[#2ec5ff]" />
+        </div>
+      }>
+        <AtlasManagerContent />
+      </Suspense>
+    </OrbitProvider>
   )
 }
