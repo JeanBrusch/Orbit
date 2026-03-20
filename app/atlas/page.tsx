@@ -20,10 +20,13 @@ import { getSupabase } from "@/lib/supabase"
 import { toast } from "sonner"
 import dynamic from "next/dynamic"
 
-const EditPropertyModal = dynamic(() => import("@/components/atlas/EditPropertyModal"), { ssr: false })
 import { TopBar } from "@/components/top-bar"
 import { useRouter } from "next/navigation"
 import { OrbitProvider } from "@/components/orbit-context"
+import MapModal from "@/components/atlas/MapModal"
+import VoiceIngestion from "@/components/atlas/VoiceIngestion"
+
+const EditPropertyModal = dynamic(() => import("@/components/atlas/EditPropertyModal"), { ssr: false })
 
 // ── Aesthetics & Tokens ──────────────────────────────────────────────────────
 const theme = {

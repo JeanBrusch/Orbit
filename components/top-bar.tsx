@@ -27,6 +27,12 @@ interface TopBarProps {
 }
 
 export function TopBar({ totalLeads, isDark, onThemeToggle, onLogout }: TopBarProps) {
+  const [mounted, setMounted] = useState(false);
+  
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const { 
     setIsAdminDrawerOpen, 
     setActiveAdminView,
@@ -118,9 +124,9 @@ export function TopBar({ totalLeads, isDark, onThemeToggle, onLogout }: TopBarPr
               localStorage.setItem('orbit-theme', nextTheme);
               onThemeToggle(); // Mantém o callback se necessário, mas a lógica agora é explícita aqui
             }}
-            className="h-7 w-7 hover:bg-[var(--orbit-glow)]/10 text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)] transition-all"
+            className="h-7 w-7 hover:bg-[var(--orbit-glow)]/10 text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)] transition-all flex items-center justify-center p-0"
           >
-            {isDark
+            {mounted && isDark
               ? <Sun className="h-3.5 w-3.5 text-[#d97706]" />
               : <Moon className="h-3.5 w-3.5 text-[#4f46e5]" />
             }
