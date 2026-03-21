@@ -12,6 +12,7 @@ import { useSupabaseProperties } from "@/hooks/use-supabase-data"
 import { useTheme } from "next-themes"
 import type { MapProperty } from "@/components/atlas/MapAtlas"
 import { HeatmapLayer } from "@/components/atlas/HeatmapLayer"
+import { AdvancedFilters } from "@/components/atlas/AdvancedFilters"
 
 // ── Dynamic Mapbox ───────────────────────────────────────────────────────────
 const MapAtlas = dynamic(
@@ -74,6 +75,12 @@ export default function MapModal({ isOpen, onClose, selectedIds, onToggleSelect 
   const [selectedProperty, setSelectedProperty] = useState<any | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
 
+  // Filter States
+  const [minPrice, setMinPrice] = useState<number | null>(null)
+  const [maxPrice, setMaxPrice] = useState<number | null>(null)
+  const [bedrooms, setBedrooms] = useState<number | null>(null)
+  const [neighborhoods, setNeighborhoods] = useState<string[]>([])
+
   // ── Heatmap State ─────────────────────────────────────────────────────────
   const [heatmapActive, setHeatmapActive] = useState(false)
   const [heatmapMetric, setHeatmapMetric] = useState<HeatmapMetric>("all")
@@ -83,12 +90,28 @@ export default function MapModal({ isOpen, onClose, selectedIds, onToggleSelect 
   const [selectedNeighborhood, setSelectedNeighborhood] = useState<any>(null)
 
   const filtered = useMemo(() => {
-    return properties?.filter(p => 
+    let base = properties || []
+
+    // Local physical filters
+    if (minPrice !== null) base = base.filter(p => (p.value || 0) >= minPrice)
+    if (maxPrice !== null) base = base.filter(p => (p.value || 0) <= maxPrice)
+    if (bedrooms !== null) {
+      base = base.filter(p => {
+        const beds = p.bedrooms || 0
+        return bedrooms === 4 ? beds >= 4 : beds === bedrooms
+      })
+    }
+    if (neighborhoods.length > 0) {
+      base = base.filter(p => p.neighborhood && neighborhoods.includes(p.neighborhood))
+    }
+
+    // Text search filter
+    return base.filter(p => 
       !searchQuery || 
       p.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.location_text?.toLowerCase().includes(searchQuery.toLowerCase())
-    ) || []
-  }, [properties, searchQuery])
+    )
+  }, [properties, searchQuery, minPrice, maxPrice, bedrooms, neighborhoods])
 
   const mapProperties: MapProperty[] = useMemo(() => {
     return filtered
@@ -181,10 +204,10 @@ export default function MapModal({ isOpen, onClose, selectedIds, onToggleSelect 
             initialZoom={13}
           />
           
-          {/* Search Bar */}
+          {/* Search Bar & Filters */}
           {!heatmapActive && (
-            <div className="absolute top-6 left-6 z-[110] w-64 hidden md:block">
-              <div className={`flex items-center gap-2 px-4 py-2 rounded-full ${glass} shadow-2xl`}>
+            <div className="absolute top-6 left-6 z-[110] hidden md:flex items-center gap-2">
+              <div className={`flex items-center gap-2 px-4 py-2 rounded-full ${glass} shadow-2xl w-64`}>
                 <Search className={`h-4 w-4 ${isDark ? 'text-[#d4af35]' : 'text-[var(--orbit-glow)]'}`} />
                 <input 
                   value={searchQuery}
@@ -193,6 +216,19 @@ export default function MapModal({ isOpen, onClose, selectedIds, onToggleSelect 
                   className="bg-transparent border-none text-xs focus:ring-0 placeholder:text-white/30 w-full outline-none"
                 />
               </div>
+
+              <AdvancedFilters 
+                minPrice={minPrice} 
+                maxPrice={maxPrice} 
+                bedrooms={bedrooms} 
+                neighborhoods={neighborhoods} 
+                onChange={({ minPrice, maxPrice, bedrooms, neighborhoods }) => {
+                  setMinPrice(minPrice)
+                  setMaxPrice(maxPrice)
+                  setBedrooms(bedrooms)
+                  setNeighborhoods(neighborhoods)
+                }} 
+              />
             </div>
           )}
 
