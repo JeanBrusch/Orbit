@@ -25,6 +25,7 @@ import { useRouter } from "next/navigation"
 import { OrbitProvider } from "@/components/orbit-context"
 import MapModal from "@/components/atlas/MapModal"
 import VoiceIngestion from "@/components/atlas/VoiceIngestion"
+import { AdvancedFilters } from "@/components/atlas/AdvancedFilters"
 
 const EditPropertyModal = dynamic(() => import("@/components/atlas/EditPropertyModal"), { ssr: false })
 
@@ -189,6 +190,11 @@ function AtlasManagerContent() {
   const [editingProperty, setEditingProperty] = useState<any>(null)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isSavingEdit, setIsSavingEdit] = useState(false)
+
+  const [minPrice, setMinPrice] = useState<number | null>(null)
+  const [maxPrice, setMaxPrice] = useState<number | null>(null)
+  const [bedrooms, setBedrooms] = useState<number | null>(null)
+  const [neighborhoods, setNeighborhoods] = useState<string[]>([])
 
   const { refetch: refetchProps } = useSupabaseProperties()
 
@@ -359,12 +365,25 @@ function AtlasManagerContent() {
     if (filteredIds) {
       base = base.filter(p => filteredIds.includes(p.id))
     }
+
+    if (minPrice !== null) base = base.filter(p => (p.value || 0) >= minPrice)
+    if (maxPrice !== null) base = base.filter(p => (p.value || 0) <= maxPrice)
+    if (bedrooms !== null) {
+      base = base.filter(p => {
+        const beds = p.bedrooms || 0
+        return bedrooms === 4 ? beds >= 4 : beds === bedrooms
+      })
+    }
+    if (neighborhoods.length > 0) {
+      base = base.filter(p => p.neighborhood && neighborhoods.includes(p.neighborhood))
+    }
+
     return base.filter(p => 
       p.title?.toLowerCase().includes(search.toLowerCase()) || 
       p.location_text?.toLowerCase().includes(search.toLowerCase()) ||
       p.internal_name?.toLowerCase().includes(search.toLowerCase())
     )
-  }, [properties, search, filteredIds])
+  }, [properties, search, filteredIds, minPrice, maxPrice, bedrooms, neighborhoods])
 
   const handleNaturalSearch = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -378,7 +397,13 @@ function AtlasManagerContent() {
       const response = await fetch('/api/atlas/search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: naturalSearch })
+        body: JSON.stringify({ 
+          query: naturalSearch,
+          minPrice,
+          maxPrice,
+          bedrooms,
+          neighborhoods
+        })
       })
       const data = await response.json()
       if (data.matchingIds) {
@@ -667,10 +692,20 @@ function AtlasManagerContent() {
                         className="pl-9 h-9 w-48 text-xs bg-[var(--orbit-bg-secondary)] border border-[var(--orbit-line)] rounded-lg text-[var(--orbit-text)] placeholder:text-[var(--orbit-text-muted)]/60 focus:border-[var(--orbit-glow)]/40 shadow-sm transition-all"
                       />
                     </div>
-                    <Button variant="outline" size="sm" className="h-9 px-4 gap-2 text-xs border-[var(--orbit-line)] text-[var(--orbit-text)] bg-[var(--orbit-bg-secondary)] hover:bg-[var(--orbit-glow)]/5 hover:border-[var(--orbit-glow)]/40 transition-colors">
-                      <Filter className="h-4 w-4 text-[var(--orbit-text-muted)]" />
-                      Filtros
-                    </Button>
+                    
+                    <AdvancedFilters 
+                      minPrice={minPrice} 
+                      maxPrice={maxPrice} 
+                      bedrooms={bedrooms} 
+                      neighborhoods={neighborhoods} 
+                      onChange={({ minPrice, maxPrice, bedrooms, neighborhoods }) => {
+                        setMinPrice(minPrice)
+                        setMaxPrice(maxPrice)
+                        setBedrooms(bedrooms)
+                        setNeighborhoods(neighborhoods)
+                      }} 
+                    />
+                    
                     <div className="w-px h-8 bg-[var(--orbit-line)] mx-2" />
                     <Button 
                       onClick={() => setIsMapModalOpen(true)}

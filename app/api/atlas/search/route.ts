@@ -8,20 +8,40 @@ const openai = new OpenAI({
 
 export async function POST(request: NextRequest) {
   try {
-    const { query } = await request.json()
+    const { query, minPrice, maxPrice, bedrooms, neighborhoods } = await request.json()
 
     if (!query) {
       return NextResponse.json({ error: 'Query is required' }, { status: 400 })
     }
 
     const supabase = getSupabaseServer()
-    const { data: properties, error: dbError } = await supabase
+    let dbQuery = supabase
       .from('properties')
       .select('id, title, internal_name, neighborhood, area_privativa, bedrooms, suites, value, features, location_text')
 
+    if (minPrice !== null && minPrice !== undefined) {
+      dbQuery = dbQuery.gte('value', minPrice)
+    }
+    if (maxPrice !== null && maxPrice !== undefined) {
+      dbQuery = dbQuery.lte('value', maxPrice)
+    }
+    if (bedrooms !== null && bedrooms !== undefined) {
+      if (bedrooms === 4) {
+        dbQuery = dbQuery.gte('bedrooms', 4)
+      } else {
+        dbQuery = dbQuery.eq('bedrooms', bedrooms)
+      }
+    }
+    if (neighborhoods && Array.isArray(neighborhoods) && neighborhoods.length > 0) {
+      dbQuery = dbQuery.in('neighborhood', neighborhoods)
+    }
+
+    const { data, error: dbError } = await (dbQuery as any)
+    const properties = data || []
+
     if (dbError) throw dbError
 
-    const propertiesContext = properties.map(p => ({
+    const propertiesContext = properties.map((p: any) => ({
       id: p.id,
       text: `${p.title || p.internal_name} em ${p.neighborhood || p.location_text}. ${p.bedrooms} quartos, ${p.suites} suítes, ${p.area_privativa}m². Valor: R$ ${p.value}. Features: ${p.features?.join(', ')}`
     }))

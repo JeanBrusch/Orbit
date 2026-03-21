@@ -288,6 +288,10 @@ interface PropertyRow {
   features?: string[]
   payment_conditions?: Record<string, any>
   area_privativa?: number
+  bedrooms?: number
+  neighborhood?: string
+  suites?: string
+  condo_fee?: string
 }
 
 export function useSupabaseProperties() {
