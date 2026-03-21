@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { getSupabaseServer } from "@/lib/supabase-server";
+import { resolveStrategy } from "@/lib/strategy-resolver";
+import { validateHookQuality } from "@/lib/hook-validator";
 
 export async function POST(
   req: NextRequest,
@@ -18,8 +20,9 @@ export async function POST(
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
     // 1. Buscar dados essenciais do lead (Nome, Memórias, e Histórico real)
-    const [leadRes, memoriesRes, messagesRes] = await Promise.all([
+    const [leadRes, cogRes, memoriesRes, messagesRes] = await Promise.all([
         supabase.from("leads").select("name, semantic_vector, location_focus, property_type_focus").eq("id", leadId).single(),
+        supabase.from("lead_cognitive_state").select("interest_score, momentum_score, clarity_level").eq("lead_id", leadId).maybeSingle(),
         supabase.from("memory_items")
             .select("type, content, confidence")
             .eq("lead_id", leadId)
@@ -33,23 +36,34 @@ export async function POST(
     ]) as any[];
 
     const lead = leadRes.data;
+    const cog = cogRes.data;
     const memories = memoriesRes.data || [];
     const messages = messagesRes.data || [];
+    const leadFirstName = lead?.name?.split(" ")[0] || "cliente";
 
-    // Contexto de mensagens reais (Problema 1)
+    // 2. Resolver Estratégia Determinística
+    const strategy = resolveStrategy(
+        silence_analysis.silence_reason,
+        silence_analysis.days_silent || 0,
+        cog?.momentum_score ?? 30
+    );
+
+    // Contexto de mensagens reais para o Hook
     const conversationContext = [...messages]
         .reverse()
-        .map((m: any) => `${m.source === 'whatsapp' ? 'LEAD' : 'CORRETOR'}: ${m.content}`)
+        .map(m => {
+            const role = m.source === "whatsapp" ? "LEAD" : "CORRETOR";
+            return `${role}: ${m.content}`;
+        })
         .join("\n");
 
-    // Contexto de memórias expandido (Problema 2)
     const memoriesContext = memories
         .map((m: any) => `• [${m.type}] ${m.content} (confiança: ${Math.round((m.confidence || 0) * 100)}%)`)
         .join("\n");
 
-    // 2. Buscar imóveis compatíveis (Melhorado - Problema 5)
+    // 3. Buscar imóveis compatíveis (se permitido pela estratégia)
     let matchedProperties: any[] = [];
-    if (silence_analysis.should_include_properties) {
+    if (silence_analysis.should_include_properties && !strategy.hard_constraints.includes("no_property")) {
         if (lead?.semantic_vector) {
             const { data: properties } = await supabase.rpc("match_properties", {
                 query_embedding: lead.semantic_vector,
@@ -64,54 +78,66 @@ export async function POST(
         ? `IMÓVEIS REAIS DISPONÍVEIS:\n${matchedProperties.map(p => `- ${p.title} em ${p.neighborhood} (R$ ${p.value?.toLocaleString('pt-BR')})`).join('\n')}`
         : "NÃO HÁ IMÓVEIS NOVOS PARA CITAR AGORA.";
 
-    // 3. Prompt de Elite (Correção Problemas 3, 4 e 6)
+    // 4. Prompt de Elite (Blindado por Estratégia)
     const systemPrompt = `Você é um corretor de imóveis de elite que usa o framework "Orbit".
 Sua fala é curta, humana e impossível de distinguir de um corretor real no WhatsApp.
 
-DIRETRIZES DE ESCRITA:
-1. SEM PRETEXTOS FALSOS: Se não houver imóveis reais na lista, não invente que "chegou algo". Use reconexão humana.
-2. ÂNCORA DE INTENÇÃO: Se sabe que o lead queria "3 quartos no Itaim", use isso para contextualizar a volta.
-3. CONVERSA CONTÍNUA: A mensagem deve soar como se você tivesse acabado de lembrar de algo relativo à última conversa real.
-4. ZERO FORMALIDADE: Sem "Olá", "Tudo bem?", "Espero que esteja bem". Vá direto ao ponto.
+Você deve gerar mensagens INTRANSFERÍVEIS. Se a mensagem puder ser enviada para outro lead com pequenos ajustes, ela é considerada FALHA.
 
-EXEMPLOS DE CONTRASTE:
-- RUIM (Genérico): "Olá [Nome], tudo bem? Vi que não nos falamos mais. Tem interesse em continuar?"
-- BOM (Personalizado): "[Nome], lembrei do que você falou sobre a garagem. Vi um aqui no Itaim que resolve exatamente aquele ponto. Consegue ver o link?"
-- BOM (Sem imóvel): "[Nome], sumiu! Faz tempo que não nos falamos. O plano do apartamento novo ainda faz sentido ou mudou o foco?"`;
+════════════════════════════════════════
+OBJETIVO FIXO
+════════════════════════════════════════
+${strategy.objective.replace(/_/g, " ").toUpperCase()}
 
-    const userPrompt = `Gere uma mensagem de reengajamento baseada em fatos reais.
+Essa mensagem existe para isso. Nada mais.
 
-════════════════════════════
-HISTÓRICO REAL DA CONVERSA
-════════════════════════════
-${conversationContext || "Nenhuma mensagem registrada."}
+════════════════════════════════════════
+ÚLTIMAS MENSAGENS REAIS
+════════════════════════════════════════
+${conversationContext || "Nenhuma mensagem registrada"}
 
-════════════════════════════
-DIAGNÓSTICO DO SILÊNCIO
-════════════════════════════
+Use o conteúdo acima para o hook. Cite a frase, a data, o dado — não parafraseie.
+
+════════════════════════════════════════
+RESTRIÇÕES ABSOLUTAS
+════════════════════════════════════════
+${strategy.hard_constraints.map(c => `❌ ${c.replace(/_/g, " ").toUpperCase()}`).join("\n")}
+
+════════════════════════════════════════
+PADRÕES OBRIGATÓRIOS
+════════════════════════════════════════
+${strategy.force_patterns.map(p => `✅ ${p.replace(/_/g, " ").toUpperCase()}`).join("\n")}
+
+════════════════════════════════════════
+REGRAS ABSOLUTAS
+════════════════════════════════════════
+1. Máximo 3 frases
+2. Sem "espero que esteja bem" ou frases de template
+3. Sem mencionar follow-up
+4. Use o primeiro nome: ${leadFirstName}`;
+
+    const userPrompt = `Gere a mensagem de reengajamento baseada no diagnóstico de silêncio:
+
+DIAGNÓSTICO:
 Motivo: ${silence_analysis.silence_reason}
 Estado Emocional: ${silence_analysis.emotional_state}
 Intenção Original: ${silence_analysis.last_known_intent}
 
-════════════════════════════
-CONTEXTO DE MEMÓRIA E ATIVOS
-════════════════════════════
-Memórias:
+MEMÓRIAS:
 ${memoriesContext}
 
 ${propertiesContext}
 
-TAREFA:
-Escreva a mensagem. Se houver imóveis, cite-os de forma orgânica. 
-Se NÃO houver, foque na intenção original (${silence_analysis.last_known_intent}) ou no estado emocional (${silence_analysis.emotional_state}).
-
-Responda APENAS com este JSON:
+Responda APENAS com JSON:
 {
   "message": "...",
-  "tone": "...",
-  "reasoning": "...",
-  "what_makes_it_work": "Por que esta abordagem específica quebrará o silêncio deste lead?",
-  "risk_if_sent": "Qual o risco desta mensagem (ex: parecer insistente)?"
+  "objective": "${strategy.objective}",
+  "hook_type": "${strategy.hook_requirement}",
+  "hook_source": "trecho exato do histórico — mínimo 15 chars",
+  "force_pattern_used": "qual padrão foi aplicado",
+  "specificity_score": 0.0,
+  "is_transferable": false,
+  "reasoning": "..."
 }`;
 
     const response = await openai.chat.completions.create({
@@ -124,22 +150,50 @@ Responda APENAS com este JSON:
       temperature: 0.7,
     });
 
-    const result = JSON.parse(response.choices[0].message.content || "{}");
-    result.matched_properties = matchedProperties;
+    const parsed = JSON.parse(response.choices[0].message.content || "{}");
+    
+    // 5. Portão de Qualidade: Validar Hook antes de retornar
+    const hookValidation = validateHookQuality(parsed.hook_source, parsed.hook_type);
+    
+    if (!hookValidation.isValid) {
+        console.warn("[REENGAGEMENT] Geração rejeitada: WEAK_HOOK", hookValidation.rejection_reason);
+        return NextResponse.json({
+            error: "Geração rejeitada",
+            reason: hookValidation.rejection_reason,
+            hook_score: hookValidation.score,
+            code: "WEAK_HOOK",
+        }, { status: 422 });
+    }
 
-    // Persistir experimento
+    if (parsed.is_transferable === true) {
+        console.warn("[REENGAGEMENT] Geração rejeitada: TRANSFERABLE_MESSAGE");
+        return NextResponse.json({
+            error: "Geração rejeitada",
+            reason: "mensagem_transferivel_detectada",
+            code: "TRANSFERABLE_MESSAGE",
+        }, { status: 422 });
+    }
+
+    // Persistir experimento com novos campos
     await supabase.from("reengagement_experiments").insert({
         lead_id: leadId,
         silence_reason: silence_analysis.silence_reason,
         strategy: silence_analysis.strategy,
-        tone: result.tone,
+        objective: strategy.objective,
+        hook_type: parsed.hook_type,
+        hook_source: parsed.hook_source,
+        force_pattern_used: parsed.force_pattern_used,
+        constraint_applied: strategy.hard_constraints,
+        specificity_score: parsed.specificity_score,
+        is_transferable: parsed.is_transferable,
+        next_move_if_reply: (strategy as any).next_move_if_reply || null,
         days_silent: silence_analysis.days_silent,
         had_property: matchedProperties.length > 0,
-        message_length: result.message.length || 0,
+        message_length: parsed.message?.length || 0,
         generated_at: new Date().toISOString()
     } as any);
 
-    return NextResponse.json(result);
+    return NextResponse.json({ ...parsed, matched_properties: matchedProperties });
 
   } catch (error) {
     console.error("[REENGAGEMENT] Error:", error);
@@ -157,7 +211,6 @@ export async function PATCH(
   try {
     const supabase = getSupabaseServer();
     
-    // Atualizar o experimento mais recente
     const { data: latest } = await supabase
         .from("reengagement_experiments")
         .select("id")
@@ -175,7 +228,6 @@ export async function PATCH(
             } as any)
             .eq("id", latest.id);
             
-        // Também atualizar na silence_analyses para manter o loop de aprendizado legado
         await supabase
             .from("silence_analyses")
             .update({ 

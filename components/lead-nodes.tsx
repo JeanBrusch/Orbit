@@ -786,13 +786,6 @@ const LeadNodeItem = memo(({
       >
         <div className="relative">
           {/* O raio de lightning badge foi removido conforme solicitação */}
-          {!node.needsAttention && node.followupActive && (node.followupRemaining || 0) > 0 && (
-            <ActionBadge type="number" number={node.followupRemaining} title={`Follow-up: ${node.followupRemaining} ações restantes`} />
-          )}
-          {!node.needsAttention && !node.followupActive && node.hasMatureNotes && (
-            <ActionBadge type="chat" title="Existe contexto aqui" onClick={(e) => { e.stopPropagation(); onClick(node.id); }} />
-          )}
-
           {hasFollowUpDue && !node.needsAttention && <FollowUpRing />}
 
           <div
@@ -829,11 +822,6 @@ const LeadNodeItem = memo(({
             </div>
           )}
 
-          {node.badge && (
-            <div className="absolute -right-1 -top-1">
-              <BadgeContent badge={node.badge} />
-            </div>
-          )}
         </div>
 
         <div
@@ -849,7 +837,7 @@ const LeadNodeItem = memo(({
           ))}
         </div>
 
-        <ActivityIndicators leadId={node.id} leadStates={{ [node.id]: leadState }} hasFollowUpDue={hasFollowUpDue} />
+
         <VisualStateIndicator leadId={node.id} visualState={visualState} onStateChange={onVisualStateChange} />
       </div>
 

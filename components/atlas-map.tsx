@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useCallback, useEffect, useRef, useMemo } from "react"
-import { X, MapPin, Check, Building2, Link2, Loader2, AlertCircle, ExternalLink, Search, Stars, ArrowRight, Trash2, Share2, Users } from "lucide-react"
+import { X, MapPin, Check, Building2, Link2, Loader2, AlertCircle, ExternalLink, Search, Stars, ArrowRight, Trash2, Share2, Users, Flame, BarChart3 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { type Property, type IngestionStatus, type LocationAccuracy, useOrbitContext } from "./orbit-context"
 import { useSupabaseProperties } from "@/hooks/use-supabase-data"
@@ -9,6 +9,7 @@ import { getSupabase } from "@/lib/supabase"
 import { useTheme } from "next-themes"
 import dynamic from "next/dynamic"
 import type { MapProperty } from "./atlas/MapAtlas"
+import { NeighborhoodInsightPanel, type NeighborhoodData } from "./atlas/NeighborhoodInsightPanel"
 
 const ClientSpacesManager = dynamic(() => import("./atlas/ClientSpacesManager"), { ssr: false })
 const PropertyTimeline = dynamic(() => import("./atlas/PropertyTimeline"), { ssr: false })
@@ -53,6 +54,15 @@ export function AtlasFocusSurface() {
   const [showLeadSearch, setShowLeadSearch] = useState(false)
   const [showClientSpaceFor, setShowClientSpaceFor] = useState<string | null>(null)
   const [activeContextTab, setActiveContextTab] = useState<"matches" | "history">("matches")
+
+  // ── Heatmap State ──────────────────────────────────────────────────────────
+  type HeatmapMetric = "all" | "sent" | "favorited" | "visited" | "deciding"
+  const [heatmapActive, setHeatmapActive] = useState(false)
+  const [heatmapMetric, setHeatmapMetric] = useState<HeatmapMetric>("all")
+  const [heatmapGeoJSON, setHeatmapGeoJSON] = useState<GeoJSON.FeatureCollection | null>(null)
+  const [heatmapNeighborhoods, setHeatmapNeighborhoods] = useState<NeighborhoodData[]>([])
+  const [isLoadingHeatmap, setIsLoadingHeatmap] = useState(false)
+  const [selectedNeighborhood, setSelectedNeighborhood] = useState<NeighborhoodData | null>(null)
   
   const { 
     isAtlasMapActive, 
@@ -61,6 +71,43 @@ export function AtlasFocusSurface() {
   } = useOrbitContext()
   
   const { properties: supabaseProperties, refetch: refetchProperties } = useSupabaseProperties()
+
+  // ── Fetch Heatmap Data ────────────────────────────────────────────────────
+  const fetchHeatmap = useCallback(async (metric: string) => {
+    setIsLoadingHeatmap(true)
+    try {
+      const res = await fetch(`/api/atlas/heatmap?metric=${metric}&days=30`)
+      const data = await res.json()
+      setHeatmapGeoJSON(data.geojson || null)
+      setHeatmapNeighborhoods(data.neighborhoods || [])
+    } catch (err) {
+      console.error("[HEATMAP] Erro ao buscar heatmap:", err)
+    } finally {
+      setIsLoadingHeatmap(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (heatmapActive) fetchHeatmap(heatmapMetric)
+  }, [heatmapActive, heatmapMetric, fetchHeatmap])
+
+  const toggleHeatmap = useCallback(() => {
+    setHeatmapActive(prev => !prev)
+    setSelectedNeighborhood(null)
+    if (selectedProperty) setSelectedProperty(null)
+  }, [selectedProperty])
+
+  // Ao clicar no mapa em modo heatmap → encontrar bairro mais próximo
+  const handleHeatmapMapClick = useCallback((lat: number, lng: number) => {
+    if (!heatmapActive || heatmapNeighborhoods.length === 0) return
+    // Encontra o bairro mais próximo clicado
+    const closest = heatmapNeighborhoods.reduce((prev, curr) => {
+      const prevDist = Math.abs(prev.lat - lat) + Math.abs(prev.lng - lng)
+      const currDist = Math.abs(curr.lat - lat) + Math.abs(curr.lng - lng)
+      return currDist < prevDist ? curr : prev
+    })
+    setSelectedNeighborhood(closest)
+  }, [heatmapActive, heatmapNeighborhoods])
   
   useEffect(() => {
     if (isAtlasMapActive) {
@@ -263,6 +310,10 @@ export function AtlasFocusSurface() {
           properties={mapAtlasProperties}
           selectedPropertyId={selectedProperty?.id}
           onPropertyClick={handleMapPropertyClick}
+          onMapClick={heatmapActive ? handleHeatmapMapClick : undefined}
+          heatmapVisible={heatmapActive}
+          heatmapGeoJSON={heatmapGeoJSON}
+          heatmapMetric={heatmapMetric}
           className="absolute inset-0"
         />
       </motion.div>
@@ -275,38 +326,99 @@ export function AtlasFocusSurface() {
               </div>
               <div>
                 <h2 className={`text-[15px] font-semibold ${isDark ? 'text-white' : 'text-[var(--orbit-text)]'} tracking-wide`}>
-                  Atlas <span className="text-zinc-500 font-light">| Engine</span>
+                  Atlas <span className="text-zinc-500 font-light">{heatmapActive ? '| Heatmap' : '| Engine'}</span>
                 </h2>
                 <p className={`text-xs ${isDark ? 'text-zinc-400' : 'text-[var(--orbit-text-muted)]'}`}>
-                  {leadName 
+                  {heatmapActive
+                    ? `${heatmapNeighborhoods.length} bairros com demanda ativa`
+                    : leadName
                     ? `Filtrando para ${leadName}`
                     : `${allProperties.length} imóveis curados`}
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2">
-                <Search className={`h-4 w-4 ${isDark ? 'text-zinc-500' : 'text-[var(--orbit-text-muted)]'}`} />
-                <input
-                  type="text"
-                  placeholder="Bairro ou Cidade..."
-                  value={filterLocation}
-                  onChange={(e) => setFilterLocation(e.target.value)}
-                  className={`w-40 rounded-lg border py-1.5 px-3 text-xs focus:outline-none focus:ring-1 transition-all ${
-                    isDark 
-                      ? 'border-[var(--orbit-line)] bg-white/5 text-[var(--orbit-text)] placeholder:text-[var(--orbit-text-muted)]/40 focus:border-[var(--orbit-glow)]/50 focus:ring-[var(--orbit-glow)]/50' 
-                      : 'border-[var(--orbit-line)] bg-[var(--orbit-bg)] text-[var(--orbit-text)] placeholder:text-[var(--orbit-text-muted)] focus:border-[var(--orbit-glow)]/50 focus:ring-[var(--orbit-glow)]/50'
-                  }`}
-                />
-              </div>
+            <div className="flex items-center gap-2">
+              {/* Heatmap Toggle */}
+              <button
+                onClick={toggleHeatmap}
+                className={`flex items-center gap-2 h-8 px-3 rounded-lg border text-[11px] font-mono uppercase tracking-wider transition-all ${
+                  heatmapActive
+                    ? 'bg-orange-500/20 border-orange-500/50 text-orange-400 shadow-[0_0_12px_rgba(249,115,22,0.3)]'
+                    : isDark
+                    ? 'border-white/10 text-white/40 hover:text-white/70 hover:border-white/20'
+                    : 'border-[var(--orbit-line)] text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)] hover:border-[var(--orbit-glow)]/30'
+                }`}
+              >
+                {isLoadingHeatmap
+                  ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  : <Flame className="h-3.5 w-3.5" />}
+                Interesse
+              </button>
+
+              {/* Location Filter — só quando heatmap desativado */}
+              {!heatmapActive && (
+                <div className="flex items-center gap-2">
+                  <Search className={`h-4 w-4 ${isDark ? 'text-zinc-500' : 'text-[var(--orbit-text-muted)]'}`} />
+                  <input
+                    type="text"
+                    placeholder="Bairro ou Cidade..."
+                    value={filterLocation}
+                    onChange={(e) => setFilterLocation(e.target.value)}
+                    className={`w-40 rounded-lg border py-1.5 px-3 text-xs focus:outline-none focus:ring-1 transition-all ${
+                      isDark
+                        ? 'border-[var(--orbit-line)] bg-white/5 text-[var(--orbit-text)] placeholder:text-[var(--orbit-text-muted)]/40 focus:border-[var(--orbit-glow)]/50 focus:ring-[var(--orbit-glow)]/50'
+                        : 'border-[var(--orbit-line)] bg-[var(--orbit-bg)] text-[var(--orbit-text)] placeholder:text-[var(--orbit-text-muted)] focus:border-[var(--orbit-glow)]/50 focus:ring-[var(--orbit-glow)]/50'
+                    }`}
+                  />
+                </div>
+              )}
+
               <button
                 onClick={closeAtlasMap}
                 className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-white/10 text-zinc-400 hover:text-white transition-colors"
               >
+                <X className="h-4 w-4" />
               </button>
             </div>
       </div>
+
+      {/* ── Metric Switcher — flutua abaixo do header quando heatmap ativo ── */}
+      <AnimatePresence>
+        {heatmapActive && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.25, ease: [0.19, 1, 0.22, 1] }}
+            className={`fixed top-24 left-1/2 -translate-x-1/2 z-[36] flex items-center gap-1 p-1 rounded-xl border shadow-2xl pointer-events-auto ${
+              isDark ? 'bg-black/80 border-white/10 backdrop-blur-xl' : 'bg-white/90 border-[var(--orbit-line)] backdrop-blur-xl'
+            }`}
+          >
+            {([
+              { id: 'all', label: 'Total' },
+              { id: 'sent', label: 'Enviados' },
+              { id: 'favorited', label: 'Favoritos' },
+              { id: 'visited', label: 'Visitas' },
+              { id: 'deciding', label: 'Em Decisão' },
+            ] as const).map(({ id, label }) => (
+              <button
+                key={id}
+                onClick={() => setHeatmapMetric(id)}
+                className={`px-3 py-1.5 rounded-lg text-[11px] font-mono uppercase tracking-wide transition-all ${
+                  heatmapMetric === id
+                    ? 'bg-orange-500/20 text-orange-400 border border-orange-500/40 shadow-[0_0_8px_rgba(249,115,22,0.25)]'
+                    : isDark
+                    ? 'text-white/40 hover:text-white/70 hover:bg-white/5'
+                    : 'text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)] hover:bg-black/5'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── Property Detail Panel: slides in from the right at z-[35] ───────── */}
       <AnimatePresence>
@@ -482,6 +594,18 @@ export function AtlasFocusSurface() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* ── Neighborhood Insight Panel ─────────────────────────────────────── */}
+      <NeighborhoodInsightPanel
+        neighborhood={selectedNeighborhood}
+        metric={heatmapMetric}
+        onClose={() => setSelectedNeighborhood(null)}
+        onLeadClick={(leadId) => {
+          // Fecha o heatmap e abre o lead na página principal
+          // (fullscreen redirecionaria; aqui apenas fecha o panel)
+          setSelectedNeighborhood(null)
+        }}
+      />
 
       {/* Orbit Selection Canvas (Client Spaces Manager) */}
       <AnimatePresence>

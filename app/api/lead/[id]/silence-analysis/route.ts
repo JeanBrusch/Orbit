@@ -57,6 +57,7 @@ export async function POST(
     const supabase = getSupabaseServer();
 
     // ── 1. Buscar dados completos do lead ──────────────────────────────────
+    // Correção: SELECT limpo, sem ai_analysis. Memórias ordenadas por confidence.
     const [leadRes, cogRes, memoriesRes, messagesRes, insightsRes] = await Promise.all([
       supabase
         .from("leads")
@@ -103,7 +104,7 @@ export async function POST(
     const messages = messagesRes.data || [];
     const insights = insightsRes.data || [];
 
-    // ── 2. Calcular dias de silêncio (Correção Problema 2) ───────────────────
+    // ── 2. Calcular dias de silêncio (Correção: sem fallback de 999 dias) ────
     const lastInteraction = lead.last_interaction_at
       ? new Date(lead.last_interaction_at)
       : null;
@@ -114,7 +115,7 @@ export async function POST(
 
     const daysSilent = Math.floor((Date.now() - lastInteraction.getTime()) / (1000 * 60 * 60 * 24));
 
-    // ── 3. Traduzir Estágio (Correção Problema 5) ───────────────────────────
+    // ── 3. Traduzir Estágio (Mapeamento para o prompt) ──────────────────────
     const stageLabels: Record<string, string> = {
         "lead": "novo contato, apenas informações básicas",
         "qualified": "perfil qualificado, aguardando avanço",
@@ -160,18 +161,18 @@ Responda APENAS com um objeto JSON válido.`;
 DADOS DO LEAD
 ═══════════════════════════════════════
 Nome: ${lead.name || "Desconhecido"}
-Estágio: ${stageDescription}
+Estágio: ${stageDescription} (Original: ${lead.orbit_stage})
 Dias em silêncio: ${daysSilent}
 Última interação: ${lastInteraction.toLocaleDateString("pt-BR")}
 
 ═══════════════════════════════════════
 ESTADO COGNITIVO (última análise da IA)
 ═══════════════════════════════════════
-Interest Score: ${cog?.interest_score ?? "N/A"}
-Momentum Score: ${cog?.momentum_score ?? "N/A"}
-Risk Score: ${cog?.risk_score ?? "N/A"}
-Clarity Level: ${cog?.clarity_level ?? "N/A"} (0.0 a 1.0 - quanto ele entende do processo)
-Estado atual: ${cog?.current_state || "desconhecido"}
+Interest Score: ${cog?.interest_score ?? "50"}
+Momentum Score: ${cog?.momentum_score ?? "50"}
+Risk Score: ${cog?.risk_score ?? "50"}
+Clarity Level: ${cog?.clarity_level ?? "0.5"} (0.0 a 1.0 - quanto ele entende do processo)
+Estado atual: ${cog?.current_state || "latent"}
 Conflito central: ${cog?.central_conflict || "não identificado"}
 O que NÃO fazer: ${cog?.what_not_to_do || "não registrado"}
 
@@ -197,9 +198,9 @@ SUA TAREFA
 Raciocine em etapas antes de classificar:
 1. O que estava acontecendo ANTES do silêncio? Qual era o momentum?
 2. Quem enviou a última mensagem? O que isso sinaliza?
-3. O que o conflito central, a clareza (${cog?.clarity_level}) e as memórias revelam sobre o bloqueio?
+3. O que o conflito central e o Clarity Level (${cog?.clarity_level ?? "0.5"}) revelam sobre o bloqueio?
 4. Qual é a temperatura emocional inferida deste lead agora?
-5. O silêncio é evitação, timing, desinteresse ou outra coisa?
+5. O silêncio é evitação, timing, desinteresse ou overwelhm (excesso de opções)?
 
 Classifique usando silence_reason: PRICE_FRICTION | MISALIGNMENT | TIMING | TRUST_GAP | OVERWHELM | LOW_INTENT | COMPETITOR | RESOLVED_ELSEWHERE | UNKNOWN
 E strategy: REANCHOR_VALUE | SURFACE_NEW_ASSET | OPEN_QUESTION | TRUST_REBUILD | GENTLE_CLOSE | WAIT | RELEASE
@@ -236,33 +237,55 @@ Responda APENAS com este formato JSON:
     const parsed = JSON.parse(rawContent);
 
     // ── 7. Montar resposta final ───────────────────────────────────────────
-    const analysis: SilenceAnalysis = {
+    const { resolveStrategy } = await import("@/lib/strategy-resolver");
+    const strategyDef = resolveStrategy(
+      parsed.silence_reason,
+      daysSilent,
+      cog?.momentum_score ?? 50
+    );
+
+    const finalAnalysis: SilenceAnalysis & { 
+      objective: string;
+      force_patterns: string[];
+      hard_constraints: string[];
+      hook_requirement: string;
+    } = {
       lead_id: leadId,
       days_silent: daysSilent,
       analyzed_at: new Date().toISOString(),
       ...parsed,
+      objective: strategyDef.objective,
+      force_patterns: strategyDef.force_patterns,
+      hard_constraints: strategyDef.hard_constraints,
+      hook_requirement: strategyDef.hook_requirement,
     };
 
-    // ── 8. Persistir no Supabase (Correção Problema 1: insert simples) ──────
+    // ── 8. Persistir no Supabase (Correção: insert simples para série histórica)
     await supabase.from("silence_analyses").insert({
       lead_id: leadId,
       days_silent: daysSilent,
-      silence_reason: analysis.silence_reason,
-      confidence: analysis.confidence,
-      strategy: analysis.strategy,
-      urgency: analysis.urgency,
-      should_include_properties: analysis.should_include_properties,
-      reasoning: analysis.reasoning,
-      emotional_state: analysis.emotional_state,
-      last_known_intent: analysis.last_known_intent,
-      best_contact_window: analysis.best_contact_window,
-      next_step_if_reply: analysis.next_step_if_reply,
-      next_step_if_ignore: analysis.next_step_if_ignore,
-      analyzed_at: analysis.analyzed_at,
+      silence_reason: finalAnalysis.silence_reason,
+      confidence: finalAnalysis.confidence,
+      strategy: finalAnalysis.strategy,
+      urgency: finalAnalysis.urgency,
+      should_include_properties: finalAnalysis.should_include_properties,
+      reasoning: finalAnalysis.reasoning,
+      emotional_state: finalAnalysis.emotional_state,
+      last_known_intent: finalAnalysis.last_known_intent,
+      best_contact_window: finalAnalysis.best_contact_window,
+      next_step_if_reply: finalAnalysis.next_step_if_reply,
+      next_step_if_ignore: finalAnalysis.next_step_if_ignore,
+      analyzed_at: finalAnalysis.analyzed_at,
+      metadata: {
+        objective: finalAnalysis.objective,
+        force_patterns: finalAnalysis.force_patterns,
+        hard_constraints: finalAnalysis.hard_constraints,
+        hook_requirement: finalAnalysis.hook_requirement
+      },
       message_sent: false,
     } as any);
 
-    return NextResponse.json(analysis);
+    return NextResponse.json(finalAnalysis);
 
   } catch (error) {
     console.error("[SILENCE ANALYSIS] Error:", error);

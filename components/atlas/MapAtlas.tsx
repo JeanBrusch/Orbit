@@ -1,11 +1,12 @@
 "use client"
 
-import { useState, useEffect, useRef, useMemo, memo, useCallback } from "react"
+import { useState, useEffect, useRef, useMemo, memo, useCallback, forwardRef, useImperativeHandle } from "react"
 import Map, { Marker, Popup, NavigationControl } from "react-map-gl/mapbox"
 import 'mapbox-gl/dist/mapbox-gl.css'
 import type { ViewState } from "react-map-gl/mapbox"
 import { motion, AnimatePresence } from "framer-motion"
-import { Building2, X } from "lucide-react"
+import { Building2 } from "lucide-react"
+import { HeatmapLayer } from "./HeatmapLayer"
 
 import { useTheme } from "next-themes"
 
@@ -33,6 +34,10 @@ interface MapAtlasProps {
   previewMarker?: { lat: number; lng: number } | null
   isPlacing?: boolean
   onMapClick?: (lat: number, lng: number) => void
+  // Heatmap
+  heatmapVisible?: boolean
+  heatmapGeoJSON?: GeoJSON.FeatureCollection | null
+  heatmapMetric?: string
 }
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN
@@ -108,7 +113,7 @@ const PropertyMarker = memo(({
 })
 PropertyMarker.displayName = "PropertyMarker"
 
-export function MapAtlas({
+export const MapAtlas = forwardRef<any, MapAtlasProps>(function MapAtlasInner({
   properties,
   onPropertyClick,
   selectedPropertyId,
@@ -118,11 +123,19 @@ export function MapAtlas({
   previewMarker = null,
   isPlacing = false,
   onMapClick,
-}: MapAtlasProps) {
+  heatmapVisible = false,
+  heatmapGeoJSON = null,
+  heatmapMetric = "all",
+}, ref) {
   const { resolvedTheme } = useTheme()
   const isDark = resolvedTheme === 'dark'
   const mapRef = useRef<any>(null)
   const isInitialLoad = useRef(true)
+
+  // Expor mapRef para uso externo (HeatmapLayer)
+  useImperativeHandle(ref, () => ({
+    getMapRef: () => mapRef,
+  }))
   const [viewState, setViewState] = useState<ViewState>({
     longitude: initialCenter[0],
     latitude: initialCenter[1],
@@ -201,12 +214,20 @@ export function MapAtlas({
         mapStyle={isDark ? DARK_STYLE : LIGHT_STYLE}
         attributionControl={false}
         logoPosition="bottom-right"
-        cursor={isPlacing ? "crosshair" : "grab"} // Overrides mapbox native cursor
+        cursor={isPlacing ? "crosshair" : heatmapVisible ? "crosshair" : "grab"}
         onClick={(e) => {
           if (onMapClick) onMapClick(e.lngLat.lat, e.lngLat.lng)
         }}
       >
         <NavigationControl position="top-right" showCompass={true} />
+
+        {/* Heatmap Layer (headless, gerenciado via mapbox-gl nativo) */}
+        <HeatmapLayer
+          mapRef={mapRef}
+          geojson={heatmapGeoJSON}
+          visible={heatmapVisible}
+          metric={heatmapMetric}
+        />
 
         {/* Constelação de Imóveis (Markers) */}
         {validProps.map((prop) => (
@@ -293,6 +314,6 @@ export function MapAtlas({
       `}</style>
     </div>
   )
-}
+})
 
 export default MapAtlas
