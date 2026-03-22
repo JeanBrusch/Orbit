@@ -440,111 +440,67 @@ function AtlasManagerContent() {
   const handleSendToLead = async () => {
     if (!selectedLeadId || selectedPropertyIds.size === 0) return
     setIsSending(true)
-    const supabase = getSupabase()
 
     try {
-      console.log("[ATLAS] Starting send process", { selectedLeadId, propCount: selectedPropertyIds.size })
       const propertyIds = Array.from(selectedPropertyIds)
       const lead = leads?.find(l => l.id === selectedLeadId)
-      
-      if (!lead) throw new Error("Lead não encontrado")
+
+      if (!lead) throw new Error("Lead não encontrado na lista local")
+
       if (!lead.phone && !lead.lid) {
         toast.error("Lead sem telefone ou identificador (LID) cadastrado!")
         setIsSending(false)
         return
       }
 
-      // 1. Create or get Client Space (Selection Portal)
-      // Check if lead already has a space
-      const { data: existingSpace } = await supabase
-        .from('client_spaces')
-        .select('id, slug')
-        .eq('lead_id', selectedLeadId)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle()
+      console.log("[ATLAS] Chamando API send-selection", { selectedLeadId, propertyIds })
 
-      let useSlug: string
-      
-      if (existingSpace) {
-        console.log("[ATLAS] Reusing existing space:", (existingSpace as any).slug)
-        useSlug = (existingSpace as any).slug
-      } else {
-        const slug = `${lead.name.toLowerCase().replace(/\s+/g, '-')}-${Math.random().toString(36).substring(7)}`
-        console.log("[ATLAS] Creating new space with slug:", slug)
-        
-        const spacePayload: any = {
-          lead_id: selectedLeadId,
-          slug,
-          theme: 'paper',
-          theme_config: { mode: 'light', variant: 'paper' },
-          title: `Seleção Orbit - ${lead.name}`
-        }
-
-        const { data: space, error: spaceError } = await (supabase
-          .from('client_spaces') as any)
-          .insert([spacePayload])
-          .select()
-          .single()
-
-        if (spaceError) {
-          console.error("[ATLAS] Space creation error:", spaceError)
-          throw new Error(`Erro ao criar portal: ${spaceError.message}`)
-        }
-        useSlug = space.slug
-      }
-
-      // 2. Insert items into capsule_items
-      const inserts = propertyIds.map(pid => ({
-        lead_id: selectedLeadId,
-        property_id: pid,
-        state: 'sent',
-      }))
-
-      const { error: itemsError } = await (supabase
-        .from('capsule_items') as any)
-        .upsert(inserts, { onConflict: 'lead_id, property_id' })
-
-      if (itemsError) {
-        console.error("[ATLAS] Capsule items error:", itemsError)
-        throw new Error(`Erro ao registrar imóveis: ${itemsError.message}`)
-      }
-
-      // 3. Trigger WhatsApp via API
-      const portalUrl = `${window.location.origin}/selection/${useSlug}`
-      const message = `Olá ${lead.name.split(' ')[0]}! Selecionei alguns imóveis que fazem sentido para seu perfil. Você pode conferir aqui no seu portal exclusivo: ${portalUrl}`
-
-      // Prioritize LID for sending if available
-      const sendTo = (lead.lid ? (lead.lid.includes('@lid') ? lead.lid : `${lead.lid}@lid`) : null) || lead.phone
-      console.log("[ATLAS] Sending message to:", sendTo)
-
-      const response = await fetch('/api/whatsapp/send', {
+      // ── 1. Criar/buscar portal + registrar imóveis via API segura (service role, sem RLS) ──
+      const selectionRes = await fetch('/api/atlas/send-selection', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          phone: sendTo,
-          message,
-          leadId: selectedLeadId
-        })
+        body: JSON.stringify({ leadId: selectedLeadId, propertyIds })
       })
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        console.error("[ATLAS] WhatsApp API error:", errorData)
-        throw new Error(errorData.error || "Falha ao disparar WhatsApp")
+      const selectionData = await selectionRes.json()
+
+      if (!selectionRes.ok) {
+        throw new Error(selectionData.error || `Falha na API (${selectionRes.status})`)
+      }
+
+      const { slug: useSlug } = selectionData
+
+      // ── 2. Disparar WhatsApp ──
+      const portalUrl = `${window.location.origin}/selection/${useSlug}`
+      const message = `Olá ${lead.name.split(' ')[0]}! Selecionei alguns imóveis que fazem sentido para seu perfil. Você pode conferir aqui no seu portal exclusivo: ${portalUrl}`
+      const sendTo = (lead.lid ? (lead.lid.includes('@lid') ? lead.lid : `${lead.lid}@lid`) : null) || lead.phone
+
+      console.log("[ATLAS] Disparando WhatsApp para:", sendTo)
+
+      const waRes = await fetch('/api/whatsapp/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: sendTo, message, leadId: selectedLeadId })
+      })
+
+      if (!waRes.ok) {
+        const waErr = await waRes.json().catch(() => ({}))
+        throw new Error(waErr.error || "Falha ao disparar WhatsApp")
       }
 
       toast.success(`${propertyIds.length} imóveis enviados e portal gerado!`)
       setSelectedPropertyIds(new Set())
       setSelectedLeadId(null)
       setLeadSearch("")
+
     } catch (err: any) {
-      console.error("[ATLAS] Fatal error in handleSendToLead:", err)
-      toast.error(`Falha no processo: ${err.message}`)
+      console.error("[ATLAS] Erro em handleSendToLead:", err)
+      toast.error(`Falha: ${err.message}`)
     } finally {
       setIsSending(false)
     }
   }
+
 
   if (propsLoading || leadsLoading) {
     return (

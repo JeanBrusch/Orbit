@@ -1,140 +1,203 @@
 "use client"
 
-import { useState, useRef, useEffect, memo } from "react"
-import Map, { Marker, Popup } from "react-map-gl/mapbox"
-import { Building2 } from "lucide-react"
+import { useState, useRef, useEffect } from "react"
+import Map, { Marker, Popup, NavigationControl } from "react-map-gl/mapbox"
+import 'mapbox-gl/dist/mapbox-gl.css'
+import type { ViewState } from "react-map-gl/mapbox"
+
+interface SelectionMapItem {
+  id: string
+  title: string
+  price: number | null
+  location: string | null
+  coverImage: string | null
+  lat: number | null
+  lng: number | null
+}
 
 interface SelectionMapProps {
-  items: any[]
-  theme: "paper" | "light" | "dark"
-  className?: string
-  onAction?: (item: any, type: "link" | "chat") => void
+  items: SelectionMapItem[]
+  onItemClick: (id: string) => void
 }
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN
+const MAP_STYLE = "mapbox://styles/mapbox/light-v11"
 const XANGRILA_CENTER = { longitude: -50.0333, latitude: -29.8000 }
 
-// Styled Mapbox variants
-const DARK_STYLE = "mapbox://styles/mapbox/dark-v11"
-const LIGHT_STYLE = "mapbox://styles/mapbox/light-v11"
-const SEPIA_STYLE = "mapbox://styles/mapbox/outdoors-v12" // Closer to "paper" than dark
+function formatPrice(value: number | null): string {
+  if (!value) return "Sob consulta"
+  if (value >= 1_000_000) {
+    const m = value / 1_000_000
+    return `R$ ${m % 1 === 0 ? m : m.toFixed(1)}M`
+  }
+  return `R$ ${Math.round(value / 1_000)}k`
+}
 
-export default function SelectionMap({ items, theme, className, onAction }: SelectionMapProps) {
-  const [viewState, setViewState] = useState({
-    longitude: XANGRILA_CENTER.longitude,
-    latitude: XANGRILA_CENTER.latitude,
-    zoom: 12,
+export default function SelectionMap({ items, onItemClick }: SelectionMapProps) {
+  const mapRef = useRef<any>(null)
+  const [hoveredId, setHoveredId] = useState<string | null>(null)
+  const validItems = items.filter(i => i.lat && i.lng)
+
+  const initialCenter = validItems.length > 0 ? {
+    longitude: validItems.reduce((s, i) => s + i.lng!, 0) / validItems.length,
+    latitude: validItems.reduce((s, i) => s + i.lat!, 0) / validItems.length,
+  } : XANGRILA_CENTER
+
+  const [viewState, setViewState] = useState<ViewState>({
+    longitude: initialCenter.longitude,
+    latitude: initialCenter.latitude,
+    zoom: 13,
+    padding: { top: 0, bottom: 0, left: 0, right: 0 },
     pitch: 40,
-    bearing: 0
+    bearing: -10,
   })
-  const [selectedPopup, setSelectedPopup] = useState<any | null>(null)
 
-  // Set initial bounds to fit all markers
+  // Fit bounds no primeiro load
   useEffect(() => {
-    if (items.length > 0) {
-      const validItems = items.filter(item => item.lat && item.lng)
-      if (validItems.length > 0) {
-        const lats = validItems.map(i => i.lat!)
-        const lngs = validItems.map(i => i.lng!)
-        setViewState(prev => ({
-          ...prev,
-          latitude: (Math.min(...lats) + Math.max(...lats)) / 2,
-          longitude: (Math.min(...lngs) + Math.max(...lngs)) / 2,
-          zoom: validItems.length === 1 ? 14 : 12
-        }))
-      }
-    }
-  }, [items])
+    if (!mapRef.current || validItems.length < 2) return
+    const timer = setTimeout(() => {
+      if (!mapRef.current) return
+      const lats = validItems.map(i => i.lat!)
+      const lngs = validItems.map(i => i.lng!)
+      mapRef.current.fitBounds(
+        [[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]],
+        { padding: 90, maxZoom: 16, duration: 1200 }
+      )
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [])
 
-  if (!MAPBOX_TOKEN) return <div className="p-4 bg-red-50 text-red-500">Mapbox Token Missing</div>
+  const hoveredItem = validItems.find(i => i.id === hoveredId)
 
-  const mapStyle = DARK_STYLE // Always dark for premium look with gold markers
+  if (!MAPBOX_TOKEN) {
+    return (
+      <div className="jb-map-empty">
+        <p>Token do mapa não configurado</p>
+      </div>
+    )
+  }
+
+  if (validItems.length === 0) {
+    return (
+      <div className="jb-map-empty">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/>
+          <circle cx="12" cy="10" r="3"/>
+        </svg>
+        <p>Nenhum imóvel com localização disponível</p>
+      </div>
+    )
+  }
 
   return (
-    <div className={`w-full h-full ${className} relative`}>
+    <div className="jb-map-wrapper">
       <Map
+        ref={mapRef}
         {...viewState}
-        onMove={evt => setViewState(evt.viewState)}
+        onMove={(evt: any) => setViewState(evt.viewState)}
         mapboxAccessToken={MAPBOX_TOKEN}
-        mapStyle={mapStyle}
+        mapStyle={MAP_STYLE}
         attributionControl={false}
+        cursor="grab"
       >
-        {items.filter(i => i.lat && i.lng).map(item => (
-          <Marker 
-            key={item.id} 
-            longitude={item.lng!} 
+        <NavigationControl position="top-right" showCompass={false} />
+
+        {validItems.map((item) => (
+          <Marker
+            key={item.id}
+            longitude={item.lng!}
             latitude={item.lat!}
-            anchor="bottom"
+            anchor="center"
+            style={{ zIndex: hoveredId === item.id ? 50 : 10 }}
           >
-            <div 
-              className="relative flex items-center justify-center cursor-pointer group"
-              onClick={() => setSelectedPopup(item)}
+            <div
+              className="jb-map-marker"
+              onClick={() => onItemClick(item.id)}
+              onMouseEnter={() => setHoveredId(item.id)}
+              onMouseLeave={() => setHoveredId(null)}
+              data-hovered={hoveredId === item.id ? "true" : undefined}
             >
-              <div className="absolute w-3.5 h-3.5 rounded-full bg-[#d4af37]/35 animate-[pulse-anim_2s_ease-out_infinite]" />
-              <div className="w-3.5 h-3.5 rounded-full bg-[#d4af37] border-2 border-[#0d0c0a] shadow-[0_0_10px_rgba(212,175,54,0.6)] group-hover:scale-125 transition-transform" />
+              <div className="jb-map-pulse" />
+              <div className="jb-map-dot" />
             </div>
           </Marker>
         ))}
 
-        {selectedPopup && (
+        {hoveredItem && hoveredItem.lat && hoveredItem.lng && (
           <Popup
-            longitude={selectedPopup.lng!}
-            latitude={selectedPopup.lat!}
+            longitude={hoveredItem.lng}
+            latitude={hoveredItem.lat}
+            closeButton={false}
             anchor="bottom"
-            onClose={() => setSelectedPopup(null)}
-            closeButton={true}
-            maxWidth="220px"
-            className="premium-popup"
+            offset={22}
+            className="jb-sel-popup"
           >
-            <div className="p-1">
-              <span className="font-mono text-[9px] uppercase tracking-widest text-[#d4af37] mb-1.5 block">92% Match</span>
-              <h4 className="text-[13px] font-medium text-[#f0ede4] leading-tight mb-1">{selectedPopup.title}</h4>
-              <p className="font-mono text-[12px] text-[#f0ede4]/60 mb-2.5">
-                {selectedPopup.price ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(selectedPopup.price) : "Sob consulta"}
-              </p>
-              <div className="flex gap-1.5">
-                <button 
-                  onClick={() => onAction?.(selectedPopup, "link")}
-                  className="flex-1 py-1.5 rounded-md bg-[#d4af37]/18 border border-[#d4af37]/30 text-[#d4af37] text-[11px] font-medium hover:bg-[#d4af37]/28 transition-all"
-                >
-                  Ver Link
-                </button>
-                <button 
-                  onClick={() => onAction?.(selectedPopup, "chat")}
-                  className="flex-1 py-1.5 rounded-md bg-white/5 border border-white/10 text-white/50 text-[11px] font-medium hover:bg-white/10 hover:text-white/85 transition-all"
-                >
-                  Chat
-                </button>
+            <div className="jb-map-card" onClick={() => onItemClick(hoveredItem.id)}>
+              {hoveredItem.coverImage && (
+                <div className="jb-map-card-img">
+                  <img src={hoveredItem.coverImage} alt={hoveredItem.title} />
+                </div>
+              )}
+              <div className="jb-map-card-body">
+                <div className="jb-map-card-title">{hoveredItem.title}</div>
+                {hoveredItem.location && (
+                  <div className="jb-map-card-loc">
+                    <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/>
+                      <circle cx="12" cy="10" r="3"/>
+                    </svg>
+                    {hoveredItem.location}
+                  </div>
+                )}
+                <div className="jb-map-card-price">{formatPrice(hoveredItem.price)}</div>
               </div>
             </div>
           </Popup>
         )}
       </Map>
 
-      {/* Map Premium Overlay */}
-      <div className="absolute inset-0 pointer-events-none bg-gradient-to-b from-[#0d0c0a]/35 via-transparent to-[#0d0c0a]/50 z-0" />
-      
-      <style jsx global>{`
-        .premium-popup .mapboxgl-popup-content {
-          background: rgba(13, 12, 10, 0.94) !important;
-          border: 1px solid rgba(212, 175, 55, 0.3) !important;
-          border-radius: 14px !important;
-          padding: 14px 16px !important;
-          box-shadow: 0 8px 32px rgba(0,0,0,0.5) !important;
-          backdrop-filter: blur(16px) !important;
-          color: #f0ede4 !important;
+      {/* Legenda lateral de imóveis */}
+      <div className="jb-map-legend">
+        <div className="jb-map-legend-label">Imóveis no mapa</div>
+        {validItems.map((item) => (
+          <button
+            key={item.id}
+            className="jb-map-legend-item"
+            onMouseEnter={() => setHoveredId(item.id)}
+            onMouseLeave={() => setHoveredId(null)}
+            onClick={() => {
+              mapRef.current?.flyTo({
+                center: [item.lng!, item.lat!],
+                zoom: 16,
+                duration: 1200,
+                pitch: 55,
+              })
+              onItemClick(item.id)
+            }}
+          >
+            <div className="jb-map-legend-dot" />
+            <span>{item.title}</span>
+          </button>
+        ))}
+      </div>
+
+      <style>{`
+        .jb-sel-popup .mapboxgl-popup-content {
+          background: transparent !important;
+          padding: 0 !important;
+          box-shadow: none !important;
+          border-radius: 6px !important;
         }
-        .premium-popup .mapboxgl-popup-tip {
-          border-top-color: rgba(13, 12, 10, 0.94) !important;
+        .jb-sel-popup .mapboxgl-popup-tip {
+          border-top-color: #f6f4f0 !important;
+          border-top-width: 7px !important;
         }
-        .premium-popup .mapboxgl-popup-close-button {
-          color: rgba(212, 175, 55, 0.5) !important;
-          padding: 4px 8px !important;
-          font-size: 16px !important;
+        .jb-sel-popup .mapboxgl-popup-close-button {
+          display: none !important;
         }
-        @keyframes pulse-anim {
-          0% { transform: scale(1); opacity: 0.8; }
-          100% { transform: scale(3.5); opacity: 0; }
+        .mapboxgl-ctrl-bottom-left, .mapboxgl-ctrl-bottom-right {
+          opacity: 0.35 !important;
+          mix-blend-mode: multiply;
         }
       `}</style>
     </div>
