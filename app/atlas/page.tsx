@@ -447,11 +447,7 @@ function AtlasManagerContent() {
 
       if (!lead) throw new Error("Lead não encontrado na lista local")
 
-      if (!lead.phone && !lead.lid) {
-        toast.error("Lead sem telefone ou identificador (LID) cadastrado!")
-        setIsSending(false)
-        return
-      }
+      // Removida velha restrição de (lead.phone || lead.lid) pois a API send-selection absorve essa validação ou disparo.
 
       console.log("[ATLAS] Chamando API send-selection", { selectedLeadId, propertyIds })
 
