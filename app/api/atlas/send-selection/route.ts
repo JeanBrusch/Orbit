@@ -59,39 +59,45 @@ export async function POST(req: NextRequest) {
       useSlug = (newSpace as any).slug
     }
 
-    // 3. Upsert capsule_items — sem espaço no onConflict
-    const inserts = propertyIds.map((pid: string) => ({
+    // 3. Inserir em property_interactions (Tabela Principal Agora)
+    const interactions = propertyIds.map((pid: string) => ({
+      id: crypto.randomUUID(),
+      lead_id: leadId,
+      property_id: pid,
+      interaction_type: 'sent',
+      source: 'atlas_selection_creation'
+    }))
+
+    const { error: piError } = await (supabase
+      .from('property_interactions') as any)
+      .insert(interactions)
+
+    if (piError) {
+      console.error('[API send-selection] property_interactions error:', piError)
+      return NextResponse.json({ error: `Erro ao registrar property_interactions: ${piError.message}` }, { status: 500 })
+    }
+
+    // 4. Inserir em capsule_items (Fallback Legado)
+    const oldInserts = propertyIds.map((pid: string) => ({
+      id: crypto.randomUUID(),
       lead_id: leadId,
       property_id: pid,
       state: 'sent',
     }))
 
-    const { data: upsertData, error: itemsError } = await (supabase
+    const { error: itemsError } = await (supabase
       .from('capsule_items') as any)
-      .upsert(inserts, { onConflict: 'lead_id,property_id' })
-      .select()
+      .upsert(oldInserts, { onConflict: 'lead_id,property_id' })
 
     if (itemsError) {
-      console.error('[API send-selection] capsule_items error:', itemsError)
-      return NextResponse.json({ error: `Erro ao registrar imóveis: ${itemsError.message}` }, { status: 500 })
+      console.error('[API send-selection] capsule_items fallback error:', itemsError)
+      // We don't return 500 here if it's just legacy fallback failing, but we log it
     }
 
-    // 4. Salvar também em property_interactions (nova estrutura)
-    try {
-      const pInteractions = propertyIds.map((pid: string) => ({
-        lead_id: leadId,
-        property_id: pid,
-        interaction_type: 'sent',
-        source: 'atlas_selection_creation'
-      }))
-      await (supabase.from('property_interactions') as any).insert(pInteractions)
-    } catch (e) {
-      console.error('[API send-selection] aviso: não foi possivel salvar property_interactions', e)
-    }
-
-    return NextResponse.json({ slug: useSlug, lead: leadData, debug_upserted: upsertData || [] })
+    return NextResponse.json({ slug: useSlug, lead: leadData })
   } catch (err: any) {
     console.error('[API send-selection] fatal:', err)
     return NextResponse.json({ error: err.message || 'Erro interno' }, { status: 500 })
   }
 }
+
