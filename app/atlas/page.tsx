@@ -804,20 +804,20 @@ function AtlasManagerContent() {
           </div>
 
           {/* Action Footer */}
-          <div className="relative z-[60] p-6 border-t border-[var(--orbit-glow)]/20 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] bg-[var(--orbit-bg)]">
-            <Button
+          <div className="relative z-[99] p-6 border-t border-[var(--orbit-glow)]/20 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] bg-[var(--orbit-bg)] pointer-events-auto">
+            <button
               disabled={!selectedLeadId || selectedPropertyIds.size === 0 || isSending}
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                console.log("[ATLAS] Botão Disparar foi ativado pela UI!");
+                console.log("[ATLAS] CLIQUE RECEBIDO - Disparando api send-selection!");
                 handleSendToLead();
               }}
-              className="w-full bg-[var(--orbit-glow)] hover:bg-[var(--orbit-glow)]/90 text-[var(--orbit-bg)] h-12 text-xs gap-3 rounded-xl shadow-[0_4px_15px_var(--orbit-glow)]/30 transition-all font-mono uppercase tracking-widest font-bold disabled:opacity-40 disabled:shadow-none"
+              className="w-full flex items-center justify-center bg-[var(--orbit-glow)] hover:bg-[var(--orbit-glow)]/90 text-[var(--orbit-bg)] h-12 text-xs gap-3 rounded-xl shadow-[0_4px_15px_var(--orbit-glow)]/30 transition-all font-mono uppercase tracking-widest font-bold disabled:opacity-40 disabled:shadow-none cursor-pointer disabled:cursor-not-allowed pointer-events-auto"
             >
               {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
               {isSending ? 'Enviando...' : `Disparar para ${selectedLeadId ? (leads?.find(l => l.id === selectedLeadId)?.name.split(' ')[0] || 'Lead') : 'Lead'}`}
-            </Button>
+            </button>
             <p className="text-[9px] text-[var(--orbit-text-muted)] text-center mt-3 font-mono leading-relaxed">
               O link da curadoria será gerado e enviado via WhatsApp.
             </p>
