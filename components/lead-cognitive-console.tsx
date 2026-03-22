@@ -854,14 +854,21 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
       console.error(`[COG] Error loading insights:`, insRes.error);
     }
 
+    console.log("[COG] Messages response from Promise.all:", msgRes);
+
     if (msgRes.data && msgRes.data.length > 0) {
+      console.log("[COG] Setting messages from NEW schema 'messages'. Count:", msgRes.data.length);
       setMessages(msgRes.data as Message[]);
     } else {
+      console.log("[COG] Fallback to 'interactions'. msgRes.data is:", msgRes.data, "error:", msgRes.error);
       // Fallback to `interactions` table (older schema)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const intRes = await (supabase.from("interactions") as any)
         .select("id,content,created_at,direction")
         .eq("lead_id", leadId).order("created_at", { ascending: true }).limit(80);
+      
+      console.log("[COG] Interactions fallback response:", intRes);
+
       if (intRes.data) {
         setMessages(intRes.data.map((i: any) => ({
           id: i.id,
@@ -1000,7 +1007,10 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
 
       if (isImage) {
         // Group consecutive images from the same source within the same hour
-        if (currentImageGroup && currentImageGroup.source === msg.source && currentImageGroup.timestamp.slice(0, 13) === msg.timestamp.slice(0, 13)) {
+        const msgHour = msg.timestamp ? msg.timestamp.slice(0, 13) : "";
+        const groupHour = currentImageGroup?.timestamp ? currentImageGroup.timestamp.slice(0, 13) : "";
+
+        if (currentImageGroup && currentImageGroup.source === msg.source && msgHour === groupHour && msgHour !== "") {
           currentImageGroup.items.push(msg);
         } else {
           currentImageGroup = {
@@ -1095,11 +1105,11 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
             body: JSON.stringify({ content: callSummary, skipHistory: true }),
           }).catch(e => console.error("Error triggering AI for call:", e));
         }
-
+      } else if (interactionMode === "whatsapp") {
         // WhatsApp Mode
         const sendTo = (lead?.lid && lead.lid.includes("@lid") ? lead.lid : lead?.lid ? `${lead.lid}@lid` : null) || lead?.phone;
         
-        console.log('[SEND DEBUG]', { 
+        console.log('[SEND DEBUG] WhatsApp Mode', { 
           phone: lead?.phone, 
           lid: lead?.lid, 
           sendTo,

@@ -42,36 +42,34 @@ export async function POST(request: NextRequest) {
     const validDirections = ['outbound', 'inbound']
     const validTypes = ['message', 'note']
     
-    const insertData: Record<string, any> = {
+    // Mapping interaction to messages schema
+    const insertData: any = {
       lead_id: leadId,
       content: content.trim(),
-      direction: validDirections.includes(direction) ? direction : 'outbound',
-      type: validTypes.includes(type) ? type : 'message',
+      source: direction === 'inbound' ? 'whatsapp' : (type === 'note' ? 'internal' : 'operator'),
+      timestamp: new Date().toISOString()
     }
     
-    // Add idempotency key if provided
     if (idempotencyKey) {
       insertData.idempotency_key = idempotencyKey
     }
     
-    const { data, error } = await supabase
-      .from('interactions')
+    const { data, error } = await (supabase.from('messages') as any)
       .insert(insertData)
       .select()
       .single()
 
     if (error) {
       // Handle duplicate key error - already processed
-      if (error.code === '23505' && error.message?.includes('idempotency')) {
-        console.log('[INTERACTION] Idempotent skip (constraint):', idempotencyKey)
+      if (error.code === '23505') {
         return NextResponse.json(
           { skipped: true, message: 'Already processed' },
           { status: 200 }
         )
       }
-      console.error('Error inserting interaction:', error)
+      console.error('Error inserting message from interaction API:', error)
       return NextResponse.json(
-        { error: 'Erro ao salvar interação' },
+        { error: 'Erro ao salvar mensagem' },
         { status: 500 }
       )
     }
