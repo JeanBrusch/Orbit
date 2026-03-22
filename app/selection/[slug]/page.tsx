@@ -90,7 +90,7 @@ async function getSelectionData(slug: string) {
     .select('*')
     .eq('client_space_id', space.id)
 
-  // 5. Get Historical Interactions for Persistence
+    // 5. Get Historical Interactions for Persistence
   const { data: interactionsRaw } = await supabase
     .from('property_interactions')
     .select('property_id, interaction_type')
@@ -111,20 +111,20 @@ async function getSelectionData(slug: string) {
   const contextMap = new Map((contexts || []).map(c => [c.property_id, c]))
 
   const items = (capsuleItems || [])
-    .filter(item => item.properties)
     .map(item => {
-      const prop = item.properties as any
-      const ctx = contextMap.get(prop.id)
+      // Modified to not filter out null properties immediately, so we can debug
+      const prop = item.properties as any || {}
+      const ctx = contextMap.get(item.property_id)
       return {
-        id: prop.id,
+        id: prop.id || item.property_id,
         capsuleItemId: item.id,
-        title: prop.title || prop.internal_name,
-        price: prop.value,
-        location: prop.location_text,
-        coverImage: prop.cover_image,
-        url: prop.source_link,
-        lat: prop.lat,
-        lng: prop.lng,
+        title: prop.title || prop.internal_name || "Imóvel Desconhecido (Falha no Join)",
+        price: prop.value || 0,
+        location: prop.location_text || "",
+        coverImage: prop.cover_image || "",
+        url: prop.source_link || "",
+        lat: prop.lat || 0,
+        lng: prop.lng || 0,
         note: ctx?.note,
         videoUrl: ctx?.video_url,
         audioUrl: ctx?.audio_url,
@@ -132,13 +132,16 @@ async function getSelectionData(slug: string) {
         recommendedReason: ctx?.recommended_reason,
         bedrooms: prop.bedrooms,
         suites: prop.suites,
-        areaPrivativa: prop.area_privativa
+        areaPrivativa: prop.area_privativa,
+        _debugRow: item // Injected for debugging
       }
     })
 
   // Normalize lead — Supabase returns object or array depending on relation
   const leadRaw = space.leads
   const lead = Array.isArray(leadRaw) ? leadRaw[0] : leadRaw
+
+  console.log(`[DEBUG SELECTION] slug=${slug} capsuleItems count:`, capsuleItems?.length, "first item:", capsuleItems?.[0])
 
   return {
     space,
