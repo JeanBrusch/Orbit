@@ -804,16 +804,21 @@ function AtlasManagerContent() {
           </div>
 
           {/* Action Footer */}
-          <div className="p-6 border-t border-[rgba(46,197,255,0.12)] bg-[#05060a]/60">
+          <div className="relative z-[60] p-6 border-t border-[var(--orbit-glow)]/20 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] bg-[var(--orbit-bg)]">
             <Button
               disabled={!selectedLeadId || selectedPropertyIds.size === 0 || isSending}
-              onClick={handleSendToLead}
-              className="w-full bg-[#2ec5ff] hover:bg-[#2ec5ff]/90 text-[#05060a] h-12 text-xs gap-3 rounded-xl shadow-[0_0_20px_rgba(46,197,255,0.2)] transition-all font-mono uppercase tracking-widest font-bold disabled:opacity-40 disabled:shadow-none"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log("[ATLAS] Botão Disparar foi ativado pela UI!");
+                handleSendToLead();
+              }}
+              className="w-full bg-[var(--orbit-glow)] hover:bg-[var(--orbit-glow)]/90 text-[var(--orbit-bg)] h-12 text-xs gap-3 rounded-xl shadow-[0_4px_15px_var(--orbit-glow)]/30 transition-all font-mono uppercase tracking-widest font-bold disabled:opacity-40 disabled:shadow-none"
             >
               {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
               {isSending ? 'Enviando...' : `Disparar para ${selectedLeadId ? (leads?.find(l => l.id === selectedLeadId)?.name.split(' ')[0] || 'Lead') : 'Lead'}`}
             </Button>
-            <p className="text-[9px] text-[#94a3b8]/60 text-center mt-3 font-mono leading-relaxed">
+            <p className="text-[9px] text-[var(--orbit-text-muted)] text-center mt-3 font-mono leading-relaxed">
               O link da curadoria será gerado e enviado via WhatsApp.
             </p>
           </div>
