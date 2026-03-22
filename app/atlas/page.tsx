@@ -319,7 +319,13 @@ function AtlasManagerContent() {
           city: updatedData.city,
           cover_image: updatedData.cover_image,
           lat: updatedData.lat,
-          lng: updatedData.lng
+          lng: updatedData.lng,
+          bedrooms: parseInt(updatedData.bedrooms) || null,
+          suites: parseInt(updatedData.suites) || null,
+          area_privativa: parseFloat(updatedData.area_privativa) || null,
+          features: typeof updatedData.features === 'string' 
+            ? updatedData.features.split(',').map((f: string) => f.trim()).filter(Boolean)
+            : updatedData.features
         })
         .eq("id", updatedData.id)
 
