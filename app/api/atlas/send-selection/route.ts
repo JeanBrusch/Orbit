@@ -66,16 +66,30 @@ export async function POST(req: NextRequest) {
       state: 'sent',
     }))
 
-    const { error: itemsError } = await (supabase
+    const { data: upsertData, error: itemsError } = await (supabase
       .from('capsule_items') as any)
       .upsert(inserts, { onConflict: 'lead_id,property_id' })
+      .select()
 
     if (itemsError) {
       console.error('[API send-selection] capsule_items error:', itemsError)
       return NextResponse.json({ error: `Erro ao registrar imóveis: ${itemsError.message}` }, { status: 500 })
     }
 
-    return NextResponse.json({ slug: useSlug, lead: leadData })
+    // 4. Salvar também em property_interactions (nova estrutura)
+    try {
+      const pInteractions = propertyIds.map((pid: string) => ({
+        lead_id: leadId,
+        property_id: pid,
+        interaction_type: 'sent',
+        source: 'atlas_selection_creation'
+      }))
+      await (supabase.from('property_interactions') as any).insert(pInteractions)
+    } catch (e) {
+      console.error('[API send-selection] aviso: não foi possivel salvar property_interactions', e)
+    }
+
+    return NextResponse.json({ slug: useSlug, lead: leadData, debug_upserted: upsertData || [] })
   } catch (err: any) {
     console.error('[API send-selection] fatal:', err)
     return NextResponse.json({ error: err.message || 'Erro interno' }, { status: 500 })

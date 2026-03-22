@@ -13,7 +13,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     .eq('slug', slug)
     .single()
 
-  const leadName = space?.leads?.name || 'Cliente'
+  const leadName = (space as any)?.leads?.name || 'Cliente'
   const title = `Seleção Exclusiva para ${leadName} — Jean Brusch`
   const description = 'Curadoria imobiliária personalizada com foco no seu perfil e objetivos.'
 
@@ -41,8 +41,8 @@ async function getSelectionData(slug: string) {
   const supabase = getSupabaseServer()
 
   // 1. Get Client Space
-  const { data: space, error: spaceError } = await supabase
-    .from('client_spaces')
+  const { data: space, error: spaceError } = await (supabase
+    .from('client_spaces') as any)
     .select('*, leads(id, name, photo_url)')
     .eq('slug', slug)
     .single()
@@ -52,18 +52,18 @@ async function getSelectionData(slug: string) {
   const leadId = space.lead_id
 
   // 2. Get Lead Preferences (Insight Bar)
-  const { data: prefs } = await supabase
-    .from('lead_preferences')
+  const { data: prefs } = await (supabase
+    .from('lead_preferences') as any)
     .select('*')
     .eq('lead_id', leadId)
     .single()
 
-  // 3. Get Active Capsule Items
-  const { data: capsuleItems } = await supabase
-    .from('capsule_items')
+  // 3. Get Active Items from new Property Interactions table (replaces capsule_items)
+  const { data: capsuleItems } = await (supabase
+    .from('property_interactions') as any)
     .select(`
       id,
-      created_at,
+      timestamp,
       property_id,
       properties:property_id (
         id,
@@ -80,25 +80,25 @@ async function getSelectionData(slug: string) {
         area_privativa
       )
     `)
-    .eq('lead_id', leadId) // Assuming capsule_items are linked directly or via active capsule
-    .neq('state', 'discarded')
-    .order('created_at', { ascending: false })
+    .eq('lead_id', leadId)
+    .eq('interaction_type', 'sent')
+    .order('timestamp', { ascending: false })
 
   // 4. Get Contextual Data (Notes/Videos)
-  const { data: contexts } = await supabase
-    .from('client_property_context')
+  const { data: contexts } = await (supabase
+    .from('client_property_context') as any)
     .select('*')
     .eq('client_space_id', space.id)
 
     // 5. Get Historical Interactions for Persistence
-  const { data: interactionsRaw } = await supabase
-    .from('property_interactions')
+  const { data: interactionsRaw } = await (supabase
+    .from('property_interactions') as any)
     .select('property_id, interaction_type')
     .eq('lead_id', leadId)
 
   const initialInteractions: Record<string, string[]> = {}
   if (interactionsRaw) {
-    interactionsRaw.forEach(int => {
+    interactionsRaw.forEach((int: any) => {
       if (!initialInteractions[int.property_id]) {
         initialInteractions[int.property_id] = []
       }
@@ -108,16 +108,15 @@ async function getSelectionData(slug: string) {
     })
   }
 
-  const contextMap = new Map((contexts || []).map(c => [c.property_id, c]))
+  const contextMap = new Map((contexts || []).map((c: any) => [c.property_id, c]))
 
   const items = (capsuleItems || [])
-    .map(item => {
-      // Modified to not filter out null properties immediately, so we can debug
+    .map((item: any) => {
       const prop = item.properties as any || {}
-      const ctx = contextMap.get(item.property_id)
+      const ctx = contextMap.get(item.property_id) as any
       return {
         id: prop.id || item.property_id,
-        capsuleItemId: item.id,
+        capsuleItemId: item.id, // For interaction tracking
         title: prop.title || prop.internal_name || "Imóvel Desconhecido (Falha no Join)",
         price: prop.value || 0,
         location: prop.location_text || "",
@@ -133,7 +132,7 @@ async function getSelectionData(slug: string) {
         bedrooms: prop.bedrooms,
         suites: prop.suites,
         areaPrivativa: prop.area_privativa,
-        _debugRow: item // Injected for debugging
+        _debugRow: item
       }
     })
 
