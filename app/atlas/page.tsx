@@ -470,25 +470,7 @@ function AtlasManagerContent() {
 
       const { slug: useSlug } = selectionData
 
-      // ── 2. Disparar WhatsApp ──
-      const portalUrl = `${window.location.origin}/selection/${useSlug}`
-      const message = `Olá ${lead.name.split(' ')[0]}! Selecionei alguns imóveis que fazem sentido para seu perfil. Você pode conferir aqui no seu portal exclusivo: ${portalUrl}`
-      const sendTo = (lead.lid ? (lead.lid.includes('@lid') ? lead.lid : `${lead.lid}@lid`) : null) || lead.phone
-
-      console.log("[ATLAS] Disparando WhatsApp para:", sendTo)
-
-      const waRes = await fetch('/api/whatsapp/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: sendTo, message, leadId: selectedLeadId })
-      })
-
-      if (!waRes.ok) {
-        const waErr = await waRes.json().catch(() => ({}))
-        throw new Error(waErr.error || "Falha ao disparar WhatsApp")
-      }
-
-      toast.success(`${propertyIds.length} imóveis enviados e portal gerado!`)
+      toast.success(`${propertyIds.length} imóveis curados e portal gerado para o lead!`)
       setSelectedPropertyIds(new Set())
       setSelectedLeadId(null)
       setLeadSearch("")
@@ -754,37 +736,39 @@ function AtlasManagerContent() {
               </div>
 
               <div className="space-y-1.5">
-                {selectedLeadId && searchParams.get('leadId') === selectedLeadId ? (
-                  <div className="w-full flex items-center gap-3 p-3 rounded-xl border border-[var(--orbit-glow)]/30 bg-[var(--orbit-glow)]/5 shadow-sm">
-                    <div className="w-9 h-9 rounded-lg bg-[var(--orbit-bg-secondary)] border border-[var(--orbit-glow)]/20 flex items-center justify-center text-[11px] font-bold text-[var(--orbit-glow)]">
-                      {leads?.find(l => l.id === selectedLeadId)?.name[0] || 'L'}
-                    </div>
-                    <div className="flex-1 text-left min-w-0">
-                      <p className="text-[12px] font-semibold leading-none truncate text-[var(--orbit-text)]">
-                        {leads?.find(l => l.id === selectedLeadId)?.name || 'Lead Selecionado'}
-                      </p>
-                      <p className="text-[9px] text-[var(--orbit-glow)] mt-1 uppercase font-mono tracking-widest font-bold">Lid Ativo</p>
-                    </div>
-                    <Check className="h-4 w-4 text-[var(--orbit-glow)]" />
-                  </div>
-                ) : (
-                  filteredLeads.map(lead => (
+                {(() => {
+                  const selectedLead = leads?.find(l => l.id === selectedLeadId)
+                  
+                  // Se tiver um lead selecionado que não está nos filtados, adiciona ele no topo da view
+                  let displayLeads = [...filteredLeads]
+                  if (selectedLead && !displayLeads.find(l => l.id === selectedLeadId)) {
+                    displayLeads.unshift(selectedLead)
+                  }
+
+                  // Se selecionou pela URL mas AINDA não carregou o lead (fallback temporário)
+                  if (selectedLeadId && !selectedLead && !leadsLoading) {
+                    displayLeads.unshift({ id: selectedLeadId, name: 'Lead Selecionado...', orbitStage: '' } as any)
+                  }
+
+                  return displayLeads.map(lead => (
                     <button
                       key={lead.id}
                       onClick={() => setSelectedLeadId(lead.id)}
                       className={`w-full flex items-center gap-3 p-2.5 rounded-xl border transition-all ${selectedLeadId === lead.id ? 'bg-[var(--orbit-glow)]/5 border-[var(--orbit-glow)]/25 shadow-sm' : 'border-transparent hover:bg-[var(--orbit-glow)]/5'}`}
                     >
                       <div className="w-8 h-8 rounded-lg bg-[var(--orbit-bg-secondary)] border border-[var(--orbit-line)] flex items-center justify-center text-[10px] font-bold text-[var(--orbit-text)]">
-                        {lead.name[0]}
+                        {lead.name ? lead.name[0] : 'L'}
                       </div>
                       <div className="flex-1 text-left min-w-0">
                         <p className="text-[11px] font-medium leading-none truncate text-[var(--orbit-text)]">{lead.name}</p>
-                        <p className="text-[9px] text-[var(--orbit-text-muted)] mt-1 uppercase font-mono tracking-tighter">{lead.orbitStage || 'Exploração'}</p>
+                        <p className={`text-[9px] mt-1 uppercase font-mono tracking-tighter ${selectedLeadId === lead.id ? 'text-[var(--orbit-glow)] font-bold' : 'text-[var(--orbit-text-muted)]'}`}>
+                          {selectedLeadId === lead.id ? 'Lid Ativo' : (lead.orbitStage || 'Exploração')}
+                        </p>
                       </div>
                       {selectedLeadId === lead.id && <Check className="h-3 w-3 text-[var(--orbit-glow)]" />}
                     </button>
                   ))
-                )}
+                })()}
               </div>
             </div>
 
@@ -1063,9 +1047,18 @@ function SelectionsHistory() {
       const leadIds = capsulesData.map((c: any) => c.lead_id)
       
       // Use Server API to bypass RLS for metrics unification
-      const intRes = await fetch(`/api/property-interactions?leadId=${leadIds.join(',')}`)
-      const intData = await intRes.json()
-      const interactionsData = intData.interactions || []
+      // Promise.all to fetch individually since API expects 1 leadId per call
+      const responses = await Promise.all(
+        leadIds.filter(Boolean).map((id: string) => fetch(`/api/property-interactions?leadId=${id}`).catch(() => null))
+      )
+      
+      const interactionsData: any[] = []
+      for (const res of responses) {
+        if (res && res.ok) {
+          const intData = await res.json()
+          if (intData.interactions) interactionsData.push(...intData.interactions)
+        }
+      }
 
       const statsByLead = leadIds.reduce((acc: any, id: string) => {
         const leadInts = interactionsData.filter((i: any) => i.lead_id === id);
