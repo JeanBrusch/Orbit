@@ -889,9 +889,9 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
   };
 
   // Fetch all data
-  const fetchAll = useCallback(async () => {
+  const fetchAll = useCallback(async (silent = false) => {
     if (!leadId) return;
-    setLoading(true);
+    if (!silent) setLoading(true);
     const supabase = getSupabase();
 
     const [leadRes, cogRes, memRes, insRes, msgRes] = (await Promise.all([
@@ -911,7 +911,7 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (supabase.from("messages") as any)
         .select("id,source,content,timestamp,ai_analysis")
-        .eq("lead_id", leadId).order("timestamp", { ascending: true }).limit(80),
+        .eq("lead_id", leadId).order("timestamp", { ascending: false }).limit(80),
     ])) as any[];
 
     if (leadRes.data) setLead(leadRes.data as Lead);
@@ -935,7 +935,8 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
 
     if (msgRes.data && msgRes.data.length > 0) {
       console.log("[COG] Setting messages from NEW schema 'messages'. Count:", msgRes.data.length);
-      setMessages(msgRes.data as Message[]);
+      // Reverse because we fetched latest 80 with DESC
+      setMessages((msgRes.data as Message[]).reverse());
     } else {
       console.log("[COG] Fallback to 'interactions'. msgRes.data is:", msgRes.data, "error:", msgRes.error);
       // Fallback to `interactions` table (older schema)
@@ -1060,8 +1061,8 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
         (payload) => { 
           console.log("[COG] Cognitive state Realtime update:", payload.new);
           setCognitive(payload.new as CognitiveState);
-          // Refetch everything when cog state changes (analysis loop finished)
-          fetchAll();
+          // Refetch everything when cog state changes (analysis loop finished) - SILENTLY
+          fetchAll(true);
         }
       )
       .on('postgres_changes',
