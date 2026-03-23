@@ -125,6 +125,54 @@ export async function sendMessage(phone: string, message: string): Promise<ZAPIS
   }
 }
 
+async function sendMedia(phone: string, mediaUrl: string, endpoint: string, extra: Record<string, any> = {}): Promise<ZAPISendResult> {
+  const isLid = phone.includes('@lid')
+  const cleanPhone = isLid ? phone.trim() : phone.replace(/\D/g, '')
+  
+  const { securityToken } = getConfig()
+  const headers: Record<string, string> = { 
+    'Content-Type': 'application/json',
+    ...(securityToken ? { 'Client-Token': securityToken } : {})
+  }
+  
+  const url = `${getBaseUrl()}/${endpoint}`
+  console.log(`[ZAPI] Attempting media fetch to: ${endpoint}`, 'phone:', cleanPhone)
+  
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        phone: cleanPhone,
+        [endpoint.includes('image') ? 'image' : endpoint.includes('audio') ? 'audio' : 'url']: mediaUrl,
+        ...extra
+      })
+    })
+    
+    const responseData = await response.json().catch(() => ({}))
+
+    if (!response.ok) {
+      console.error(`[ZAPI] Error sending ${endpoint}:`, responseData)
+      throw new Error(responseData.error || responseData.message || `Failed to send ${endpoint}: ${response.status}`)
+    }
+    
+    console.log(`[ZAPI] ${endpoint} sent successfully:`, responseData.messageId)
+    return responseData
+  } catch (error: any) {
+    console.error(`[ZAPI] ${endpoint} exception:`, error.message)
+    throw error
+  }
+}
+
+export async function sendImage(phone: string, imageUrl: string, caption?: string): Promise<ZAPISendResult> {
+  return sendMedia(phone, imageUrl, 'send-image', { caption })
+}
+
+export async function sendAudio(phone: string, audioUrl: string): Promise<ZAPISendResult> {
+  // Z-API expects 'audio' field for send-audio
+  return sendMedia(phone, audioUrl, 'send-audio')
+}
+
 export async function getContact(phone: string): Promise<ZAPIContact> {
   const cleanPhone = phone.replace(/\D/g, '')
   

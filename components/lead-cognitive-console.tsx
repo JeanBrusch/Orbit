@@ -445,6 +445,49 @@ const MessageBubble = memo(function MessageBubble({ msg, leadPhoto, leadName }: 
   const signalBorder = signal === "positive" ? "border-l-emerald-500"
     : signal === "negative" ? "border-l-red-400" : "border-l-white/10";
 
+  // ── Renderização Unificada de Mídia (WhatsApp ou Operador) ──
+  if (mediaType === "audio" || mediaType === "image" || (mediaType === "video" && mediaUrl)) {
+    const isOwner = msg.source === "operator";
+    return (
+      <div className={`flex gap-3 max-w-[85%] ${isOwner ? 'self-end flex-row-reverse' : ''}`}>
+        {!isOwner && (
+          <div className="w-8 h-8 rounded-full border border-[var(--orbit-line)] shrink-0 overflow-hidden bg-[var(--orbit-glow)]/10 flex items-center justify-center text-[10px] font-bold text-[var(--orbit-glow)]">
+            {leadPhoto ? <img src={leadPhoto} className="w-full h-full object-cover" alt="" /> : getInitials(leadName)}
+          </div>
+        )}
+        <div className={`flex flex-col gap-1 ${isOwner ? 'items-end' : ''}`}>
+          <div className={`border shadow-[var(--orbit-shadow)] rounded-2xl p-3 ${
+            isOwner 
+              ? isDark ? 'bg-[var(--orbit-glow)]/10 border-[var(--orbit-glow)]/20 rounded-tr-none' : 'bg-[var(--orbit-glow)]/5 border-[var(--orbit-glow)]/20 rounded-tr-none shadow-sm'
+              : `bg-[var(--orbit-bg-secondary)] border-[var(--orbit-line)] border-l-2 ${signalBorder} rounded-tl-none`
+          }`}>
+            {mediaType === "audio" ? (
+              <div className="flex flex-col gap-2 min-w-[240px]">
+                <div className="flex items-center gap-2">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${isDark ? 'bg-white/10' : 'bg-[var(--orbit-glow)]/10'}`}>
+                    <Mic className={`h-4 w-4 ${isDark ? 'text-white' : 'text-[var(--orbit-glow)]'}`} />
+                  </div>
+                  <audio controls src={mediaUrl} className="w-full h-8" style={{ filter: isDark ? "invert(0.9) hue-rotate(180deg) saturate(0.6)" : "none" }} />
+                </div>
+                {text && text !== "[audio]" && text !== "[Áudio]" && (
+                  <p className={`text-xs italic border-l pl-2 py-0.5 mt-1 ${isDark ? 'text-slate-400 border-white/10' : 'text-slate-600 border-[var(--orbit-glow)]/20'}`}>
+                    "{text.replace("[Áudio Transcrito] ", "")}"
+                  </p>
+                )}
+              </div>
+            ) : mediaType === "image" ? (
+               <div className="flex flex-col gap-2">
+                 <img src={mediaUrl} alt="" className="rounded-lg max-w-full md:max-w-[260px] max-h-60 object-cover cursor-pointer hover:brightness-110 transition-all" onClick={() => window.open(mediaUrl, '_blank')} />
+                 {text && <p className={`text-xs ${isDark ? 'text-slate-300' : 'text-[var(--orbit-text)]'}`}>{text}</p>}
+               </div>
+            ) : null}
+          </div>
+          <span className="text-[10px] text-[var(--orbit-text-muted)] mx-1">{formatTime(msg.timestamp)}</span>
+        </div>
+      </div>
+    );
+  }
+
   const MANUAL_ICONS: Record<string, { label: string; colorClass: string; iconChar: string }> = {
     call: { label: "Ligação", colorClass: "text-emerald-400", iconChar: "📞" },
     visit: { label: "Visita", colorClass: "text-[#d4af35]", iconChar: "🏠" },
@@ -456,7 +499,7 @@ const MessageBubble = memo(function MessageBubble({ msg, leadPhoto, leadName }: 
   if (manualKind) {
     const meta = MANUAL_ICONS[manualKind] || MANUAL_ICONS.note;
     return (
-      <div className="flex justify-center my-1">
+      <div className="flex justify-center my-1 w-full">
         <div className={`flex items-start gap-3 rounded-xl px-4 py-3 max-w-[80%] border ${
           isDark ? 'bg-[#d4af35]/5 border-[#d4af35]/20' : 'bg-[var(--orbit-glow)]/5 border-[var(--orbit-glow)]/20 shadow-sm'
         }`}>
@@ -485,26 +528,7 @@ const MessageBubble = memo(function MessageBubble({ msg, leadPhoto, leadName }: 
         </div>
         <div className="flex flex-col gap-1">
           <div className={`bg-[var(--orbit-bg-secondary)] border border-[var(--orbit-line)] border-l-2 ${signalBorder} rounded-2xl rounded-tl-none px-4 py-3 text-sm leading-relaxed shadow-[var(--orbit-shadow)]`}>
-            {mediaType === "audio" ? (
-              <div className="flex flex-col gap-2 min-w-[240px]">
-                <div className="flex items-center gap-3">
-                  <button className="w-8 h-8 rounded-full bg-[var(--orbit-glow)] flex items-center justify-center shrink-0 hover:brightness-110 transition-all">
-                    <Play className="h-3.5 w-3.5 fill-current text-white" />
-                  </button>
-                  <AudioWaveform />
-                  <Mic className="h-3 w-3 text-[var(--orbit-glow)]/50 shrink-0" />
-                </div>
-                {text && text !== "[audio]" && (
-                  <p className={`text-xs italic border-l pl-2 py-0.5 mt-1 ${isDark ? 'text-slate-300 border-[var(--orbit-glow)]/30' : 'text-slate-600 border-[var(--orbit-glow)]/20'}`}>
-                    "{text.replace("[Áudio Transcrito] ", "")}"
-                  </p>
-                )}
-              </div>
-            ) : (mediaType === "image" && mediaUrl) ? (
-              <img src={mediaUrl} alt="" className="rounded-lg max-w-[240px] max-h-40 object-cover" />
-             ) : (
-              <p className="text-[var(--orbit-text)]">{text || "[mídia]"}</p>
-            )}
+            <p className="text-[var(--orbit-text)]">{text}</p>
             {(intention || analysis?.summary) && (
               <div className="mt-2 space-y-2">
                 {intention && (
@@ -654,31 +678,58 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
   const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !leadId) return;
-    const supabase = getSupabase();
-    // Optimistic: show local object URL in chat
+
     const localUrl = URL.createObjectURL(file);
-    const isImage = file.type.startsWith("image/");
+    const type = file.type.startsWith("image/") ? "image" : "audio"; // rudimentary check
+    
+    // 1. Optimistic UI
+    const optimisticId = `opt-file-${Date.now()}`;
     const optimistic: Message = {
-      id: `opt-file-${Date.now()}`,
+      id: optimisticId,
       source: "operator",
-      content: JSON.stringify({ type: isImage ? "image" : "file", url: localUrl, caption: file.name }),
+      content: JSON.stringify({ type, url: localUrl, caption: "Enviando arquivo…" }),
       timestamp: new Date().toISOString(),
       ai_analysis: null,
     };
     setMessages(prev => [...prev, optimistic]);
-    // Persist as interaction
+
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (supabase.from("interactions") as any).insert({
-        lead_id: leadId,
-        content: JSON.stringify({ type: isImage ? "image" : "file", url: localUrl, caption: file.name }),
-        direction: "outbound",
-        channel: "manual",
+      // 2. Upload to Supabase
+      const uploadFormData = new FormData();
+      uploadFormData.append("file", file);
+      const uploadRes = await fetch("/api/upload", { method: "POST", body: uploadFormData });
+      if (!uploadRes.ok) throw new Error("Falha no upload");
+      const { url: permanentUrl } = await uploadRes.json();
+
+      // 3. Send via WhatsApp
+      const sendRes = await fetch("/api/whatsapp/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phone: lead?.phone || lead?.lid,
+          leadId,
+          type,
+          mediaUrl: permanentUrl,
+          caption: file.name
+        })
       });
-    } catch { /* silent */ }
-    // Clear file input
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  }, [leadId]);
+
+      if (!sendRes.ok) throw new Error("Falha ao enviar arquivo via WhatsApp");
+
+      // Cleanup optimistic
+      setTimeout(() => {
+        setMessages(prev => prev.filter(m => m.id !== optimisticId));
+      }, 1000);
+    } catch (err: any) {
+      console.error("[COG] File send error:", err);
+      setMessages(prev => prev.map(m => m.id === optimisticId
+        ? { ...m, content: JSON.stringify({ type, url: localUrl, caption: `Erro: ${err.message}` }) }
+        : m
+      ));
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }, [leadId, lead]);
 
   // --- Property search via Atlas ---
   const handleAttachProperty = useCallback(async (prop: any) => {
@@ -747,47 +798,73 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
       recorder.onstop = async () => {
         stream.getTracks().forEach(t => t.stop());
         const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
-        const url = URL.createObjectURL(blob);
+        const localUrl = URL.createObjectURL(blob);
 
-        // 1. Show optimistic audio bubble
+        // 1. Show optimistic audio bubble (local only for now)
         const optimisticId = `opt-audio-${Date.now()}`;
         const optimistic: Message = {
           id: optimisticId,
           source: "operator",
-          content: JSON.stringify({ type: "audio", url, caption: "Transcrevendo…" }),
+          content: JSON.stringify({ type: "audio", url: localUrl, caption: "Enviando e transcrevendo…" }),
           timestamp: new Date().toISOString(),
           ai_analysis: null,
         };
         setMessages(prev => [...prev, optimistic]);
 
-        // 2. Transcribe + analyse via API
+        // 2. Transcribe (background) + Upload & Send (critical)
         setIsTranscribing(true);
         try {
-          const formData = new FormData();
-          formData.append("audio", blob, "audio.webm");
-          if (leadId) formData.append("leadId", leadId);
-          formData.append("language", "pt");
+          // A. Transcribe via Whisper
+          const transcribeFormData = new FormData();
+          transcribeFormData.append("audio", blob, "audio.webm");
+          if (leadId) transcribeFormData.append("leadId", leadId);
+          transcribeFormData.append("language", "pt");
 
-          const res = await fetch("/api/transcribe", { method: "POST", body: formData });
-          const data = res.ok ? await res.json() : null;
+          const transcribePromise = fetch("/api/transcribe", { method: "POST", body: transcribeFormData })
+            .then(res => res.ok ? res.json() : null)
+            .catch(() => null);
 
-          if (data?.transcript) {
-            setLastTranscript({ text: data.transcript, analysis: data.analysis || {} });
-            // Update the optimistic bubble with transcript data
-            setMessages(prev => prev.map(m => m.id === optimisticId
-              ? { ...m, content: JSON.stringify({ type: "audio_transcript", url, transcript: data.transcript, analysis: data.analysis }), ai_analysis: data.analysis }
-              : m
-            ));
-          } else {
-            setMessages(prev => prev.map(m => m.id === optimisticId
-              ? { ...m, content: JSON.stringify({ type: "audio", url, caption: "[Áudio gravado]" }) }
-              : m
-            ));
+          // B. Upload to Supabase Storage
+          const uploadFormData = new FormData();
+          uploadFormData.append("file", blob, `audio-${Date.now()}.webm`);
+          const uploadRes = await fetch("/api/upload", { method: "POST", body: uploadFormData });
+          
+          if (!uploadRes.ok) throw new Error("Falha no upload do áudio");
+          const uploadData = await uploadRes.json();
+          const permanentUrl = uploadData.url;
+
+          // C. Wait for transcription (optional but good for DB)
+          const data = await transcribePromise;
+          const transcript = data?.transcript || "";
+
+          // D. Send via WhatsApp API (this also saves to DB via our updated route)
+          const sendRes = await fetch("/api/whatsapp/send", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              phone: lead?.phone || lead?.lid,
+              leadId: leadId,
+              type: "audio",
+              mediaUrl: permanentUrl,
+              caption: transcript ? `[Áudio Transcrito] ${transcript}` : "[Áudio]"
+            })
+          });
+
+          if (!sendRes.ok) throw new Error("Falha ao enviar áudio via WhatsApp");
+
+          // Remove optimistic and let Realtime handle the new permanent message
+          setTimeout(() => {
+            setMessages(prev => prev.filter(m => m.id !== optimisticId));
+          }, 1000);
+
+          if (transcript) {
+            setLastTranscript({ text: transcript, analysis: data?.analysis || {} });
           }
-        } catch {
-          // fallback: keep as plain audio if transcription fails
+        } catch (err: any) {
+          console.error("[COG] Audio send error:", err);
+          // Update optimistic to error state
           setMessages(prev => prev.map(m => m.id === optimisticId
-            ? { ...m, content: JSON.stringify({ type: "audio", url, caption: "[Áudio gravado]" }) }
+            ? { ...m, content: JSON.stringify({ type: "audio", url: localUrl, caption: `Erro: ${err.message}` }) }
             : m
           ));
         } finally {
@@ -944,11 +1021,36 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
           if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
             setMessages(prev => {
               const incoming = payload.new as Message;
+              
+              // 1. Check if it's already there by real ID
               if (prev.some(m => m.id === incoming.id)) {
-                // Update existing if it was an update (e.g. AI analysis added)
-                return prev.map(m => m.id === incoming.id ? incoming : m);
+                return prev.map(m => m.id === incoming.id ? incoming : m)
+                  .sort((a, b) => new Date(a.timestamp || 0).getTime() - new Date(b.timestamp || 0).getTime());
               }
-              return [...prev, incoming];
+
+              // 2. Deduplicate optimistic messages (match by content + source)
+              const existingIndex = prev.findIndex(m => 
+                m.id.startsWith('opt-') && 
+                m.content === incoming.content && 
+                m.source === incoming.source
+              );
+
+              let newList;
+              if (existingIndex !== -1) {
+                // Replace optimistic with real
+                newList = [...prev];
+                newList[existingIndex] = incoming;
+              } else {
+                // Just append
+                newList = [...prev, incoming];
+              }
+
+              // 3. Always sort by timestamp to ensure correct timeline
+              return newList.sort((a, b) => {
+                const timeA = new Date(a.timestamp || 0).getTime();
+                const timeB = new Date(b.timestamp || 0).getTime();
+                return timeA - timeB;
+              });
             });
           }
         }
@@ -995,10 +1097,40 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
   }, [isOpen, leadId, fetchAll]);
 
   const groupedItems = useMemo(() => {
-    const groups: (Message | { id: string, isImageGroup: true, items: Message[], source: string, timestamp: string })[] = [];
+    const groups: (Message | { id: string, isImageGroup: true, items: Message[], source: string, timestamp: string } | { id: string, isDateSeparator: true, dateLabel: string })[] = [];
     let currentImageGroup: { id: string, isImageGroup: true, items: Message[], source: string, timestamp: string } | null = null;
+    let lastDate = "";
+
+    const formatDateLabel = (dateStr: string) => {
+      const d = new Date(dateStr);
+      const today = new Date();
+      const yesterday = new Date();
+      yesterday.setDate(today.getDate() - 1);
+      
+      if (d.toDateString() === today.toDateString()) return "Hoje";
+      if (d.toDateString() === yesterday.toDateString()) return "Ontem";
+      
+      const options: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'long' };
+      if (d.getFullYear() !== today.getFullYear()) {
+        options.year = 'numeric';
+      }
+      
+      return d.toLocaleDateString("pt-BR", options);
+    };
 
     messages.forEach((msg) => {
+      // 1. Date Separator logic
+      const msgDate = msg.timestamp ? new Date(msg.timestamp).toDateString() : "";
+      if (msgDate !== lastDate && msgDate !== "") {
+        groups.push({ 
+          id: `date-${msgDate}`, 
+          isDateSeparator: true, 
+          dateLabel: formatDateLabel(msg.timestamp) 
+        });
+        lastDate = msgDate;
+      }
+
+      // 2. Image grouping logic
       let isImage = false;
       try {
         const p = JSON.parse(msg.content || "{}");
@@ -1403,6 +1535,17 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
                     </div>
                   ) : (
                     groupedItems.map((item, idx) => {
+                      if ("isDateSeparator" in item && item.isDateSeparator) {
+                        return (
+                          <div key={item.id} className="flex items-center gap-4 my-4">
+                            <div className={`h-px flex-1 ${isDark ? 'bg-white/5' : 'bg-gray-100'}`} />
+                            <span className={`text-[10px] font-bold uppercase tracking-[0.2em] ${isDark ? 'text-slate-600' : 'text-slate-400'}`}>
+                              {item.dateLabel}
+                            </span>
+                            <div className={`h-px flex-1 ${isDark ? 'bg-white/5' : 'bg-gray-100'}`} />
+                          </div>
+                        );
+                      }
                       if ("isImageGroup" in item && item.isImageGroup) {
                         return <ImageGroupBubble key={item.id} group={item} leadPhoto={lead?.photo_url || null} leadName={lead?.name || null} />;
                       }

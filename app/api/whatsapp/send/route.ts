@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { sendMessage } from '@/lib/zapi/client'
+import { sendMessage, sendImage, sendAudio } from '@/lib/zapi/client'
 import { normalizePhone, isLidFormat } from '@/lib/phone-utils'
 import { getSupabaseServer } from '@/lib/supabase-server'
 import { processEventWithCore } from '@/lib/orbit-core'
@@ -8,12 +8,12 @@ export async function POST(request: NextRequest) {
   console.log('[SEND] API route hit')
   try {
     const body = await request.json()
-    const { phone, message, leadId, skipInteraction } = body
-    console.log('[SEND] Request data:', { phone, messageId: !!message, leadId, skipInteraction })
+    const { phone, message, leadId, skipInteraction, type = 'text', mediaUrl, caption } = body
+    console.log('[SEND] Request data:', { phone, type, hasMessage: !!message, hasMedia: !!mediaUrl, leadId })
 
-    if (!phone || !message) {
+    if (!phone || (type === 'text' && !message) || (type !== 'text' && !mediaUrl)) {
       return NextResponse.json(
-        { error: 'phone e message são obrigatórios' },
+        { error: 'Parâmetros obrigatórios ausentes (phone, message ou mediaUrl)' },
         { status: 400 }
       )
     }
@@ -28,29 +28,40 @@ export async function POST(request: NextRequest) {
 
     // If phone is LID format, use as-is; otherwise normalize
     const sendTo = isLidFormat(phone) ? phone : normalizePhone(phone)
-    console.log('[SEND] Sending message to:', sendTo, isLidFormat(phone) ? '(LID)' : '(phone)')
+    console.log(`[SEND] Sending ${type} to:`, sendTo)
     
-    const result = await sendMessage(sendTo, message)
+    let result: any
+    let dbContent: string
+
+    if (type === 'image') {
+      result = await sendImage(sendTo, mediaUrl!, caption)
+      dbContent = JSON.stringify({ type: 'image', url: mediaUrl, caption: caption || '' })
+    } else if (type === 'audio') {
+      result = await sendAudio(sendTo, mediaUrl!)
+      dbContent = JSON.stringify({ type: 'audio', url: mediaUrl, caption: caption || '[Áudio]' })
+    } else {
+      result = await sendMessage(sendTo, message!)
+      dbContent = message!
+    }
+
     console.log('[SEND] Z-API result:', result)
 
     if (leadId && !skipInteraction) {
       const supabase = getSupabaseServer()
       const idempotencyKey = `zapi:${result.messageId}`
       
-      // We check 'messages' because that's what the chat UI displays.
-      // Checking 'interactions' was causing a mismatch if the interaction existed but the message didn't.
-      const { data: existing } = await supabase
-        .from('messages')
+      const { data: existing } = await (supabase
+        .from('messages') as any)
         .select('id')
         .eq('idempotency_key', idempotencyKey)
         .maybeSingle()
       
       if (!existing) {
         console.log('[SEND] Message not found in history, inserting:', idempotencyKey)
-        const { data: newMessage, error } = await supabase.from('messages').insert({
+        const { data: newMessage, error } = await (supabase.from('messages') as any).insert({
           lead_id: leadId,
           source: 'operator',
-          content: message,
+          content: dbContent,
           idempotency_key: idempotencyKey,
           timestamp: new Date().toISOString()
         }).select('id').single()
@@ -60,42 +71,33 @@ export async function POST(request: NextRequest) {
             console.log('[SEND] Message already exists (race condition/constraint):', idempotencyKey)
           } else {
             console.error('[SEND] Error saving message to historical table:', error)
-            // CRITICAL: We don't return 500 here because the message WAS sent via Z-API.
-            // Returning 500 makes the user think it failed.
             return NextResponse.json({ 
               success: true, 
               messageId: result.messageId,
               phone: sendTo,
-              warning: 'Mensagem enviada, mas houve um erro ao salvar no histórico (possivelmente limite do banco de dados excedido)'
+              warning: 'Mensagem enviada, mas houve um erro ao salvar no histórico'
             })
           }
         } else {
           console.log('[SEND] Message saved in historical table:', idempotencyKey)
           
-          await supabase
-            .from('lead_cognitive_state')
-            .upsert({
+          await Promise.all([
+            (supabase.from('lead_cognitive_state') as any).upsert({
               lead_id: leadId,
               last_human_action_at: new Date().toISOString(),
-            }, { onConflict: 'lead_id', ignoreDuplicates: false })
-
-          await supabase
-            .from('leads')
-            .update({ 
+            }, { onConflict: 'lead_id' }),
+            (supabase.from('leads') as any).update({ 
               last_interaction_at: new Date().toISOString() 
-            })
-            .eq('id', leadId)
+            }).eq('id', leadId)
+          ])
 
-          processEventWithCore(leadId, message, 'message_outbound', newMessage?.id).catch((e) => {
+          processEventWithCore(leadId, type === 'text' ? message! : `[Mídia: ${type}]`, 'message_outbound', (newMessage as any)?.id).catch((e) => {
              console.error('[SEND] Orbit Core processing error:', e)
           })
         }
-      } else {
-        console.log('[SEND] Message already exists in historical table (idempotency):', idempotencyKey)
       }
     }
 
-    console.log('[SEND] Message process successful')
     return NextResponse.json({ 
       success: true, 
       messageId: result.messageId,
