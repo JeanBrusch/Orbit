@@ -643,6 +643,9 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
   const [insights, setInsights] = useState<AiInsight[]>([]);
   const { invokeAtlasMap, isAtlasMapActive } = useOrbitContext();
   const [messages, setMessages] = useState<Message[]>([]);
+  const [hasMore, setHasMore] = useState(true);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
+  const isPrependingRef = useRef(false);
   const [interactions, setInteractions] = useState<PropertyInteraction[]>([]);
   const [aiSuggestion, setAiSuggestion] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -911,7 +914,7 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (supabase.from("messages") as any)
         .select("id,source,content,timestamp,ai_analysis")
-        .eq("lead_id", leadId).order("timestamp", { ascending: false }).limit(80),
+        .eq("lead_id", leadId).order("timestamp", { ascending: false }).limit(20),
     ])) as any[];
 
     if (leadRes.data) setLead(leadRes.data as Lead);
@@ -935,15 +938,15 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
 
     if (msgRes.data && msgRes.data.length > 0) {
       console.log("[COG] Setting messages from NEW schema 'messages'. Count:", msgRes.data.length);
-      // Reverse because we fetched latest 80 with DESC
-      setMessages((msgRes.data as Message[]).reverse());
+      setHasMore(msgRes.data.length === 20);
+      setMessages(msgRes.data as Message[]);
     } else {
       console.log("[COG] Fallback to 'interactions'. msgRes.data is:", msgRes.data, "error:", msgRes.error);
       // Fallback to `interactions` table (older schema)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const intRes = await (supabase.from("interactions") as any)
         .select("id,content,created_at,direction")
-        .eq("lead_id", leadId).order("created_at", { ascending: true }).limit(80);
+        .eq("lead_id", leadId).order("created_at", { ascending: false }).limit(20);
       
       console.log("[COG] Interactions fallback response:", intRes);
 
@@ -980,6 +983,28 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
     setLoading(false);
   }, [leadId]);
 
+  const handleLoadMore = async () => {
+    if (!leadId || isFetchingMore || !hasMore || messages.length === 0) return;
+    setIsFetchingMore(true);
+    const oldestTimestamp = messages[0].timestamp;
+    const supabase = getSupabase();
+
+    const { data, error } = await (supabase.from("messages") as any)
+      .select("id,source,content,timestamp,ai_analysis")
+      .eq("lead_id", leadId)
+      .lt("timestamp", oldestTimestamp)
+      .order("timestamp", { ascending: false })
+      .limit(20);
+
+    if (error) {
+      console.error("[COG] Error loading more messages:", error);
+    } else if (data) {
+      setHasMore(data.length === 20);
+      setMessages(prev => [...prev, ...(data as Message[])]);
+    }
+    setIsFetchingMore(false);
+  };
+
   useEffect(() => {
     if (isOpen && leadId) {
       isFirstChatLoad.current = true;
@@ -988,6 +1013,7 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
       setMemories([]);
       setInsights([]);
       setMessages([]);
+      setHasMore(true);
       setAiSuggestion(null);
       fetchAll();
 
@@ -1026,7 +1052,7 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
               // 1. Check if it's already there by real ID
               if (prev.some(m => m.id === incoming.id)) {
                 return prev.map(m => m.id === incoming.id ? incoming : m)
-                  .sort((a, b) => new Date(a.timestamp || 0).getTime() - new Date(b.timestamp || 0).getTime());
+                  .sort((a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime());
               }
 
               // 2. Deduplicate optimistic messages (match by content + source)
@@ -1042,15 +1068,15 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
                 newList = [...prev];
                 newList[existingIndex] = incoming;
               } else {
-                // Just append
-                newList = [...prev, incoming];
+                // Prepend new message for column-reverse
+                newList = [incoming, ...prev];
               }
 
-              // 3. Always sort by timestamp to ensure correct timeline
+              // 3. Always sort by timestamp DESC
               return newList.sort((a, b) => {
                 const timeA = new Date(a.timestamp || 0).getTime();
                 const timeB = new Date(b.timestamp || 0).getTime();
-                return timeA - timeB;
+                return timeB - timeA;
               });
             });
           }
@@ -1119,19 +1145,8 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
       return d.toLocaleDateString("pt-BR", options);
     };
 
-    messages.forEach((msg) => {
-      // 1. Date Separator logic
-      const msgDate = msg.timestamp ? new Date(msg.timestamp).toDateString() : "";
-      if (msgDate !== lastDate && msgDate !== "") {
-        groups.push({ 
-          id: `date-${msgDate}`, 
-          isDateSeparator: true, 
-          dateLabel: formatDateLabel(msg.timestamp) 
-        });
-        lastDate = msgDate;
-      }
-
-      // 2. Image grouping logic
+    messages.forEach((msg, i) => {
+      // 1. Image grouping logic
       let isImage = false;
       try {
         const p = JSON.parse(msg.content || "{}");
@@ -1159,20 +1174,27 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
         currentImageGroup = null;
         groups.push(msg);
       }
+
+      // 2. Date Separator logic (Since it's column-reverse, we want the separator AFTER the day's messages in the array)
+      const msgDate = msg.timestamp ? new Date(msg.timestamp).toDateString() : "";
+      const nextMsg = messages[i + 1];
+      const nextDate = nextMsg?.timestamp ? new Date(nextMsg.timestamp).toDateString() : "";
+      
+      if (msgDate !== nextDate && msgDate !== "") {
+        groups.push({ 
+          id: `date-${msgDate}`, 
+          isDateSeparator: true, 
+          dateLabel: formatDateLabel(msg.timestamp) 
+        });
+      }
     });
     return groups;
   }, [messages]);
 
   const isFirstChatLoad = useRef(true);
   useEffect(() => {
-    if (!bottomRef.current) return;
-    if (isFirstChatLoad.current && messages.length > 0) {
-      bottomRef.current.scrollIntoView({ behavior: "instant" });
-      isFirstChatLoad.current = false;
-    } else if (!isFirstChatLoad.current) {
-      bottomRef.current.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [messages]);
+    // No manual scroll needed for column-reverse native scroll
+  }, [messages, loading]);
 
   // Send message: bridge Cognitive Terminal -> WhatsApp (via Z-API) + interaction log
   const handleSend = useCallback(async () => {
@@ -1189,7 +1211,8 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
       timestamp: new Date().toISOString(),
       ai_analysis: null,
     };
-    setMessages(prev => [...prev, optimistic]);
+    // Prepend for column-reverse
+    setMessages(prev => [optimistic, ...prev]);
     setComposerText("");
 
     try {
@@ -1528,7 +1551,27 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
               {/* ── CENTRAL AREA: Chat ── */}
               <section className={`flex-1 flex-col ${glass} rounded-none md:rounded-xl overflow-hidden min-w-0 ${isMobile && activeMobileTab !== "chat" ? 'hidden' : 'flex'}`}>
                 {/* Chat stream */}
-                <div className="flex-1 overflow-y-auto p-3 md:p-5 flex flex-col gap-4 custom-scrollbar min-h-0">
+                <div className="flex-1 overflow-y-auto p-3 md:p-5 flex flex-col-reverse gap-4 custom-scrollbar min-h-0">
+                  <div ref={bottomRef} style={{ overflowAnchor: "auto" }} />
+                  {hasMore && messages.length >= 20 && (
+                    <button
+                      onClick={handleLoadMore}
+                      disabled={isFetchingMore}
+                      className={`mx-auto mt-4 px-4 py-2 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all ${
+                        isDark 
+                          ? 'bg-white/5 border border-white/10 text-slate-400 hover:text-[#d4af35] hover:bg-[#d4af35]/10' 
+                          : 'bg-white border border-[var(--orbit-line)] text-[var(--orbit-text-muted)] hover:text-[var(--orbit-glow)] hover:bg-[var(--orbit-bg-secondary)] shadow-sm'
+                      }`}
+                    >
+                      {isFetchingMore ? (
+                        <div className="flex items-center gap-2">
+                          <Loader2 className="w-3 h-3 animate-spin" /> Carregando...
+                        </div>
+                      ) : (
+                        "Mostrar histórico anterior"
+                      )}
+                    </button>
+                  )}
                   {messages.length === 0 ? (
                     <div className="flex-1 flex flex-col items-center justify-center gap-3 opacity-30">
                       <Brain className={`w-10 h-10 ${isDark ? 'text-[#d4af35]/40' : 'text-[var(--orbit-glow)]/40'}`} />
