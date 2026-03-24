@@ -1,7 +1,7 @@
 "use client"
 import { useState, useMemo, useEffect, useRef, useCallback } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Phone, ExternalLink, Map, LayoutGrid, Building2, ChevronRight, X, MessageCircle } from "lucide-react"
+import { Phone, ExternalLink, Map, LayoutGrid, Building2, ChevronRight, X, MessageCircle, Sparkles } from "lucide-react"
 import { toast } from "sonner"
 import { VideoEmbed } from "./VideoEmbed"
 import { SelectionCard } from "./SelectionCard"
@@ -136,19 +136,19 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
   }
 
   return (
-    <div className="min-h-screen bg-[#0c0c0c] text-white selection:bg-[#d4af35]/30">
+    <div className="min-h-screen bg-[#F8F9FA] text-gray-900 selection:bg-blue-100">
       {/* Premium Header */}
-      <header className="fixed top-0 left-0 right-0 z-[60] bg-[#0c0c0c]/80 backdrop-blur-xl border-b border-white/5 px-6 h-20 flex items-center justify-between">
+      <header className="fixed top-0 left-0 right-0 z-[60] bg-white/80 backdrop-blur-xl border-b border-gray-100 px-6 h-20 flex items-center justify-between shadow-sm">
         <div className="flex flex-col">
-          <span className="text-[10px] font-bold tracking-[0.2em] text-[#d4af35] uppercase">Orbit Selection</span>
-          <span className="text-sm font-medium text-white/60">Curadoria Jean Brusch</span>
+          <span className="text-[10px] font-bold tracking-[0.2em] text-gray-900 uppercase">Orbit Selection</span>
+          <span className="text-sm font-medium text-gray-500">Curadoria Jean Brusch</span>
         </div>
         <div className="flex items-center gap-3">
           <div className="hidden sm:flex flex-col items-end mr-2">
-            <span className="text-xs text-white/40">Cliente</span>
-            <span className="text-sm font-bold text-white/90">{lead?.name || 'Visitante'}</span>
+            <span className="text-xs text-gray-400 font-bold uppercase tracking-tighter">Cliente</span>
+            <span className="text-sm font-black text-gray-900">{lead?.name || 'Visitante'}</span>
           </div>
-          <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#d4af35] to-[#f5d77b] flex items-center justify-center text-black font-bold text-sm shadow-lg shadow-[#d4af35]/10">
+          <div className="w-10 h-10 rounded-full bg-gray-900 flex items-center justify-center text-white font-bold text-sm shadow-xl shadow-gray-200">
             {lead?.name?.[0] || 'U'}
           </div>
         </div>
@@ -161,11 +161,11 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
           animate={{ opacity: 1, y: 0 }}
           className="mb-12"
         >
-          <h1 className="text-4xl font-bold leading-tight mb-4">
+          <h1 className="text-4xl font-black leading-tight mb-4 tracking-tighter">
             Sua nova jornada<br />
-            <span className="text-white/40">começa agora.</span>
+            <span className="text-gray-400">começa agora.</span>
           </h1>
-          <p className="text-white/40 leading-relaxed text-sm">
+          <p className="text-gray-500 leading-relaxed text-sm font-medium">
             Preparei esta curadoria exclusiva baseada no seu perfil. 
             Deslize para explorar e use os botões para indicar seu interesse em cada imóvel.
           </p>
@@ -173,20 +173,20 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
 
         {/* View Toggle */}
         <div className="flex items-center justify-between mb-8">
-          <span className="text-xs font-bold text-white/20 uppercase tracking-widest">
+          <span className="text-[10px] font-bold text-gray-300 uppercase tracking-widest">
             {items.length} Imóveis Disponíveis
           </span>
-          <div className="flex bg-white/5 rounded-full p-1 border border-white/5">
+          <div className="flex bg-gray-100 p-1 rounded-full border border-gray-200">
             <button 
               onClick={() => setActiveView('grid')}
-              className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold transition-all ${activeView === 'grid' ? 'bg-white/10 text-white shadow-xl' : 'text-white/40'}`}
+              className={`flex items-center gap-2 px-4 py-2 rounded-full text-[10px] font-bold transition-all ${activeView === 'grid' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
             >
               <LayoutGrid className="w-3.5 h-3.5" />
               Geral
             </button>
             <button 
               onClick={() => setActiveView('map')}
-              className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold transition-all ${activeView === 'map' ? 'bg-white/10 text-white shadow-xl' : 'text-white/40'}`}
+              className={`flex items-center gap-2 px-4 py-2 rounded-full text-[10px] font-bold transition-all ${activeView === 'map' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
             >
               <Map className="w-3.5 h-3.5" />
               Mapa
@@ -225,17 +225,17 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] bg-[#0c0c0c] overflow-y-auto"
+            className="fixed inset-0 z-[100] bg-white overflow-y-auto"
           >
             <button 
               onClick={() => setSelectedItem(null)}
-              className="fixed top-8 right-8 z-[110] w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white/60 hover:text-white"
+              className="fixed top-8 right-8 z-[110] w-12 h-12 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-900 transition-colors shadow-sm"
             >
               <X className="w-6 h-6" />
             </button>
 
             <div className="max-w-2xl mx-auto py-12 px-6">
-              <div className="rounded-[40px] overflow-hidden bg-white/5 border border-white/10 mb-8">
+              <div className="rounded-[40px] overflow-hidden bg-gray-50 border border-gray-100 mb-8 shadow-2xl shadow-gray-100">
                 {selectedItem.coverImage && (
                   <img src={selectedItem.coverImage} alt={selectedItem.title} className="w-full h-auto" />
                 )}
@@ -243,30 +243,33 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
 
               <div className="space-y-8">
                 <div>
-                  <h2 className="text-3xl font-bold mb-2">{selectedItem.title}</h2>
-                  <div className="flex items-center gap-2 text-white/40 text-sm">
+                  <h2 className="text-3xl font-black mb-2 tracking-tighter text-gray-900">{selectedItem.title}</h2>
+                  <div className="flex items-center gap-2 text-gray-400 text-xs font-bold uppercase tracking-widest">
                     <MapPin className="w-4 h-4" />
                     {selectedItem.location}
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-white/5 rounded-3xl p-6 border border-white/5">
-                    <span className="text-[10px] font-bold text-white/20 uppercase tracking-widest block mb-1">Preço</span>
-                    <span className="text-xl font-bold text-[#d4af35]">
+                  <div className="bg-[#F8F9FA] rounded-3xl p-6 border border-gray-100">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">Preço Premium</span>
+                    <span className="text-xl font-black text-gray-900">
                       {selectedItem.price ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(selectedItem.price) : 'Sob consulta'}
                     </span>
                   </div>
-                  <div className="bg-white/5 rounded-3xl p-6 border border-white/5">
-                    <span className="text-[10px] font-bold text-white/20 uppercase tracking-widest block mb-1">Área</span>
-                    <span className="text-xl font-bold">{selectedItem.areaPrivativa || '—'}m²</span>
+                  <div className="bg-[#F8F9FA] rounded-3xl p-6 border border-gray-100">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">Área Privativa</span>
+                    <span className="text-xl font-black text-gray-900">{selectedItem.areaPrivativa || '—'}m²</span>
                   </div>
                 </div>
 
                 {selectedItem.recommendedReason && (
-                  <div className="bg-[#d4af35]/5 rounded-3xl p-8 border border-[#d4af35]/10">
-                    <h4 className="text-[10px] font-bold text-[#d4af35] uppercase tracking-widest mb-4">Por que este imóvel?</h4>
-                    <p className="text-white/80 leading-relaxed italic">
+                  <div className="bg-blue-50/50 rounded-3xl p-8 border border-blue-100">
+                    <h4 className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-4 flex items-center gap-2">
+                      <Sparkles size={14} />
+                      Curadoria Jean Brusch
+                    </h4>
+                    <p className="text-gray-700 leading-relaxed italic font-medium">
                       "{selectedItem.recommendedReason}"
                     </p>
                   </div>
@@ -274,7 +277,7 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
 
                 {selectedItem.videoUrl && (
                   <div>
-                    <h4 className="text-[10px] font-bold text-white/20 uppercase tracking-widest mb-6">Apresentação em Vídeo</h4>
+                    <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-6">Apresentação em Vídeo</h4>
                     <VideoEmbed url={selectedItem.videoUrl} className="mb-4" />
                   </div>
                 )}
@@ -282,16 +285,16 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
                 <div className="pt-8 flex flex-col gap-4 pb-20">
                   <button 
                     onClick={() => { setChatProperty(selectedItem); setSelectedItem(null); }}
-                    className="w-full h-16 rounded-2xl bg-[#d4af35] text-black font-bold flex items-center justify-center gap-3 transition-all active:scale-95 shadow-xl shadow-[#d4af35]/10"
+                    className="w-full h-16 rounded-2xl bg-gray-900 text-white font-bold flex items-center justify-center gap-3 transition-all active:scale-95 shadow-xl shadow-gray-200"
                   >
-                    <MessageCircle className="w-5 h-5 fill-black" />
+                    <MessageCircle className="w-5 h-5 fill-white" />
                     Enviar dúvida sobre este imóvel
                   </button>
                   {selectedItem.url && (
                     <a 
                       href={selectedItem.url} 
                       target="_blank" 
-                      className="w-full h-16 rounded-2xl bg-white/5 border border-white/10 text-white/80 font-bold flex items-center justify-center gap-3 transition-all active:scale-95"
+                      className="w-full h-16 rounded-2xl bg-white border border-gray-100 text-gray-500 font-bold flex items-center justify-center gap-3 transition-all active:scale-95 shadow-sm"
                     >
                       <ExternalLink className="w-5 h-5" />
                       Ver todos os detalhes originais
