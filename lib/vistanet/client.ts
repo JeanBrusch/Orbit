@@ -7,13 +7,12 @@ const FIELDS = JSON.stringify({
   fields: [
     'Codigo', 'Cidade', 'Bairro', 'BairroComercial',
     'ValorVenda', 'ValorLocacao', 'Dormitorios', 'Suites',
-    'Vagas', 'AreaTotal', 'AreaPrivativa',
-    'DescricaoWeb', 'FotoDestaque', 'ValorCondominio', 'ValorIptu',
+    'AreaTotal', 'AreaPrivativa',
+    'DescricaoWeb', 'FotoDestaque',
     'TipoImovel', 'Status',
     { Foto: ['Foto', 'FotoPequena', 'Destaque'] },
     { Corretor: ['Nome', 'Fone', 'Email', 'Foto'] },
     'Caracteristicas',
-    'InfraEstrutura',
   ]
 })
 

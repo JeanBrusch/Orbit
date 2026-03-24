@@ -23,8 +23,8 @@ export async function POST(req: NextRequest) {
     if (finalUrl.includes('v.imo.bi') && !finalUrl.includes('v2=')) {
       try {
         if (!finalUrl.startsWith('http')) finalUrl = `https://${finalUrl}`
-        const r = await fetch(finalUrl, { 
-          method: 'GET', 
+        const r = await fetch(finalUrl, {
+          method: 'GET',
           redirect: 'follow',
           headers: {
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
@@ -63,12 +63,11 @@ export async function POST(req: NextRequest) {
       .filter(Boolean)
 
     const featuresData = data.Caracteristicas && typeof data.Caracteristicas === 'object' ? data.Caracteristicas : {}
-    const infraData = data.InfraEstrutura && typeof data.InfraEstrutura === 'object' ? data.InfraEstrutura : {}
 
     const features: string[] = [
       ...Object.entries(featuresData).filter(([_, v]) => v === 'Sim').map(([k]) => k),
-      ...Object.entries(infraData).filter(([_, v]) => v === 'Sim').map(([k]) => k),
       data.Vagas ? `${data.Vagas} vaga(s)` : null,
+      data.AreaTotal ? `Lote: ${data.AreaTotal}m²` : null,
     ].filter((v): v is string => typeof v === 'string' && v.length > 0)
 
     const bairro = data.BairroComercial || data.Bairro || null
@@ -82,6 +81,7 @@ export async function POST(req: NextRequest) {
       data.Dormitorios ? `${data.Dormitorios} dormitórios` : null,
       data.Suites ? `${data.Suites} suítes` : null,
       data.AreaPrivativa ? `${data.AreaPrivativa}m²` : null,
+      data.AreaTotal ? `Lote ${data.AreaTotal}m²` : null,
       ...features.slice(0, 10),
     ].filter(Boolean).join('. ')
 
@@ -99,11 +99,10 @@ export async function POST(req: NextRequest) {
       neighborhood: bairro,
       city: data.Cidade ?? null,
       area_privativa: data.AreaPrivativa ? parseFloat(data.AreaPrivativa) : null,
+      area_total: data.AreaTotal ? parseFloat(data.AreaTotal) : null,
       bedrooms: data.Dormitorios ? parseInt(data.Dormitorios, 10) : null,
       suites: data.Suites ? parseInt(data.Suites, 10) : null,
       parking_spots: data.Vagas ? parseInt(data.Vagas, 10) : null,
-      condo_fee: parseBRL(data.ValorCondominio),
-      iptu: parseBRL(data.ValorIptu),
       features,
       photos,
       ingestion_type: 'vistanet',

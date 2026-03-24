@@ -44,6 +44,7 @@ export default function EditPropertyModal({ isOpen, onClose, property, onSave, o
         bedrooms: property.bedrooms || "",
         suites: property.suites || "",
         area_privativa: property.area_privativa || "",
+        area_total: property.area_total || "",
         features: (property.features || []).join(", "),
       })
       if (property.lat && property.lng) {
@@ -205,6 +206,10 @@ export default function EditPropertyModal({ isOpen, onClose, property, onSave, o
                 <div>
                   <label className={labelClass}>Área (m²)</label>
                   <input type="number" value={formData.area_privativa} onChange={e => setFormData({...formData, area_privativa: e.target.value})} className={inputClass} />
+                </div>
+                <div>
+                  <label className={labelClass}>Lote (m²)</label>
+                  <input type="number" value={formData.area_total} onChange={e => setFormData({...formData, area_total: e.target.value})} className={inputClass} />
                 </div>
               </div>
               <div>
