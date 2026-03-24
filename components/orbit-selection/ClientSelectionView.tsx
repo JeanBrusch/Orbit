@@ -258,9 +258,25 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
                   <Sparkles className="w-8 h-8 text-[#C9A84C]" />
                 </div>
                 <h3 className="text-lg font-bold text-[#1A1A1A] mb-2">Preparando sua curadoria</h3>
-                <p className="text-[#A1A1A1] text-[14px] max-w-[280px] mx-auto leading-relaxed">
+                <p className="text-[#A1A1A1] text-[14px] max-w-[280px] mx-auto leading-relaxed mb-6">
                   Trabalhamos para selecionar os imóveis perfeitos. Assim que finalizarmos, eles aparecerão aqui.
                 </p>
+
+                {/* Visible Debug Info for Lead Discovery */}
+                <div className="mt-8 pt-8 border-t border-gray-50 text-left">
+                  <span className="text-[10px] font-bold text-[#C9A84C] uppercase tracking-widest block mb-4">Diagnostic Info (v2)</span>
+                  <div className="bg-gray-50 rounded-2xl p-4 overflow-auto max-h-[200px]">
+                    <pre className="text-[10px] text-gray-500 font-mono leading-tight">
+                      {JSON.stringify({ 
+                        slug, 
+                        leadId: lead?.id, 
+                        itemsCount: items.length,
+                        debug: (data as any)._debug,
+                        leadName: lead?.name
+                      }, null, 2)}
+                    </pre>
+                  </div>
+                </div>
               </motion.div>
             )}
           </div>
