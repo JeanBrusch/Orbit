@@ -1458,11 +1458,33 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
               </div>
             </header>
 
+            {/* ── MOBILE TABS ── */}
+            {isMobile && (
+              <div className="flex md:hidden shrink-0 px-2 py-2 gap-2 border-b border-[var(--orbit-line)]/50 bg-[var(--orbit-bg)] z-10 w-full overflow-x-auto">
+                <button
+                  onClick={() => setActiveMobileTab("chat")}
+                  className={`flex-[1] py-2.5 px-4 text-[10px] font-bold uppercase tracking-[0.2em] rounded-xl transition-all whitespace-nowrap ${
+                    activeMobileTab === "chat" ? "bg-[var(--orbit-glow)] text-[var(--orbit-bg)] shadow-[0_4px_15px_var(--orbit-glow)]/30" : "bg-white/5 text-[var(--orbit-text-muted)] hover:bg-white/10"
+                  }`}
+                >
+                  Chat & Interações
+                </button>
+                <button
+                  onClick={() => setActiveMobileTab("info")}
+                  className={`flex-[1] py-2.5 px-4 text-[10px] font-bold uppercase tracking-[0.2em] rounded-xl transition-all whitespace-nowrap ${
+                    activeMobileTab === "info" ? "bg-[var(--orbit-glow)] text-[var(--orbit-bg)] shadow-[0_4px_15px_var(--orbit-glow)]/30" : "bg-white/5 text-[var(--orbit-text-muted)] hover:bg-white/10"
+                  }`}
+                >
+                  Radar IA
+                </button>
+              </div>
+            )}
+
             {/* ── MAIN 3-COLUMN GRID ── */}
-            <main className="flex-1 flex gap-0 md:gap-5 px-0 md:px-6 pb-0 md:pb-5 min-h-0 overflow-hidden">
+            <main className="flex-1 flex flex-col md:flex-row gap-0 md:gap-5 px-0 md:px-6 pb-0 md:pb-5 min-h-0 overflow-hidden relative">
 
               {/* ── LEFT PANEL ── */}
-              <aside className="w-72 flex-col gap-4 overflow-y-auto shrink-0 pr-1 custom-scrollbar hidden md:flex">
+              <aside className={`flex-col gap-4 overflow-y-auto shrink-0 pr-1 custom-scrollbar w-full md:w-72 ${isMobile && activeMobileTab === 'info' ? 'flex px-4 pt-4 pb-24 absolute inset-0 z-20 bg-[var(--orbit-bg)]' : 'hidden md:flex'}`}>
 
                 {/* Memória */}
                 <div className={`${glass} rounded-xl p-5 flex flex-col gap-3`}>
@@ -1637,7 +1659,7 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
                     <button
                       onClick={handleFileAttach}
                       title="Anexar imagem ou arquivo"
-                      className={`w-9 h-9 rounded-full flex items-center justify-center transition-all shrink-0 mb-[1px] ${
+                      className={`w-11 h-11 md:w-9 md:h-9 rounded-full flex items-center justify-center transition-all shrink-0 mb-[1px] ${
                         isDark 
                           ? 'bg-white/5 border border-white/10 text-slate-400 hover:text-[#d4af35] hover:border-[#d4af35]/30' 
                           : 'bg-white border border-[var(--orbit-line)] text-[var(--orbit-text-muted)] hover:text-[var(--orbit-glow)] hover:border-[var(--orbit-glow)]/30 shadow-sm'
@@ -1653,7 +1675,7 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
                         window.open(url, "_blank");
                       }}
                       title="Anexar imóvel"
-                      className={`w-9 h-9 rounded-full border flex items-center justify-center transition-all shrink-0 mb-[1px] ${
+                      className={`w-11 h-11 md:w-9 md:h-9 rounded-full border flex items-center justify-center transition-all shrink-0 mb-[1px] ${
                         isDark 
                           ? 'bg-white/5 border border-white/10 text-slate-400 hover:text-[#d4af35] hover:border-[#d4af35]/30' 
                           : 'bg-white border border-[var(--orbit-line)] text-[var(--orbit-text-muted)] hover:text-[var(--orbit-glow)] hover:border-[var(--orbit-glow)]/30 shadow-sm'
@@ -1777,7 +1799,7 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
                     <button
                       onClick={isRecording ? stopRecording : startRecording}
                       title={isRecording ? "Parar gravação" : "Gravar áudio"}
-                      className={`w-9 h-9 rounded-full border flex items-center justify-center transition-all shrink-0 mb-[2px] ${
+                      className={`w-11 h-11 md:w-9 md:h-9 rounded-full border flex items-center justify-center transition-all shrink-0 mb-[2px] ${
                         isTranscribing
                           ? isDark ? "bg-[#2ec5ff]/80 border-[#2ec5ff] text-white" : "bg-[var(--orbit-glow)] border-[var(--orbit-glow)] text-white"
                           : isRecording
@@ -1794,7 +1816,7 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
                      <button
                        onClick={handleSend}
                       disabled={!composerText.trim() || sendStatus === "sending" || isRecording}
-                      className={`w-9 h-9 rounded-full flex items-center justify-center transition-all shrink-0 mb-[2px] ${
+                      className={`w-11 h-11 md:w-9 md:h-9 rounded-full flex items-center justify-center transition-all shrink-0 mb-[2px] ${
                         sendStatus === "done" ? "bg-emerald-500 text-black" :
                         composerText.trim() && !isRecording 
                           ? isDark ? "bg-[#d4af35] text-black shadow-[0_0_14px_rgba(212,175,53,0.3)]" : "bg-[var(--orbit-glow)] text-white shadow-[var(--orbit-shadow)]"

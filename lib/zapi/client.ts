@@ -281,6 +281,55 @@ export async function getProfilePicture(phone: string): Promise<string | null> {
   }
 }
 
+export interface CarouselCard {
+  text: string
+  image: string
+  buttons?: {
+    id?: string
+    label: string
+    type: 'URL' | 'REPLY' | 'CALL'
+    url?: string
+    phone?: string
+  }[]
+}
+
+export async function sendCarousel(
+  phone: string,
+  message: string,
+  carousel: CarouselCard[]
+): Promise<ZAPISendResult> {
+  const isLid = phone.includes('@lid')
+  const cleanPhone = isLid ? phone.trim() : phone.replace(/\D/g, '')
+  const { securityToken } = getConfig()
+
+  const url = `${getBaseUrl()}/send-carousel`
+  console.log('[ZAPI] Attempting carousel fetch, phone:', cleanPhone, 'cards:', carousel.length)
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(securityToken ? { 'Client-Token': securityToken } : {})
+      },
+      body: JSON.stringify({ phone: cleanPhone, message, carousel })
+    })
+
+    const responseData = await response.json().catch(() => ({}))
+
+    if (!response.ok) {
+      console.error('[ZAPI] Error sending carousel:', responseData)
+      throw new Error(responseData.error || responseData.message || `Failed to send carousel: ${response.status}`)
+    }
+
+    console.log('[ZAPI] Carousel sent successfully:', responseData.messageId)
+    return responseData
+  } catch (error: any) {
+    console.error('[ZAPI] sendCarousel exception:', error.message)
+    throw error
+  }
+}
+
 export async function disconnect(): Promise<void> {
   try {
     await fetch(`${getBaseUrl()}/disconnect`, {

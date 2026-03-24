@@ -94,7 +94,42 @@ export async function POST(req: NextRequest) {
       // We don't return 500 here if it's just legacy fallback failing, but we log it
     }
 
+    // 5. Disparar carousel via WhatsApp (fire-and-forget — não bloqueia a resposta)
+    ;(async () => {
+      try {
+        const { data: properties } = await (supabase
+          .from('properties') as any)
+          .select('id, title, internal_name, cover_image, value, location_text, source_link')
+          .in('id', propertyIds)
+
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || ''
+        const selectionUrl = `${appUrl}/selection/${useSlug}`
+
+        const { buildPropertyCarousel } = await import('@/lib/build-property-carousel')
+        const carousel = buildPropertyCarousel(properties || [], selectionUrl)
+
+        const sendTo = (leadData.lid
+          ? (leadData.lid.includes('@lid') ? leadData.lid : `${leadData.lid}@lid`)
+          : null
+        ) || leadData.phone
+
+        if (sendTo && carousel.length > 0) {
+          const { sendCarousel } = await import('@/lib/zapi/client')
+          const firstName = (leadData.name as string)?.split(' ')[0] || ''
+          await sendCarousel(
+            sendTo,
+            `${firstName}, separei uma curadoria especial para você! 🏡`,
+            carousel
+          )
+          console.log('[API send-selection] Carousel sent:', carousel.length, 'cards')
+        }
+      } catch (err: any) {
+        console.error('[API send-selection] Carousel send failed:', err.message)
+      }
+    })()
+
     return NextResponse.json({ slug: useSlug, lead: leadData })
+
   } catch (err: any) {
     console.error('[API send-selection] fatal:', err)
     return NextResponse.json({ error: err.message || 'Erro interno' }, { status: 500 })

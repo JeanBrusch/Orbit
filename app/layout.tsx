@@ -16,6 +16,12 @@ const instrumentSerif = Instrument_Serif({
 export const metadata: Metadata = {
   title: "ORBIT | Cognitive Interface",
   description: "Advanced cognitive field management system",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Orbit",
+  },
   generator: "v0.app",
   icons: {
     icon: [
@@ -41,6 +47,9 @@ export const viewport: Viewport = {
     { media: "(prefers-color-scheme: light)", color: "#F8FAFC" },
     { media: "(prefers-color-scheme: dark)", color: "#05060A" },
   ],
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
 }
 
 export default function RootLayout({

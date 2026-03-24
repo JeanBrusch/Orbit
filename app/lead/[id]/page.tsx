@@ -8,7 +8,7 @@ import {
   ArrowLeft, ArrowUp, Plus, Play, Loader2, Check, Brain,
   Phone, Home, Users, Calendar, FileText, Mic, Bell,
   Zap, Star, Clock, Building2, ExternalLink, Menu, User, MapPin, X, MessageSquare,
-  Search, Send
+  Search, Send, LayoutGrid
 } from "lucide-react"
 import { ManualInteractionModal } from "@/components/lead-brain/manual-interaction-modal"
 import { OrbitSelectionPanel } from "@/components/orbit-selection-panel"
@@ -375,6 +375,63 @@ export default function LeadTerminalPage({ params }: { params: Promise<{ id: str
       )
     }
   }, [atlasSearch, allProperties])
+
+  // Carousel state
+  const [isSendingCarousel, setIsSendingCarousel] = useState(false)
+  const [carouselStatus, setCarouselStatus] = useState<"idle" | "done" | "error">("idle")
+
+  const handleSendCarousel = async () => {
+    if (!sendTo || !linkedProperty || isSendingCarousel) return
+    setIsSendingCarousel(true)
+    setCarouselStatus("idle")
+    try {
+      const carousel = [{
+        text: [
+          linkedProperty.title || linkedProperty.internal_name || 'Imóvel',
+          linkedProperty.value
+            ? (linkedProperty.value >= 1_000_000
+                ? `R$ ${(linkedProperty.value / 1_000_000).toFixed(1)}M`
+                : `R$ ${Math.round(linkedProperty.value / 1_000)}k`)
+            : 'Sob consulta',
+          linkedProperty.location_text || ''
+        ].filter(Boolean).join('\n'),
+        image: linkedProperty.cover_image || '',
+        buttons: [
+          ...(linkedProperty.source_link ? [{ id: '1', label: 'Ver detalhes', type: 'URL' as const, url: linkedProperty.source_link }] : []),
+          { id: '2', label: 'Tenho interesse', type: 'REPLY' as const }
+        ]
+      }]
+
+      const firstName = lead?.name?.split(' ')[0] || ''
+      const res = await fetch('/api/whatsapp/send-carousel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: sendTo,
+          message: `${firstName}, separei esse imóvel especialmente para você! 🏡`,
+          carousel,
+          leadId: id,
+          propertyIds: [linkedProperty.id]
+        })
+      })
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || 'Erro ao enviar carrossel')
+      }
+
+      setCarouselStatus("done")
+      setLinkedProperty(null)
+      setTimelineKey(k => k + 1)
+      setTimeout(() => setCarouselStatus("idle"), 2000)
+    } catch (err: any) {
+      console.error('[CAROUSEL]', err.message)
+      setCarouselStatus("error")
+      setTimeout(() => setCarouselStatus("idle"), 3000)
+    } finally {
+      setIsSendingCarousel(false)
+    }
+  }
 
   // Composer state
   const [composerText, setComposerText] = useState("")
@@ -840,6 +897,26 @@ export default function LeadTerminalPage({ params }: { params: Promise<{ id: str
                   className="mt-3 w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold bg-[#d4af35] text-[#0a0907] hover:brightness-110 transition-all"
                 >
                   <Send className="w-4 h-4" /> Enviar Imóvel para o Portal
+                </button>
+
+                <button
+                  onClick={handleSendCarousel}
+                  disabled={isSendingCarousel}
+                  className={`mt-2 w-full flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-bold border transition-all ${
+                    carouselStatus === 'done'
+                      ? 'border-emerald-500/40 text-emerald-400 bg-emerald-500/10'
+                      : carouselStatus === 'error'
+                      ? 'border-red-500/40 text-red-400 bg-red-500/10'
+                      : 'border-[#d4af35]/30 text-[#d4af35] hover:bg-[#d4af35]/10'
+                  }`}
+                >
+                  {isSendingCarousel
+                    ? <Loader2 className="w-4 h-4 animate-spin" />
+                    : carouselStatus === 'done'
+                    ? <Check className="w-4 h-4" />
+                    : <LayoutGrid className="w-4 h-4" />
+                  }
+                  {isSendingCarousel ? 'Enviando...' : carouselStatus === 'done' ? 'Carrossel enviado!' : carouselStatus === 'error' ? 'Erro ao enviar' : 'Enviar como Carrossel WhatsApp'}
                 </button>
               </div>
             ) : (

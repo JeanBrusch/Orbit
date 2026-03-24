@@ -16,6 +16,7 @@ import {
 import { WhatsAppInbox } from "./whatsapp-inbox";
 import { Button } from "./ui/button";
 import Link from "next/link";
+import { BottomNav } from "./bottom-nav";
 import { getSupabase } from "@/lib/supabase";
 import { useOrbitContext } from "./orbit-context";
 
@@ -49,6 +50,7 @@ export function TopBar({ totalLeads, isDark, onThemeToggle, onLogout }: TopBarPr
   };
 
   return (
+    <>
     <div className="fixed top-0 left-0 right-0 z-[100] px-4 md:px-6 py-1.5 md:py-2 flex items-center justify-between pointer-events-none">
       {/* LEFT: System Identity */}
       <div className="flex items-center gap-3 pointer-events-auto">
@@ -81,7 +83,7 @@ export function TopBar({ totalLeads, isDark, onThemeToggle, onLogout }: TopBarPr
           
           <Link
             href="/pipeline"
-            className="flex items-center gap-1.5 px-2 md:px-3 py-1 h-7 rounded-md hover:bg-[var(--orbit-glow)]/10 text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)] transition-all duration-300 text-[9px] font-medium"
+            className="hidden md:flex items-center gap-1.5 px-2 md:px-3 py-1 h-7 rounded-md hover:bg-[var(--orbit-glow)]/10 text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)] transition-all duration-300 text-[9px] font-medium"
             title="Pipeline de Leads"
           >
             <Columns className="h-3 w-3" />
@@ -90,7 +92,7 @@ export function TopBar({ totalLeads, isDark, onThemeToggle, onLogout }: TopBarPr
 
           <Link
             href="/telemetry"
-            className="hidden sm:flex items-center gap-1.5 px-3 py-1 h-7 rounded-md hover:bg-[var(--orbit-glow)]/10 text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)] transition-all duration-300 text-[9px] font-medium"
+            className="hidden md:flex items-center gap-1.5 px-3 py-1 h-7 rounded-md hover:bg-[var(--orbit-glow)]/10 text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)] transition-all duration-300 text-[9px] font-medium"
             title="Telemetria do Operador"
           >
             <Activity className="h-3 w-3" />
@@ -99,7 +101,7 @@ export function TopBar({ totalLeads, isDark, onThemeToggle, onLogout }: TopBarPr
 
           <Link
             href="/silence"
-            className="flex items-center gap-1.5 px-2 md:px-3 py-1 h-7 rounded-md hover:bg-rose-500/10 text-rose-500/60 hover:text-rose-400 transition-all duration-300 text-[9px] font-medium"
+            className="hidden md:flex items-center gap-1.5 px-2 md:px-3 py-1 h-7 rounded-md hover:bg-rose-500/10 text-rose-500/60 hover:text-rose-400 transition-all duration-300 text-[9px] font-medium"
             title="Análise de Silêncio"
           >
             <Zap className="h-3 w-3" />
@@ -108,7 +110,7 @@ export function TopBar({ totalLeads, isDark, onThemeToggle, onLogout }: TopBarPr
 
           <Link
             href="/atlas"
-            className="flex items-center gap-1.5 px-2 md:px-3 py-1 h-7 rounded-md hover:bg-[var(--orbit-glow)]/10 text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)] transition-all duration-300 text-[9px] font-medium"
+            className="hidden md:flex items-center gap-1.5 px-2 md:px-3 py-1 h-7 rounded-md hover:bg-[var(--orbit-glow)]/10 text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)] transition-all duration-300 text-[9px] font-medium"
             title="Mapa Atlas"
           >
             <MapPin className="h-3 w-3" />
@@ -150,5 +152,7 @@ export function TopBar({ totalLeads, isDark, onThemeToggle, onLogout }: TopBarPr
         </div>
       </div>
     </div>
+    <BottomNav />
+    </>
   );
 }

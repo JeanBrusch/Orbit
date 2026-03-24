@@ -187,6 +187,7 @@ function AtlasManagerContent() {
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null)
   const [selectedPropertyIds, setSelectedPropertyIds] = useState<Set<string>>(new Set())
   const [isSending, setIsSending] = useState(false)
+  const [isMobileCartOpen, setIsMobileCartOpen] = useState(false)
   const [editingProperty, setEditingProperty] = useState<any>(null)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isSavingEdit, setIsSavingEdit] = useState(false)
@@ -604,9 +605,18 @@ function AtlasManagerContent() {
         </div>
       </header>
 
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden relative">
+        {/* Mobile Cart Trigger */}
+        {!isMobileCartOpen && (
+          <div className="md:hidden fixed bottom-20 right-4 z-40">
+             <button onClick={() => setIsMobileCartOpen(true)} className="bg-[var(--orbit-glow)] text-[var(--orbit-bg)] px-4 py-3 rounded-full shadow-lg font-bold text-[11px] uppercase tracking-wider flex items-center gap-2 transition-transform active:scale-95 border border-[var(--orbit-glow)]/20">
+               <ShoppingCart className="w-5 h-5" />
+               {selectedPropertyIds.size > 0 ? `Seleção (${selectedPropertyIds.size})` : 'Curadoria'}
+             </button>
+          </div>
+        )}
         {/* Main Side View */}
-        <main className="flex-1 overflow-y-auto p-10 custom-scrollbar relative z-10">
+        <main className="flex-1 overflow-y-auto p-4 md:p-10 custom-scrollbar relative z-10 pb-24 md:pb-10">
           <AnimatePresence mode="wait">
             {activeTab === 'curadoria' && (
               <motion.div 
@@ -693,8 +703,15 @@ function AtlasManagerContent() {
         </main>
 
         {/* Orbit Selection Sidebar */}
-        <aside className="w-80 bg-[var(--orbit-bg-secondary)] border-l border-[var(--orbit-line)] flex flex-col relative z-20 shadow-[-10px_0_40px_rgba(0,0,0,0.05)] shrink-0">
-          <div className="p-6 border-b border-[var(--orbit-line)] bg-[var(--orbit-bg)]/60">
+        {/* Backdrop for mobile */}
+        {isMobileCartOpen && (
+          <div className="fixed inset-0 bg-black/50 z-40 md:hidden backdrop-blur-sm" onClick={() => setIsMobileCartOpen(false)} />
+        )}
+        <aside className={`fixed inset-y-0 right-0 z-50 md:relative md:z-20 w-[85%] md:w-80 max-w-sm bg-[var(--orbit-bg-secondary)] border-l border-[var(--orbit-line)] flex-col shadow-[-10px_0_40px_rgba(0,0,0,0.05)] shrink-0 transition-transform duration-300 ${isMobileCartOpen ? 'translate-x-0 flex' : 'translate-x-full md:translate-x-0 hidden md:flex'}`}>
+          <div className="p-6 border-b border-[var(--orbit-line)] bg-[var(--orbit-bg)]/60 relative">
+            <button onClick={() => setIsMobileCartOpen(false)} className="md:hidden absolute top-4 right-4 p-2 bg-[var(--orbit-bg-secondary)] rounded-full border border-[var(--orbit-line)] text-[var(--orbit-text-muted)] focus:outline-none">
+              <X className="w-4 h-4" />
+            </button>
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2.5">
                 <div className="p-1.5 rounded-lg bg-[var(--orbit-glow)]/10 border border-[var(--orbit-glow)]/20 text-[var(--orbit-glow)]">
