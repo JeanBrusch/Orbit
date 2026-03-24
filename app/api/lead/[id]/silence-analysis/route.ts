@@ -232,7 +232,7 @@ Responda APENAS com este formato JSON:
 
     const startGPT = Date.now();
     const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4o-mini",
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt }
@@ -246,7 +246,7 @@ Responda APENAS com este formato JSON:
     if (usage) {
       await trackAICall({
         module: 'silence_analyzer',
-        model: 'gpt-4o',
+        model: 'gpt-4o-mini',
         lead_id: leadId,
         tokens_input: usage.prompt_tokens,
         tokens_output: usage.completion_tokens,

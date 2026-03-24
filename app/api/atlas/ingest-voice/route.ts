@@ -38,7 +38,7 @@ Responda APENAS o JSON puro, sem markdown.`
 
     const startGPT = Date.now()
     const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4o-mini",
       messages: [
         { role: "system", content: "Você é um assistente que extrai dados imobiliários e responde apenas em JSON." },
         { role: "user", content: prompt }
@@ -52,7 +52,7 @@ Responda APENAS o JSON puro, sem markdown.`
     if (usage) {
       await trackAICall({
         module: 'orbit_core',
-        model: 'gpt-4o',
+        model: 'gpt-4o-mini',
         tokens_input: usage.prompt_tokens,
         tokens_output: usage.completion_tokens,
         duration_ms: elapsedGPT,

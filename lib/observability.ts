@@ -49,7 +49,7 @@ const PRICES = {
 export function calculateAICost(model: string, tokensInput: number, tokensOutput: number = 0): number {
   const modelKey = model.includes('gpt-4o-mini') ? 'gpt-4o-mini' : 
                    model.includes('gpt-4o') ? 'gpt-4o' : 
-                   model.includes('embedding') ? 'text-embedding-3-small' : null;
+                   model.includes('embedding') ? 'text-embedding-3-small' : 'gpt-4o-mini';
   
   if (!modelKey) return 0;
   

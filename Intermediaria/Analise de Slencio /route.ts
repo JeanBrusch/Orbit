@@ -230,7 +230,7 @@ Responda APENAS com este JSON:
     const anthropic = new Anthropic()
 
     const response = await anthropic.messages.create({
-      model: "claude-opus-4-5",
+      model: "gpt-4o-mini",
       max_tokens: 1500,
       system: systemPrompt,
       messages: [{ role: "user", content: userPrompt }],

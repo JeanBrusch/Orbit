@@ -79,7 +79,7 @@ Responda APENAS em JSON com o seguinte formato:
 
     const startGPT = Date.now()
     const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4o-mini",
       messages: [
         { role: "system", content: "Você gera mensagens de vendas persuasivas e altamente personalizadas para o mercado imobiliário." },
         { role: "user", content: prompt }
@@ -93,7 +93,7 @@ Responda APENAS em JSON com o seguinte formato:
     if (usage) {
       await trackAICall({
         module: 'orbit_core',
-        model: 'gpt-4o',
+        model: 'gpt-4o-mini',
         lead_id: leadId,
         tokens_input: usage.prompt_tokens,
         tokens_output: usage.completion_tokens,

@@ -149,7 +149,7 @@ Responda APENAS com JSON:
 
     const startGPT = Date.now();
     const response = await openai.chat.completions.create({
-      model: "gpt-4",
+      model: "gpt-4o-mini",
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt }
@@ -163,7 +163,7 @@ Responda APENAS com JSON:
     if (usage) {
       await trackAICall({
         module: 'silence_analyzer',
-        model: 'gpt-4o',
+        model: 'gpt-4o-mini',
         lead_id: leadId,
         tokens_input: usage.prompt_tokens,
         tokens_output: usage.completion_tokens,

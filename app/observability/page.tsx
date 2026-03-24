@@ -109,7 +109,7 @@ export default function ObservabilityDashboard() {
                 title="Chamadas de IA" 
                 value={stats.totalCalls.toString()} 
                 icon={<Bot className="w-5 h-5 text-blue-400" />}
-                subtitle="GPT-4o, mini, embeddings"
+                subtitle="GPT-4o Mini, Embeddings"
               />
               <StatCard 
                 title="Módulos Ativos" 
