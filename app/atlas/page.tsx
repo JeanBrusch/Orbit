@@ -400,6 +400,24 @@ function AtlasManagerContent() {
     }
   }
 
+  const handleMarkAsSoldProperty = async (propertyId: string) => {
+    try {
+      const supabase = getSupabase()
+      const { error } = await (supabase.from("properties") as any)
+        .update({ status: 'sold' })
+        .eq("id", propertyId)
+
+      if (error) throw error
+
+      toast.success("Imóvel marcado como Vendido!")
+      await refetch()
+      setIsEditModalOpen(false)
+      setEditingProperty(null)
+    } catch (err: any) {
+      toast.error(`Erro ao atualizar status: ${err.message}`)
+    }
+  }
+
   const handleDeleteProperty = async (propertyId: string) => {
     try {
       const res = await fetch(`/api/properties/${propertyId}`, { method: 'DELETE' })
@@ -1091,6 +1109,7 @@ function AtlasManagerContent() {
           property={editingProperty}
           onSave={handleUpdateProperty}
           onDelete={handleDeleteProperty}
+          onMarkAsSold={handleMarkAsSoldProperty}
         />
 
         <style jsx global>{`

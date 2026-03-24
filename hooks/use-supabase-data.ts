@@ -306,6 +306,7 @@ export function useSupabaseProperties() {
       const { data, error: fetchError } = await supabase
         .from('properties')
         .select('*')
+        .eq('status', 'active')
         .order('created_at', { ascending: false })
       if (fetchError) throw fetchError
       setProperties((data || []) as PropertyRow[])

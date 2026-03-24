@@ -20,9 +20,10 @@ interface EditPropertyModalProps {
   property: any
   onSave: (updated: any) => Promise<void>
   onDelete?: (id: string) => Promise<void>
+  onMarkAsSold?: (id: string) => Promise<void>
 }
 
-export default function EditPropertyModal({ isOpen, onClose, property, onSave, onDelete }: EditPropertyModalProps) {
+export default function EditPropertyModal({ isOpen, onClose, property, onSave, onDelete, onMarkAsSold }: EditPropertyModalProps) {
   const { resolvedTheme } = useTheme()
   const isDark = resolvedTheme === 'dark'
   const [formData, setFormData] = useState<any>({})
@@ -31,6 +32,8 @@ export default function EditPropertyModal({ isOpen, onClose, property, onSave, o
   const [uploadingImage, setUploadingImage] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [markingSold, setMarkingSold] = useState(false)
+  const [confirmSold, setConfirmSold] = useState(false)
 
   useEffect(() => {
     if (property) {
@@ -94,6 +97,20 @@ export default function EditPropertyModal({ isOpen, onClose, property, onSave, o
     } finally {
       setDeleting(false)
       setConfirmDelete(false)
+    }
+  }
+
+  const handleMarkAsSold = async () => {
+    if (!onMarkAsSold || !property?.id) return
+    setMarkingSold(true)
+    try {
+      await onMarkAsSold(property.id)
+      onClose()
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setMarkingSold(false)
+      setConfirmSold(false)
     }
   }
 
@@ -289,6 +306,32 @@ export default function EditPropertyModal({ isOpen, onClose, property, onSave, o
                 </button>
               </div>
             </form>
+
+            {/* Sold Section */}
+            {onMarkAsSold && (
+              <div className={`pt-4 border-t ${isDark ? 'border-[rgba(46,197,255,0.08)]' : 'border-[var(--orbit-line)]'}`}>
+                {!confirmSold ? (
+                  <button
+                    onClick={() => setConfirmSold(true)}
+                    className="w-full h-10 rounded-xl border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/5 hover:border-emerald-500/40 text-[10px] font-mono uppercase tracking-widest transition-all flex items-center justify-center gap-2"
+                  >
+                    <span>✓</span> Marcar como Vendido
+                  </button>
+                ) : (
+                  <div className="p-4 bg-emerald-500/5 border border-emerald-500/20 rounded-xl space-y-3">
+                    <p className="text-xs text-[var(--orbit-text-muted)]">O imóvel será <strong>inativado</strong> e sumirá da lista, mas todo o histórico e interações serão preservados.</p>
+                    <div className="flex gap-2">
+                      <button onClick={() => setConfirmSold(false)} className="flex-1 h-9 rounded-lg border border-white/10 text-[#94a3b8] hover:bg-white/5 text-[10px] font-mono uppercase tracking-widest transition-all">
+                        Cancelar
+                      </button>
+                      <button onClick={handleMarkAsSold} disabled={markingSold} className="flex-1 h-9 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 disabled:opacity-50">
+                        {markingSold ? <span className="animate-spin">⏳</span> : '✓ Confirmar Venda'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Delete Section */}
             {onDelete && (
