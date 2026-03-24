@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { usePathname } from "next/navigation";
 import { 
   Users, 
   MapPin, 
@@ -11,7 +12,8 @@ import {
   CircleDot,
   UserPlus,
   Columns,
-  Zap
+  Zap,
+  GitBranch
 } from "lucide-react";
 import { WhatsAppInbox } from "./whatsapp-inbox";
 import { Button } from "./ui/button";
@@ -29,13 +31,13 @@ interface TopBarProps {
 
 export function TopBar({ totalLeads, isDark, onThemeToggle, onLogout }: TopBarProps) {
   const [mounted, setMounted] = useState(false);
+  const pathname = usePathname();
+  const context = useOrbitContext();
   
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  const context = useOrbitContext();
-  
   if (!mounted || !context) return null;
 
   const { 
@@ -110,11 +112,24 @@ export function TopBar({ totalLeads, isDark, onThemeToggle, onLogout }: TopBarPr
 
           <Link
             href="/atlas"
-            className="hidden md:flex items-center gap-1.5 px-2 md:px-3 py-1 h-7 rounded-md hover:bg-[var(--orbit-glow)]/10 text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)] transition-all duration-300 text-[9px] font-medium"
+            className={`hidden md:flex items-center gap-1.5 px-2 md:px-3 py-1 h-7 rounded-md transition-all duration-300 text-[9px] font-medium ${
+              pathname === '/atlas' 
+                ? 'bg-[var(--orbit-glow)] text-white shadow-sm' 
+                : 'hover:bg-[var(--orbit-glow)]/10 text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)]'
+            }`}
             title="Mapa Atlas"
           >
             <MapPin className="h-3 w-3" />
             <span className="hidden sm:inline">Atlas</span>
+          </Link>
+
+          <Link
+            href="/observability"
+            className="hidden md:flex items-center gap-1.5 px-2 md:px-3 py-1 h-7 rounded-md hover:bg-[var(--orbit-glow)]/10 text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)] transition-all duration-300 text-[9px] font-medium"
+            title="Observabilidade & Data Lineage"
+          >
+            <GitBranch className="h-3 w-3" />
+            <span className="hidden sm:inline">Trace</span>
           </Link>
 
           <Button 

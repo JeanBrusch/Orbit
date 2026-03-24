@@ -166,6 +166,7 @@ export async function POST(req: NextRequest) {
         vistanet_cod: params.cod,
         vistanet_v2: v2,
       },
+      status: 'active'
     }
 
     const { data: property, error } = await (supabase.from('properties') as any)

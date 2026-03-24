@@ -128,8 +128,7 @@ export async function GET(request: NextRequest) {
 
     // Usa service role via getSupabaseServer — bypassa RLS completamente
     const supabase = getSupabaseServer()
-    const { data, error } = await supabase
-      .from('property_interactions')
+    const { data, error } = await (supabase.from('property_interactions') as any)
       .select('*')
       .eq('lead_id', leadId)
       .order('timestamp', { ascending: false })
@@ -177,8 +176,7 @@ export async function POST(request: NextRequest) {
     const supabase = getSupabaseServer()
 
     // 1. Get lead name for notification
-    const { data: lead } = await supabase
-      .from('leads')
+    const { data: lead } = await (supabase.from('leads') as any)
       .select('name')
       .eq('id', leadId)
       .single()
@@ -187,8 +185,7 @@ export async function POST(request: NextRequest) {
     // 2. Get property title if not provided
     let propTitle = propertyTitle
     if (!propTitle && itype !== 'portal_opened' && itype !== 'session_end') {
-      const { data: prop } = await supabase
-        .from('properties')
+      const { data: prop } = await (supabase.from('properties') as any)
         .select('title, internal_name')
         .eq('id', propertyId)
         .single()
@@ -217,8 +214,7 @@ export async function POST(request: NextRequest) {
       console.log(`[PROP_INT] session_end — lead: ${leadId}, duração: ${metadata.duration_seconds}s`)
     }
 
-    const result = await supabase
-      .from('property_interactions')
+    const result = await (supabase.from('property_interactions') as any)
       .insert(insertPayload)
       .select()
       .single()
@@ -229,8 +225,7 @@ export async function POST(request: NextRequest) {
     // Se falhou por causa da coluna metadata não existir, tenta sem ela
     if (intError && intError.message?.includes('metadata')) {
       console.warn('[PROP_INT] metadata column not found, retrying without it')
-      const fallback = await supabase
-        .from('property_interactions')
+      const fallback = await (supabase.from('property_interactions') as any)
         .insert({
           lead_id: leadId,
           property_id: propertyId,
@@ -256,14 +251,15 @@ export async function POST(request: NextRequest) {
       }, { status: 500 })
     }
 
-    // 3b. Sync state to capsule_items for portal consistency and sidebar indicators
+    // 3b. Sync state and interest score to capsule_items
     const stateSyncTypes = ['sent', 'favorited', 'visited', 'discarded']
-    if (stateSyncTypes.includes(itype)) {
+    const trackSyncTypes = ['viewed', 'scroll_depth', 'photo_view', 'video_play', 'property_question']
+    
+    if (stateSyncTypes.includes(itype) || trackSyncTypes.includes(itype)) {
       try {
-        // 1) Ensure client_space exists (only strictly needed for 'sent', but harmless for others)
+        // 1) Ensure client_space exists
         if (itype === 'sent') {
-          const { data: existingSpace } = await supabase
-            .from('client_spaces')
+          const { data: existingSpace } = await (supabase.from('client_spaces') as any)
             .select('id, slug')
             .eq('lead_id', leadId)
             .order('created_at', { ascending: false })
@@ -272,7 +268,7 @@ export async function POST(request: NextRequest) {
 
           if (!existingSpace) {
             const slug = `lead-${leadId.substring(0, 8)}-${Math.random().toString(36).substring(7)}`
-            await supabase.from('client_spaces').insert({
+            await (supabase.from('client_spaces') as any).insert({
               lead_id: leadId,
               slug,
               theme: 'paper',
@@ -282,22 +278,54 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        // 2) Upsert capsule_item state
-        await supabase
-          .from('capsule_items')
-          .upsert(
-            { lead_id: leadId, property_id: propertyId, state: itype },
-            { onConflict: 'lead_id,property_id' }
-          )
+        // 2) Update capsule_item (state and/or interest scoring)
+        const { data: currentCapsule } = await (supabase.from('capsule_items') as any)
+          .select('state, metadata')
+          .eq('lead_id', leadId)
+          .eq('property_id', propertyId)
+          .maybeSingle()
+
+        const currentMetadata = currentCapsule?.metadata || {}
+        let currentScore = currentMetadata.interest_score || 0
+
+        // Scoring Logic
+        const weights: Record<string, number> = {
+          favorited: 20,
+          visited: 30,
+          property_question: 15,
+          viewed: 2,
+          scroll_depth: 1, // incremental per trigger
+          photo_view: 1,
+          video_play: 5,
+        }
+
+        if (itype === 'discarded') {
+          currentScore = 0 // Reset on discard
+        } else {
+          currentScore += (weights[itype] || 0)
+        }
+
+        const upsertPayload: any = { 
+          lead_id: leadId, 
+          property_id: propertyId,
+          metadata: { ...currentMetadata, interest_score: currentScore, last_interaction: itype }
+        }
+
+        if (stateSyncTypes.includes(itype)) {
+          upsertPayload.state = itype
+        }
+
+        await (supabase.from('capsule_items') as any)
+          .upsert(upsertPayload, { onConflict: 'lead_id,property_id' })
+
       } catch (syncErr) {
-        console.warn('[PROP_INT] State sync error:', syncErr)
+        console.warn('[PROP_INT] State/Score sync error:', syncErr)
       }
     }
 
     // 4. Se é pergunta, cria mensagem + insight
     if (itype === 'property_question') {
-      const { error: msgError } = await supabase
-        .from('messages')
+      const { error: msgError } = await (supabase.from('messages') as any)
         .insert({
           lead_id: leadId,
           source: 'client_portal',
@@ -318,7 +346,7 @@ export async function POST(request: NextRequest) {
         }, { status: 500 })
       }
 
-      await supabase.from('ai_insights').insert({
+      await (supabase.from('ai_insights') as any).insert({
         lead_id: leadId,
         type: 'suggestion',
         content: `Pergunta do cliente no portal sobre imóvel ${propTitle || propertyId}: "${text}"`,
@@ -326,7 +354,7 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // 5. Fire email notification (non-blocking)
+    // 5. Fire email notification (non-blocking) - Only for main events
     const notifyEvents = ['property_question', 'favorited', 'visited', 'visited_site', 'portal_opened', 'session_end']
     if (notifyEvents.includes(itype)) {
       sendInteractionEmail({
@@ -340,7 +368,7 @@ export async function POST(request: NextRequest) {
       }).catch(err => console.error('[PROP_INT] Email send failed:', err))
     }
 
-    // 6. Process with Orbit Core (async)
+    // 6. Process with Orbit Core (async) - Only for high intent events
     const coreEvents = ['property_question', 'favorited', 'portal_opened', 'discarded', 'visited']
     if (coreEvents.includes(itype)) {
       let content = `Interacao com imovel: ${itype} (propertyId: ${propertyId})`

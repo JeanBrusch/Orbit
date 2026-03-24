@@ -58,13 +58,14 @@ async function getSelectionData(slug: string) {
     .eq('lead_id', leadId)
     .single()
 
-  // 3. Get Active Items from new Property Interactions table (replaces capsule_items)
+  // 3. Get Items from capsule_items (Source of Truth)
   const { data: capsuleItems } = await (supabase
-    .from('property_interactions') as any)
+    .from('capsule_items') as any)
     .select(`
       id,
-      timestamp,
+      state,
       property_id,
+      metadata,
       properties:property_id (
         id,
         title,
@@ -81,8 +82,7 @@ async function getSelectionData(slug: string) {
       )
     `)
     .eq('lead_id', leadId)
-    .eq('interaction_type', 'sent')
-    .order('timestamp', { ascending: false })
+    .order('created_at', { ascending: false })
 
   // 4. Get Contextual Data (Notes/Videos)
   const { data: contexts } = await (supabase
@@ -104,6 +104,20 @@ async function getSelectionData(slug: string) {
       }
       if (!initialInteractions[int.property_id].includes(int.interaction_type)) {
         initialInteractions[int.property_id].push(int.interaction_type)
+      }
+    })
+  }
+
+  // Also include the current capsule state as an interaction
+  if (capsuleItems) {
+    capsuleItems.forEach((item: any) => {
+      if (item.state && item.state !== 'sent') {
+        if (!initialInteractions[item.property_id]) {
+          initialInteractions[item.property_id] = []
+        }
+        if (!initialInteractions[item.property_id].includes(item.state)) {
+          initialInteractions[item.property_id].push(item.state)
+        }
       }
     })
   }

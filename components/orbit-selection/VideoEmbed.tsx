@@ -79,6 +79,17 @@ export const VideoEmbed: React.FC<VideoEmbedProps> = ({ url, className = "" }) =
           title="Vimeo Video Player"
         />
       )}
+      {info.type === "loom" && (
+        <div style={{ position: "relative", paddingBottom: "62.5%", height: 0 }}>
+          <iframe
+            src={`https://www.loom.com/embed/${info.id}?hide_owner=true&hide_share=true&hide_title=true&hide_embed_talk=true`}
+            style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }}
+            frameBorder="0"
+            allowFullScreen
+            title="Loom Video Player"
+          />
+        </div>
+      )}
       {info.type === "direct" && (
         <video 
           src={info.id} 
