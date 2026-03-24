@@ -58,15 +58,14 @@ async function getSelectionData(slug: string) {
     .eq('lead_id', leadId)
     .single()
 
-  // 3. Get Items from capsule_items (Source of Truth)
-  const { data: capsuleItems } = await (supabase
-    .from('capsule_items') as any)
+  // 3. Get Items from property_interactions (Source of Truth for Sent Properties)
+  const { data: sentItems, error: sentError } = await (supabase
+    .from('property_interactions') as any)
     .select(`
       id,
-      state,
+      interaction_type,
       property_id,
-      metadata,
-      properties:property_id (
+      properties (
         id,
         title,
         internal_name,
@@ -82,10 +81,15 @@ async function getSelectionData(slug: string) {
       )
     `)
     .eq('lead_id', leadId)
-    .order('created_at', { ascending: false })
+    .eq('interaction_type', 'sent')
+    .order('timestamp', { ascending: false })
+
+  if (sentError) {
+    console.error("[DEBUG SELECTION] Error fetching sentItems:", sentError)
+  }
 
   // 4. Get Contextual Data (Notes/Videos)
-  const { data: contexts } = await (supabase
+  const { data: contexts, error: contextsError } = await (supabase
     .from('client_property_context') as any)
     .select('*')
     .eq('client_space_id', space.id)
@@ -108,29 +112,29 @@ async function getSelectionData(slug: string) {
     })
   }
 
-  // Also include the current capsule state as an interaction
-  if (capsuleItems) {
-    capsuleItems.forEach((item: any) => {
-      if (item.state && item.state !== 'sent') {
+  // Also include the current interaction state
+  if (sentItems) {
+    sentItems.forEach((item: any) => {
+      if (item.interaction_type && item.interaction_type !== 'sent') {
         if (!initialInteractions[item.property_id]) {
           initialInteractions[item.property_id] = []
         }
-        if (!initialInteractions[item.property_id].includes(item.state)) {
-          initialInteractions[item.property_id].push(item.state)
+        if (!initialInteractions[item.property_id].includes(item.interaction_type)) {
+          initialInteractions[item.property_id].push(item.interaction_type)
         }
       }
     })
   }
 
   const contextMap = new Map((contexts || []).map((c: any) => [c.property_id, c]))
-
-  const items = (capsuleItems || [])
+ 
+  const items = (sentItems || [])
     .map((item: any) => {
       const prop = item.properties as any || {}
       const ctx = contextMap.get(item.property_id) as any
       return {
         id: prop.id || item.property_id,
-        capsuleItemId: item.id, // For interaction tracking
+        interactionId: item.id, // For interaction tracking
         title: prop.title || prop.internal_name || "Imóvel Desconhecido (Falha no Join)",
         price: prop.value || 0,
         location: prop.location_text || "",
@@ -154,7 +158,7 @@ async function getSelectionData(slug: string) {
   const leadRaw = space.leads
   const lead = Array.isArray(leadRaw) ? leadRaw[0] : leadRaw
 
-  console.log(`[DEBUG SELECTION] slug=${slug} capsuleItems count:`, capsuleItems?.length, "first item:", capsuleItems?.[0])
+  console.log(`[DEBUG SELECTION] slug=${slug} sentItems count:`, sentItems?.length, "first item:", sentItems?.[0])
 
   return {
     space,
