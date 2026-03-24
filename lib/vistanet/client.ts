@@ -28,7 +28,7 @@ export interface VistaNetParams {
 /** Decodes the base64 v2 query string into structured params */
 export function decodeShortLink(v2: string): VistaNetParams {
   const decoded = Buffer.from(v2.trim(), 'base64').toString('utf-8')
-  return Object.fromEntries(new URLSearchParams(decoded)) as VistaNetParams
+  return Object.fromEntries(new URLSearchParams(decoded)) as unknown as VistaNetParams
 }
 
 /** Extracts the v2 param from a full novovista URL */
