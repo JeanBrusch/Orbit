@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseServer } from '@/lib/supabase-server'
 import { processEventWithCore } from '@/lib/orbit-core'
+import { trackEvent } from '@/lib/observability'
+import { assessInteractionGovernance } from '@/lib/interaction-governance'
 
 // ── Email helper ────────────────────────────────────────────────────────────
 const INTERACTION_LABELS: Record<string, string> = {
@@ -371,15 +373,41 @@ export async function POST(request: NextRequest) {
     // 6. Process with Orbit Core (async) - Only for high intent events
     const coreEvents = ['property_question', 'favorited', 'portal_opened', 'discarded', 'visited']
     if (coreEvents.includes(itype)) {
-      let content = `Interacao com imovel: ${itype} (propertyId: ${propertyId})`
-      if (itype === 'property_question') {
-        content = `Lead fez uma pergunta no portal sobre o imóvel ${propTitle || propertyId}: "${text}"`
-      } else if (itype === 'portal_opened') {
-        content = `Lead acessou o link do Portal Selection (propertyId de entrada: ${propertyId})`
+      // ─── Governance Filter ──────────────────────────────────────────────────
+      const gov = await assessInteractionGovernance({ leadId, itype, propertyId });
+      
+      if (!gov.shouldProcess) {
+        await trackEvent({
+          lead_id: leadId,
+          event_type: 'classification',
+          source: 'system',
+          module: 'orbit_core',
+          step: 'governance',
+          action: 'analysis_skipped',
+          origin: 'portal',
+          destination: 'none',
+          saved_data: false,
+          metadata_json: { 
+            reason: gov.reason, 
+            interaction_type: itype,
+            economy_saved: true 
+          }
+        });
+        
+        console.log(`[PROP_INT] AI Skip (Governance): ${gov.reason} for lead ${leadId}`);
+      } else {
+        let content = `Interacao com imovel: ${itype} (propertyId: ${propertyId})`
+        if (itype === 'property_question') {
+          content = `Lead fez uma pergunta no portal sobre o imóvel ${propTitle || propertyId}: "${text}"`
+        } else if (itype === 'portal_opened') {
+          content = `Lead acessou o link do Portal Selection (propertyId de entrada: ${propertyId})`
+        }
+        
+        processEventWithCore(leadId, content, 'property_reaction').catch((err) => {
+          console.error('[PROP_INT] Error triggering Orbit Core:', err)
+        })
       }
-      processEventWithCore(leadId, content, 'property_reaction').catch((err) => {
-        console.error('[PROP_INT] Error triggering Orbit Core:', err)
-      })
+      // ─────────────────────────────────────────────────────────────────────────
     }
 
     return NextResponse.json(interaction, { status: 201 })

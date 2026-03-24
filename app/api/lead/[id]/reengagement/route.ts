@@ -17,6 +17,12 @@ export async function POST(
   }
 
   try {
+    // ── CONFIGURAÇÃO DE GOVERNANÇA: IA DESATIVADA ──────────────────────────
+    return NextResponse.json(
+      { error: "Gerador de Reengajamento desativado por governança." },
+      { status: 403 }
+    );
+
     const supabase = getSupabaseServer();
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 

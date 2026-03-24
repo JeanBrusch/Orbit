@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react"
 import Map, { Marker, Popup, NavigationControl } from "react-map-gl/mapbox"
 import 'mapbox-gl/dist/mapbox-gl.css'
 import type { ViewState } from "react-map-gl/mapbox"
+import { Globe, Map as MapIcon } from "lucide-react"
 
 interface SelectionMapItem {
   id: string
@@ -21,7 +22,8 @@ interface SelectionMapProps {
 }
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN
-const MAP_STYLE = "mapbox://styles/mapbox/light-v11"
+const MAP_STYLE_LIGHT = "mapbox://styles/mapbox/light-v11"
+const MAP_STYLE_SATELLITE = "mapbox://styles/mapbox/satellite-streets-v12"
 const XANGRILA_CENTER = { longitude: -50.0333, latitude: -29.8000 }
 
 function formatPrice(value: number | null): string {
@@ -35,6 +37,7 @@ function formatPrice(value: number | null): string {
 
 export default function SelectionMap({ items, onItemClick }: SelectionMapProps) {
   const mapRef = useRef<any>(null)
+  const [isSatellite, setIsSatellite] = useState(false)
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const validItems = items.filter(i => i.lat && i.lng)
 
@@ -96,7 +99,7 @@ export default function SelectionMap({ items, onItemClick }: SelectionMapProps) 
         {...viewState}
         onMove={(evt: any) => setViewState(evt.viewState)}
         mapboxAccessToken={MAPBOX_TOKEN}
-        mapStyle={MAP_STYLE}
+        mapStyle={isSatellite ? MAP_STYLE_SATELLITE : MAP_STYLE_LIGHT}
         attributionControl={false}
         cursor="grab"
       >
@@ -181,7 +184,54 @@ export default function SelectionMap({ items, onItemClick }: SelectionMapProps) 
         ))}
       </div>
 
+      <div className="absolute bottom-6 left-6 z-[110]">
+        <button
+          onClick={() => setIsSatellite(!isSatellite)}
+          className={`jb-map-style-toggle ${isSatellite ? 'is-satellite' : ''}`}
+        >
+          {isSatellite ? (
+            <>
+              <MapIcon size={14} />
+              <span>Mapa</span>
+            </>
+          ) : (
+            <>
+              <Globe size={14} />
+              <span>Satélite</span>
+            </>
+          )}
+        </button>
+      </div>
+
       <style>{`
+        .jb-map-style-toggle {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 8px 14px;
+          border-radius: 99px;
+          background: rgba(255, 255, 255, 0.85);
+          backdrop-filter: blur(10px);
+          border: 1px solid rgba(0,0,0,0.06);
+          box-shadow: 0 8px 32px rgba(0,0,0,0.08);
+          color: #666;
+          font-size: 10px;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.1em;
+          transition: all 0.3s cubic-bezier(0.19, 1, 0.22, 1);
+        }
+        .jb-map-style-toggle:hover {
+          color: #000;
+          background: #fff;
+          transform: translateY(-1px);
+          box-shadow: 0 12px 40px rgba(0,0,0,0.12);
+        }
+        .jb-map-style-toggle.is-satellite {
+          background: rgba(16, 185, 129, 0.1);
+          border-color: rgba(16, 185, 129, 0.3);
+          color: #059669;
+        }
         .jb-sel-popup .mapboxgl-popup-content {
           background: transparent !important;
           padding: 0 !important;

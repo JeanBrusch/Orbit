@@ -54,6 +54,12 @@ export async function POST(
   }
 
   try {
+    // ── CONFIGURAÇÃO DE GOVERNANÇA: IA DESATIVADA ──────────────────────────
+    return NextResponse.json(
+      { error: "Análise de Silêncio desativada por governança." },
+      { status: 403 }
+    );
+
     const supabase = getSupabaseServer()
 
     // ── 1. Buscar dados completos do lead ──────────────────────────────────

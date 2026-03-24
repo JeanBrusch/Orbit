@@ -307,6 +307,7 @@ async function analyzeContext(
     cognitiveState: string;
     propertyInteractions: string;
     compatibleProperties: string;
+    lastInsight: string;
   }
 ): Promise<CoreAnalysis | null> {
   if (!process.env.OPENAI_API_KEY) {
@@ -322,7 +323,8 @@ Sua função não é refletir. É diagnosticar e definir o próximo movimento ob
 ESTADO ATUAL DO LEAD
 ════════════════════════════════════════
 Estado Cognitivo: ${context.cognitiveState}
-Memórias Acumuladas: ${context.memory || "Vazia"}
+Memórias Prioritárias: ${context.memory || "Vazia"}
+Último Insight Relevante: ${context.lastInsight}
 Interações com Imóveis: ${context.propertyInteractions || "Nenhuma"}
 
 ════════════════════════════════════════
@@ -494,45 +496,86 @@ Responda APENAS com JSON puro:
 
 // ─── Helpers de Contexto ─────────────────────────────────────────────────────
 
-async function getContext(leadId: string) {
+async function getContext(leadId: string, leadState: string = 'exploring') {
   type MessageRow = Database['public']['Tables']['messages']['Row'];
   type MemoryItemRow = Database['public']['Tables']['memory_items']['Row'];
   type LeadCognitiveStateRow = Database['public']['Tables']['lead_cognitive_state']['Row'];
   type PropertyInteractionRow = Database['public']['Tables']['property_interactions']['Row'];
 
-  const [messagesRes, memoryRes, stateRes, interactionsRes] = await Promise.all([
-    getSupabase()?.from("messages").select("*").eq("lead_id", leadId).order("timestamp", { ascending: false }).limit(10),
-    getSupabase()?.from("memory_items").select("*").eq("lead_id", leadId).limit(30),
+  // 1. Definir limites dinâmicos baseados no estado cognitivo (Orbit AI Governance)
+  const limits: Record<string, number> = {
+    deciding: 12,
+    evaluating: 10,
+    exploring: 8,
+    curious: 6,
+    latent: 5,
+    dormant: 3,
+  };
+  const messageLimit = limits[leadState] || 8;
+
+  const [messagesRes, memoryRes, stateRes, interactionsRes, insightsRes] = await Promise.all([
+    getSupabase()?.from("messages").select("*").eq("lead_id", leadId).order("timestamp", { ascending: false }).limit(messageLimit),
+    getSupabase()?.from("memory_items").select("*").eq("lead_id", leadId).limit(40), // Pega mais para filtrar depois
     getSupabase()?.from("lead_cognitive_state").select("*").eq("lead_id", leadId).maybeSingle(),
-    getSupabase()?.from("property_interactions").select("*").eq("lead_id", leadId).limit(10),
+    getSupabase()?.from("property_interactions").select("*").eq("lead_id", leadId).limit(5),
+    getSupabase()?.from("ai_insights").select("*").eq("lead_id", leadId).order("created_at", { ascending: false }).limit(5),
   ]);
 
-  const messages = (messagesRes?.data || []) as MessageRow[];
-  const memoryItems = (memoryRes?.data || []) as MemoryItemRow[];
+  const rawMessages = (messagesRes?.data || []) as MessageRow[];
+  const rawMemory = (memoryRes?.data || []) as MemoryItemRow[];
   const cognitiveState = (stateRes?.data || null) as LeadCognitiveStateRow | null;
   const interactions = (interactionsRes?.data || []) as PropertyInteractionRow[];
+  const rawInsights = (insightsRes?.data || []) as any[];
+
+  // 2. Priorização de Memórias (Orbit AI Governance)
+  const MEMORY_PRIORITY: Record<string, number> = {
+    identity: 1,
+    budget_range: 2,
+    location_preference: 3,
+    property_type: 4,
+    feature_preference: 5,
+    current_search: 6,
+    location_focus: 7,
+    budget: 8,
+    priority: 9,
+    property_sent: 10,
+    visited: 11,
+    discarded: 12,
+    price_objection: 13,
+  };
+
+  const sortedMemories = rawMemory
+    .sort((a, b) => (MEMORY_PRIORITY[a.type] || 99) - (MEMORY_PRIORITY[b.type] || 99))
+    .slice(0, 15); // Limite de 15 memórias no prompt
+
+  // 3. Selecionar último insight relevante (urgência > 2)
+  const lastRelevantInsight = rawInsights.find(i => (i.urgency || 0) >= 3);
 
   return {
-    lastMessages: [...messages]
+    lastMessages: [...rawMessages]
       .reverse()
       .map((m) => {
         let content = m.content || "";
         if (content.trim().startsWith("{")) {
           try {
             const parsed = JSON.parse(content);
-            content = parsed.transcript || parsed.caption || parsed.text || content;
+            // Curadoria de conteúdo de mídia
+            if (parsed.type === "audio") content = parsed.transcript ? `[Áudio transcrito]: "${parsed.transcript}"` : "[Áudio]";
+            else if (parsed.type === "image") content = parsed.caption ? `[Imagem com legenda]: "${parsed.caption}"` : "[Imagem]";
+            else content = parsed.transcript || parsed.caption || parsed.text || content;
           } catch {}
         }
         return `[${m.source}] ${content}`;
       })
       .join("\n"),
-    rawMessages: messages,
-    memory: memoryItems.map((m) => `${m.type}: ${m.content}`).join(" | "),
-    rawMemory: memoryItems,
+    rawMessages,
+    memory: sortedMemories.map((m) => `${m.type}: ${m.content}`).join(" | "),
+    rawMemory,
     cognitiveState: cognitiveState 
       ? `Interest: ${cognitiveState.interest_score}, Momentum: ${cognitiveState.momentum_score}, State: ${cognitiveState.current_state}` 
       : "Vazio",
     propertyInteractions: interactions.map((i) => `${i.interaction_type} em ${i.timestamp}`).join(" | "),
+    lastInsight: lastRelevantInsight ? `${lastRelevantInsight.content}` : "Nenhum",
     currentState: cognitiveState,
   };
 }
@@ -558,7 +601,14 @@ export async function processEventWithCore(
   }
 
   try {
-    const context = await getContext(leadId);
+    // Buscar estado inicial do lead para definir limites de contexto
+    const { data: initialLead } = await (getSupabase()!
+      .from("leads")
+      .select("orbit_stage")
+      .eq("id", leadId)
+      .maybeSingle() as any);
+
+    const context = await getContext(leadId, initialLead?.orbit_stage || 'exploring');
 
     // Extrair budget da memória para filtro RAG
     const budgetMemory = context.rawMemory.find(

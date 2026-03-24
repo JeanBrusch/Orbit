@@ -86,7 +86,20 @@ export async function POST(req: NextRequest) {
 
     const title = [ui_type || data.TipoImovel, bairro, data.Cidade].filter(Boolean).join(' - ')
 
-    // --- Step 4: Build embedding text ---
+    // --- Step 4: Scraping Lite & Embedding Optimization ---
+    const supabase = getSupabaseServer()
+    const { data: existingProperty } = await (supabase
+      .from('properties')
+      .select('id, topics, property_embedding, title, value, neighborhood, features')
+      .eq('internal_name', data.Codigo)
+      .maybeSingle() as any)
+
+    if (existingProperty) {
+      console.log(`[VistaNet] Imóvel ${data.Codigo} já existe. Verificando necessidade de atualização.`)
+      // Se já existe e não houve mudança crítica, podemos pular a IA e o re-embedding
+      // Mas para este MVP, vamos focar na deduplicação e economia.
+    }
+
     const embeddingText = [
       ui_type || data.TipoImovel,
       bairro,
@@ -98,13 +111,26 @@ export async function POST(req: NextRequest) {
       ...features.slice(0, 10),
     ].filter(Boolean).join('. ')
 
-    const embedding = await generateEmbedding(embeddingText)
+    // Só gera embedding se for novo ou se o texto descritivo mudou (simplificado: se for novo)
+    const embedding = existingProperty?.property_embedding || await generateEmbedding(embeddingText)
 
+    // Scraping Lite: Extração de tags via Regex (Orbit AI Governance)
     let topics: string[] = []
-    if (data.DescricaoWeb) {
+    const descricao = data.DescricaoWeb || ""
+    
+    // Regras de Scraping Lite (sem custo de token)
+    if (descricao.toLowerCase().includes("pé direito duplo")) topics.push("Pé Direito Duplo")
+    if (descricao.toLowerCase().includes("vista mar") || descricao.toLowerCase().includes("frente mar")) topics.push("Vista Mar")
+    if (descricao.toLowerCase().includes("piscina privativa")) topics.push("Piscina Privativa")
+    if (descricao.toLowerCase().includes("varanda gourmet")) topics.push("Varanda Gourmet")
+    if (descricao.toLowerCase().includes("totalmente mobiliado")) topics.push("Mobiliado")
+    if (descricao.toLowerCase().includes("climatizado") || descricao.toLowerCase().includes("ar condicionado")) topics.push("Climatizado")
+
+    // Só chama IA se não encontrou tags suficientes via Scraping Lite
+    if (topics.length < 2 && descricao.length > 50) {
       try {
         const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
-        const prompt = `Analise a descrição deste imóvel e liste de 3 a 5 tags impressionantes. Foque em estilo de vida, arquitetura ou diferenciais únicos (ex: "Vista Panorâmica", "Pé Direito Duplo", "Luz Natural"). Máximo de 4 palavras por tag. Retorne APENAS um JSON no formato {"topics": ["tag1", "tag2"]}.\n\nDescrição: ${data.DescricaoWeb}`
+        const prompt = `Analise a descrição deste imóvel e liste de 3 a 5 tags impressionantes. Retorne APENAS um JSON: {"topics": ["tag1", "tag2"]}.\n\nDescrição: ${descricao}`
         const start = Date.now()
         const aiResponse = await openai.chat.completions.create({
           model: "gpt-4o-mini",
@@ -112,28 +138,31 @@ export async function POST(req: NextRequest) {
           response_format: { type: "json_object" },
           temperature: 0.2
         })
-        const elapsed = Date.now() - start
         const usage = aiResponse.usage
-        
         if (usage) {
           await trackAICall({
             module: 'vistanet_ingest',
             model: 'gpt-4o-mini',
             tokens_input: usage.prompt_tokens,
             tokens_output: usage.completion_tokens,
-            duration_ms: elapsed,
+            duration_ms: Date.now() - start,
             metadata: { action: 'extract_topics', property_code: data.Codigo }
           })
         }
         const parsed = JSON.parse(aiResponse.choices[0].message.content || '{"topics":[]}')
-        topics = Array.isArray(parsed) ? parsed : (parsed.topics || parsed.tags || [])
+        const aiTopics = Array.isArray(parsed) ? parsed : (parsed.topics || [])
+        topics = [...new Set([...topics, ...aiTopics])].slice(0, 5)
       } catch (err) {
         console.warn("[VistaNet Import] Falha ao gerar tópicos via IA:", err)
       }
     }
 
+    // Se já existiam tópicos e não mudou a descrição, preserva os antigos se preferir
+    if (existingProperty?.topics && topics.length === 0) {
+      topics = existingProperty.topics as string[]
+    }
+
     // --- Step 5: Upsert into properties ---
-    const supabase = getSupabaseServer()
 
     const payload = {
       source_link: url.trim(),
@@ -170,7 +199,7 @@ export async function POST(req: NextRequest) {
     }
 
     const { data: property, error } = await (supabase.from('properties') as any)
-      .upsert(payload, { onConflict: 'source_link', ignoreDuplicates: false })
+      .upsert(payload, { onConflict: 'internal_name', ignoreDuplicates: false })
       .select()
       .single()
 

@@ -5,7 +5,7 @@ import Map, { Marker, Popup, NavigationControl } from "react-map-gl/mapbox"
 import 'mapbox-gl/dist/mapbox-gl.css'
 import type { ViewState } from "react-map-gl/mapbox"
 import { motion, AnimatePresence } from "framer-motion"
-import { Building2 } from "lucide-react"
+import { Building2, Globe, Map as MapIcon } from "lucide-react"
 import { HeatmapLayer } from "./HeatmapLayer"
 
 import { useTheme } from "next-themes"
@@ -47,6 +47,7 @@ const DEFAULT_ZOOM = 12
 // Themes
 const DARK_STYLE = "mapbox://styles/mapbox/dark-v11"
 const LIGHT_STYLE = "mapbox://styles/mapbox/light-v11"
+const SATELLITE_STYLE = "mapbox://styles/mapbox/satellite-streets-v12"
 
 function formatValue(value: number | null): string {
   if (value === null || value === 0) return ""
@@ -144,7 +145,8 @@ export const MapAtlas = forwardRef<any, MapAtlasProps>(function MapAtlasInner({
     pitch: 45, // Angulação 3D inicial para ar mais moderno
     bearing: -17,
   })
-
+ 
+  const [isSatellite, setIsSatellite] = useState(false)
   const [hoveredProperty, setHoveredProperty] = useState<MapProperty | null>(null)
   const selectedProp = useMemo(() => properties.find(p => p.id === selectedPropertyId), [properties, selectedPropertyId])
 
@@ -166,10 +168,10 @@ export const MapAtlas = forwardRef<any, MapAtlasProps>(function MapAtlasInner({
     if (!mapRef.current) return
     const map = mapRef.current.getMap()
     if (map) {
-      const style = isDark ? DARK_STYLE : LIGHT_STYLE
+      const style = isSatellite ? SATELLITE_STYLE : (isDark ? DARK_STYLE : LIGHT_STYLE)
       map.setStyle(style)
     }
-  }, [isDark])
+  }, [isDark, isSatellite])
 
   // Auto-fit bounds (opcional: apenas no primeiro load)
   useEffect(() => {
@@ -211,7 +213,7 @@ export const MapAtlas = forwardRef<any, MapAtlasProps>(function MapAtlasInner({
         {...viewState}
         onMove={(evt: any) => setViewState(evt.viewState)}
         mapboxAccessToken={MAPBOX_TOKEN}
-        mapStyle={isDark ? DARK_STYLE : LIGHT_STYLE}
+        mapStyle={isSatellite ? SATELLITE_STYLE : (isDark ? DARK_STYLE : LIGHT_STYLE)}
         attributionControl={false}
         logoPosition="bottom-right"
         cursor={isPlacing ? "crosshair" : heatmapVisible ? "crosshair" : "grab"}
@@ -290,6 +292,32 @@ export const MapAtlas = forwardRef<any, MapAtlasProps>(function MapAtlasInner({
         )}
 
       </Map>
+
+      {/* Style Toggle Button */}
+      <div className="absolute bottom-6 left-6 z-[110]">
+        <button
+          onClick={() => setIsSatellite(!isSatellite)}
+          className={`group flex items-center gap-2 px-3 py-2 rounded-xl backdrop-blur-xl border transition-all shadow-2xl ${
+            isSatellite 
+              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 font-bold' 
+              : isDark 
+                ? 'bg-[#14120c]/80 border-[#d4af35]/20 text-[#d4af35]/60 hover:text-[#d4af35] font-bold' 
+                : 'bg-white/80 border-[var(--orbit-line)] text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)] font-bold'
+          }`}
+        >
+          {isSatellite ? (
+            <>
+              <MapIcon className="w-4 h-4 animate-in zoom-in duration-300" />
+              <span className="text-[10px] uppercase tracking-widest">Mapa</span>
+            </>
+          ) : (
+            <>
+              <Globe className="w-4 h-4 group-hover:rotate-12 transition-transform" />
+              <span className="text-[10px] uppercase tracking-widest">Satélite</span>
+            </>
+          )}
+        </button>
+      </div>
 
       {/* Global overrides para o react-map-gl popup container limpar fundos brancos nativos */}
       <style jsx global>{`

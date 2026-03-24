@@ -7,6 +7,11 @@ import { processEventWithCore } from '@/lib/orbit-core'
 import { trackAICall, trackEvent } from '@/lib/observability'
 import OpenAI from "openai"
 
+// Orbit AI Governance imports
+import { assessMessageRelevance, simpleHash } from "@/lib/message-relevance"
+import { resolveAnalysisCadence } from "@/lib/analysis-scheduler"
+import { enqueueForBatchAnalysis, markAsSkipped } from "@/lib/analysis-queue"
+
 const supabase = getSupabaseServer() as any
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
@@ -377,10 +382,53 @@ async function saveMessage(
   }
   
   if (source === 'whatsapp') {
-    // Only trigger Orbit Core analysis if lead is NOT pending
-    const { data: lead } = await supabase.from('leads').select('state').eq('id', leadId).single()
+    // Buscar dados do lead para contextualizar a governança de IA
+    const { data: lead } = await supabase
+      .from('leads')
+      .select('state, orbit_stage, days_since_interaction')
+      .eq('id', leadId)
+      .single()
     
-    if (lead?.state !== 'pending' && lead?.state !== 'blocked' && lead?.state !== 'ignored') {
+    // Status que NUNCA devem ser analisados
+    if (lead?.state === 'blocked' || lead?.state === 'ignored') {
+      console.log(`[WEBHOOK] Contato bloqueado/ignorado (${lead.state}), pulando governança.`)
+      return { saved: true, skipped: false, id: data?.id }
+    }
+
+    // --- GOVERNANÇA DE IA ---
+    // Buscar hashes de mensagens recentes para filtro de duplicidade
+    const { data: recentMessages } = await supabase
+      .from('messages')
+      .select('content')
+      .eq('lead_id', leadId)
+      .order('timestamp', { ascending: false })
+      .limit(5)
+    
+    const context = {
+      leadState: lead?.orbit_stage,
+      daysSinceInteraction: lead?.days_since_interaction,
+      recentHashes: recentMessages?.map((m: any) => simpleHash((m.content || "").toLowerCase()))
+    }
+
+    const relevance = assessMessageRelevance(content, context)
+
+    if (!relevance.relevant) {
+      await markAsSkipped(data.id, relevance.reason || "irrelevant")
+      // Apenas registrar interação, sem disparar IA
+      await Promise.all([
+        supabase.from('leads').update({ last_interaction_at: new Date().toISOString(), last_event_type: 'received' }).eq('id', leadId),
+        supabase.from('leads_center').update({ last_event_type: 'received', ultima_interacao_at: new Date().toISOString() }).eq('lead_id', leadId)
+      ])
+      return { saved: true, skipped: false, id: data?.id }
+    }
+
+    const cadence = relevance.suggestedCadence || 
+      resolveAnalysisCadence(lead?.orbit_stage || 'pending', lead?.days_since_interaction || 0, content)
+
+    if (cadence === "realtime" || lead?.state === 'pending') {
+      // Leads pendentes sempre real-time por ser primeira interação, ou se a cadência for real-time
+      console.log(`[WEBHOOK] Disparando redeliver de Orbit Core para lead=${leadId} | Cadência: Real-time`);
+      
       await Promise.all([
         supabase
           .from('leads')
@@ -398,35 +446,23 @@ async function saveMessage(
           } as any)
           .eq('lead_id', leadId)
       ])
-      
-      // ── Fechamento do loop de reengajamento ──
-      // Não await — não pode segurar o webhook
+
+      // Fechamento do loop de reengajamento (opcional, manter o padrão existente)
       closeReengagementLoop(leadId, content, supabase).catch(err =>
         console.error("[REENGAGEMENT LOOP]", err)
       )
 
-      // Acionar Orbit Core com o ID da nova mensagem
-      console.log(`[WEBHOOK] Disparando Orbit Core para lead=${leadId}`);
       processEventWithCore(leadId, content, 'message_inbound', data.id).catch((err) => {
         console.error('[WEBHOOK] Erro no Orbit Core:', err);
       })
     } else {
-      console.log('[WEBHOOK] Skipping Orbit Core for pending/blocked lead')
+      // Enfileirar para análise em lote (Batch)
+      console.log(`[WEBHOOK] Enfileirando para batch: lead=${leadId} | Cadência: ${cadence}`);
+      await enqueueForBatchAnalysis(leadId, data.id, cadence as "batch_hourly" | "batch_2x_daily")
+      
       await Promise.all([
-        supabase
-          .from('leads')
-          .update({
-            last_interaction_at: new Date().toISOString(),
-            last_event_type: 'received'
-          } as any)
-          .eq('id', leadId),
-        supabase
-          .from('leads_center')
-          .update({
-            last_event_type: 'received',
-            ultima_interacao_at: new Date().toISOString()
-          } as any)
-          .eq('lead_id', leadId)
+        supabase.from('leads').update({ last_interaction_at: new Date().toISOString(), last_event_type: 'received' }).eq('id', leadId),
+        supabase.from('leads_center').update({ last_event_type: 'received', ultima_interacao_at: new Date().toISOString() }).eq('lead_id', leadId)
       ])
     }
   } else {

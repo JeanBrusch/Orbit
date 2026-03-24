@@ -458,21 +458,25 @@ function LeadCard({
         {/* ── CTA or generated message ── */}
         <AnimatePresence mode="wait">
           {state.status === "idle" && (
-            <motion.button
-              key="cta"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={handleAnalyzeAndGenerate}
-              className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-[11px] uppercase tracking-widest transition-all ${
-                isDark
-                  ? "bg-white/5 border border-white/10 text-slate-300 hover:bg-[var(--orbit-glow)]/10 hover:border-[var(--orbit-glow)]/20 hover:text-[var(--orbit-glow)]"
-                  : "bg-[var(--orbit-glow)]/5 border border-[var(--orbit-glow)]/15 text-[var(--orbit-glow)] hover:bg-[var(--orbit-glow)]/10 hover:border-[var(--orbit-glow)]/30"
-              }`}
-            >
-              <Brain className="w-3.5 h-3.5" />
-              Ler o Silêncio + Gerar Mensagem
-            </motion.button>
+            <div className="flex flex-col gap-2">
+              <button
+                disabled
+                className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-[11px] uppercase tracking-widest transition-all cursor-not-allowed opacity-50 ${
+                  isDark
+                    ? "bg-white/5 border border-white/10 text-slate-500"
+                    : "bg-gray-100 border border-gray-200 text-gray-400"
+                }`}
+              >
+                <Brain className="w-3.5 h-3.5" />
+                Análise de Silêncio Inativa
+              </button>
+              <div className={`flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg border ${
+                isDark ? "bg-amber-500/5 border-amber-500/10 text-amber-500/80" : "bg-amber-50 border-amber-200 text-amber-600"
+              }`}>
+                <AlertTriangle className="w-3 h-3" />
+                <span className="text-[10px] font-medium">IA Desconectada por Governança</span>
+              </div>
+            </div>
           )}
 
           {isLoading && (
