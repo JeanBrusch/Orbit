@@ -4,41 +4,42 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* Refined light mode with subtle blue tint and stronger glass */
-  --orbit-bg: #f8fafc;
-  --orbit-bg-secondary: #eff6ff;
-  --orbit-glass: rgba(255, 255, 255, 0.85);
-  --orbit-glass-border: rgba(14, 165, 233, 0.15);
-  --orbit-glow: #0ea5e9;
-  --orbit-glow-rgb: 14, 165, 233;
-  --orbit-accent: #f59e0b;
-  --orbit-accent-rgb: 245, 158, 11;
-  --orbit-text: #0f172a;
-  --orbit-text-muted: #64748b;
-  --orbit-line: rgba(14, 165, 233, 0.2);
-  --orbit-shadow: 0 4px 24px rgba(14, 165, 233, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05);
-  --orbit-shadow-hover: 0 8px 32px rgba(14, 165, 233, 0.12), 0 2px 6px rgba(0, 0, 0, 0.08);
+  /* Minimalist Luxury Light Mode */
+  --orbit-bg: #ffffff;
+  --orbit-bg-secondary: #f4f4f5;
+  --orbit-glass: rgba(255, 255, 255, 0.95);
+  --orbit-glass-border: rgba(0, 0, 0, 0.05);
+  --orbit-glow: #000000;
+  --orbit-glow-rgb: 0, 0, 0;
+  --orbit-accent: #3f3f46;
+  --orbit-accent-rgb: 63, 63, 70;
+  --orbit-text: #09090b;
+  --orbit-text-muted: #71717a;
+  --orbit-line: rgba(0, 0, 0, 0.1);
+  --orbit-shadow: 0 4px 20px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.02);
+  --orbit-shadow-hover: 0 8px 30px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04);
 
-  --background: #f8fafc;
-  --foreground: #0f172a;
-  --card: rgba(255, 255, 255, 0.85);
-  --card-foreground: #0f172a;
-  --popover: rgba(255, 255, 255, 0.85);
-  --popover-foreground: #0f172a;
-  --primary: #0ea5e9;
+  /* Shadcn Native - Monochrome Light */
+  --background: #ffffff;
+  --foreground: #09090b;
+  --card: #ffffff;
+  --card-foreground: #09090b;
+  --popover: #ffffff;
+  --popover-foreground: #09090b;
+  --primary: #09090b; /* Pitch Black primary buttons */
   --primary-foreground: #ffffff;
-  --secondary: rgba(14, 165, 233, 0.1);
-  --secondary-foreground: #0f172a;
-  --muted: #f1f5f9;
-  --muted-foreground: #64748b;
-  --accent: #f59e0b;
-  --accent-foreground: #0f172a;
+  --secondary: #f4f4f5;
+  --secondary-foreground: #09090b;
+  --muted: #f4f4f5;
+  --muted-foreground: #71717a;
+  --accent: #f4f4f5;
+  --accent-foreground: #09090b;
   --destructive: #ef4444;
   --destructive-foreground: #ffffff;
-  --border: rgba(14, 165, 233, 0.15);
-  --input: rgba(14, 165, 233, 0.08);
-  --ring: #0ea5e9;
-  --radius: 0.75rem;
+  --border: #e4e4e7;
+  --input: #e4e4e7;
+  --ring: #09090b;
+  --radius: 1rem; /* Apple-esque smoother curve */
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
@@ -55,39 +56,41 @@
 }
 
 .dark {
-  --orbit-bg: #05060a;
-  --orbit-bg-secondary: #0b1220;
-  --orbit-glass: rgba(15, 23, 42, 0.65);
-  --orbit-glass-border: rgba(46, 197, 255, 0.25);
-  --orbit-glow: #2ec5ff;
-  --orbit-glow-rgb: 46, 197, 255;
-  --orbit-accent: #ffc87a;
-  --orbit-accent-rgb: 255, 200, 122;
-  --orbit-text: #e6eef6;
-  --orbit-text-muted: #94a3b8;
-  --orbit-line: rgba(46, 197, 255, 0.35);
-  --orbit-shadow: 0 0 30px rgba(46, 197, 255, 0.15), 0 0 60px rgba(46, 197, 255, 0.08);
-  --orbit-shadow-hover: 0 0 40px rgba(46, 197, 255, 0.2), 0 0 80px rgba(46, 197, 255, 0.12);
+  /* Minimalist Luxury Dark Mode */
+  --orbit-bg: #000000; /* Absolute Black */
+  --orbit-bg-secondary: #0a0a0b;
+  --orbit-glass: rgba(10, 10, 11, 0.8);
+  --orbit-glass-border: rgba(255, 255, 255, 0.08);
+  --orbit-glow: #ffffff;
+  --orbit-glow-rgb: 255, 255, 255;
+  --orbit-accent: #a1a1aa;
+  --orbit-accent-rgb: 161, 161, 170;
+  --orbit-text: #fafafa;
+  --orbit-text-muted: #a1a1aa;
+  --orbit-line: rgba(255, 255, 255, 0.1);
+  --orbit-shadow: 0 0 30px rgba(0, 0, 0, 0.8), 0 0 60px rgba(0, 0, 0, 0.5);
+  --orbit-shadow-hover: 0 0 40px rgba(255, 255, 255, 0.05), 0 0 80px rgba(255, 255, 255, 0.02);
 
-  --background: #05060a;
-  --foreground: #e6eef6;
-  --card: rgba(15, 23, 42, 0.65);
-  --card-foreground: #e6eef6;
-  --popover: rgba(15, 23, 42, 0.65);
-  --popover-foreground: #e6eef6;
-  --primary: #2ec5ff;
-  --primary-foreground: #05060a;
-  --secondary: rgba(46, 197, 255, 0.1);
-  --secondary-foreground: #e6eef6;
-  --muted: #0b1220;
-  --muted-foreground: #94a3b8;
-  --accent: #ffc87a;
-  --accent-foreground: #05060a;
-  --destructive: #ff7a7a;
-  --destructive-foreground: #05060a;
-  --border: rgba(46, 197, 255, 0.25);
-  --input: rgba(46, 197, 255, 0.1);
-  --ring: #2ec5ff;
+  /* Shadcn Native - Monochrome Dark */
+  --background: #000000;
+  --foreground: #fafafa;
+  --card: #0a0a0b;
+  --card-foreground: #fafafa;
+  --popover: #0a0a0b;
+  --popover-foreground: #fafafa;
+  --primary: #ffffff; /* Stark white primary buttons */
+  --primary-foreground: #000000; /* Black text on primary buttons */
+  --secondary: #18181b; /* Zinc-900 */
+  --secondary-foreground: #fafafa;
+  --muted: #18181b;
+  --muted-foreground: #a1a1aa;
+  --accent: #18181b;
+  --accent-foreground: #fafafa;
+  --destructive: #7f1d1d;
+  --destructive-foreground: #fafafa;
+  --border: #27272a; /* Zinc-800 */
+  --input: #27272a;
+  --ring: #ffffff;
   --chart-1: oklch(0.488 0.243 264.376);
   --chart-2: oklch(0.696 0.17 162.48);
   --chart-3: oklch(0.769 0.188 70.08);
