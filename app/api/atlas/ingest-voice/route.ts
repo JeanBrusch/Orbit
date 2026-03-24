@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
+import { trackAICall } from '@/lib/observability'
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -35,6 +36,7 @@ Campos a extrair:
 
 Responda APENAS o JSON puro, sem markdown.`
 
+    const startGPT = Date.now()
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
@@ -44,6 +46,19 @@ Responda APENAS o JSON puro, sem markdown.`
       response_format: { type: "json_object" },
       temperature: 0.1,
     })
+    const elapsedGPT = Date.now() - startGPT
+    const usage = response.usage
+
+    if (usage) {
+      await trackAICall({
+        module: 'orbit_core',
+        model: 'gpt-4o',
+        tokens_input: usage.prompt_tokens,
+        tokens_output: usage.completion_tokens,
+        duration_ms: elapsedGPT,
+        metadata: { action: 'voice_ingestion_parsing' }
+      })
+    }
 
     const extractedData = JSON.parse(response.choices[0].message.content || "{}")
 

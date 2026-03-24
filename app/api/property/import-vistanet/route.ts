@@ -8,6 +8,7 @@ import {
 } from '@/lib/vistanet/client'
 import { getSupabaseServer } from '@/lib/supabase-server'
 import { generateEmbedding } from '@/lib/orbit-core'
+import { trackAICall } from '@/lib/observability'
 
 export async function POST(req: NextRequest) {
   try {
@@ -104,12 +105,26 @@ export async function POST(req: NextRequest) {
       try {
         const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
         const prompt = `Analise a descrição deste imóvel e liste de 3 a 5 tags impressionantes. Foque em estilo de vida, arquitetura ou diferenciais únicos (ex: "Vista Panorâmica", "Pé Direito Duplo", "Luz Natural"). Máximo de 4 palavras por tag. Retorne APENAS um JSON no formato {"topics": ["tag1", "tag2"]}.\n\nDescrição: ${data.DescricaoWeb}`
+        const start = Date.now()
         const aiResponse = await openai.chat.completions.create({
           model: "gpt-4o-mini",
           messages: [{ role: "user", content: prompt }],
           response_format: { type: "json_object" },
           temperature: 0.2
         })
+        const elapsed = Date.now() - start
+        const usage = aiResponse.usage
+        
+        if (usage) {
+          await trackAICall({
+            module: 'vistanet_ingest',
+            model: 'gpt-4o-mini',
+            tokens_input: usage.prompt_tokens,
+            tokens_output: usage.completion_tokens,
+            duration_ms: elapsed,
+            metadata: { action: 'extract_topics', property_code: data.Codigo }
+          })
+        }
         const parsed = JSON.parse(aiResponse.choices[0].message.content || '{"topics":[]}')
         topics = Array.isArray(parsed) ? parsed : (parsed.topics || parsed.tags || [])
       } catch (err) {

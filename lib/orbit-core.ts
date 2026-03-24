@@ -1,6 +1,7 @@
 import OpenAI from "openai";
 import { getSupabaseServer } from "./supabase-server";
 import { Database } from "./database.types";
+import { trackAICall } from "./observability";
 
 let _openaiCache: OpenAI | null = null;
 function getOpenAI() {
@@ -96,6 +97,7 @@ export async function generateEmbedding(text: string): Promise<number[] | null> 
     return null;
   }
   if (!text || text.trim() === "") return null;
+  const start = Date.now();
   try {
     const openai = getOpenAI();
     if (!openai) {
@@ -107,6 +109,19 @@ export async function generateEmbedding(text: string): Promise<number[] | null> 
       input: text,
     });
     
+    const elapsed = Date.now() - start;
+    const usage = response.usage;
+    
+    // Rastrear custo do embedding
+    await trackAICall({
+      module: 'orbit_core',
+      model: 'text-embedding-3-small',
+      tokens_input: usage.prompt_tokens,
+      tokens_output: 0,
+      duration_ms: elapsed,
+      metadata: { action: 'generate_embedding' }
+    });
+
     return response.data[0].embedding || null;
   } catch (err: any) {
     if (err.status === 429) {
@@ -434,6 +449,7 @@ Responda APENAS com JSON puro:
       return null;
     }
 
+    const start = Date.now();
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
@@ -443,6 +459,20 @@ Responda APENAS com JSON puro:
       response_format: { type: "json_object" },
       temperature: 0.1,
     });
+    const elapsed = Date.now() - start;
+    const usage = response.usage;
+
+    if (usage) {
+      await trackAICall({
+        module: 'orbit_core',
+        model: 'gpt-4o',
+        lead_id: leadId,
+        tokens_input: usage.prompt_tokens,
+        tokens_output: usage.completion_tokens,
+        duration_ms: elapsed,
+        metadata: { action: 'analyze_context', event_type: type }
+      });
+    }
 
     const text = response.choices[0].message.content || "{}";
     return JSON.parse(text) as CoreAnalysis;

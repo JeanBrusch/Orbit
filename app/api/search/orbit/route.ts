@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseServer } from '@/lib/supabase-server'
+import { trackAICall } from '@/lib/observability'
 import OpenAI from 'openai'
 
 const openai = new OpenAI({
@@ -11,10 +12,23 @@ const openai = new OpenAI({
 async function generateEmbedding(content: string): Promise<number[] | null> {
   if (!process.env.OPENAI_API_KEY) return null
   try {
+    const startObj = Date.now()
     const response = await openai.embeddings.create({
       model: 'text-embedding-3-small',
       input: content.slice(0, 2000), // cap to avoid token overflow
     })
+    const elapsed = Date.now() - startObj
+    const usage = response.usage
+    if (usage) {
+      await trackAICall({
+        module: 'orbit_core',
+        model: 'text-embedding-3-small',
+        tokens_input: usage.prompt_tokens,
+        tokens_output: 0,
+        duration_ms: elapsed,
+        metadata: { action: 'orbit_search_embedding' }
+      })
+    }
     return response.data[0].embedding || null
   } catch {
     return null
@@ -64,6 +78,7 @@ Rules:
 
 User Query: "${query}"`
 
+    const startGPT = Date.now()
     const response = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
@@ -73,6 +88,19 @@ User Query: "${query}"`
       response_format: { type: 'json_object' },
       temperature: 0,
     })
+    const elapsedGPT = Date.now() - startGPT
+    const usage = response.usage
+
+    if (usage) {
+      await trackAICall({
+        module: 'orbit_core',
+        model: 'gpt-4o-mini',
+        tokens_input: usage.prompt_tokens,
+        tokens_output: usage.completion_tokens,
+        duration_ms: elapsedGPT,
+        metadata: { action: 'orbit_search_intent_parse', query }
+      })
+    }
 
     const parsed = JSON.parse(response.choices[0].message.content || '{}')
     return {

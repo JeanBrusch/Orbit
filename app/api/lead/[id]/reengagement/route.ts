@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { getSupabaseServer } from "@/lib/supabase-server";
+import { trackAICall } from "@/lib/observability";
 import { resolveStrategy } from "@/lib/strategy-resolver";
 import { validateHookQuality } from "@/lib/hook-validator";
 
@@ -140,8 +141,9 @@ Responda APENAS com JSON:
   "reasoning": "..."
 }`;
 
+    const startGPT = Date.now();
     const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4",
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt }
@@ -149,6 +151,20 @@ Responda APENAS com JSON:
       response_format: { type: "json_object" },
       temperature: 0.7,
     });
+    const elapsedGPT = Date.now() - startGPT;
+    const usage = response.usage;
+
+    if (usage) {
+      await trackAICall({
+        module: 'silence_analyzer',
+        model: 'gpt-4o',
+        lead_id: leadId,
+        tokens_input: usage.prompt_tokens,
+        tokens_output: usage.completion_tokens,
+        duration_ms: elapsedGPT,
+        metadata: { action: 'reengagement_generation', strategy: strategy.objective }
+      });
+    }
 
     const parsed = JSON.parse(response.choices[0].message.content || "{}");
     

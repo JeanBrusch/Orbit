@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { getSupabaseServer } from "@/lib/supabase-server";
+import { trackAICall } from "@/lib/observability";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -223,6 +224,7 @@ Responda APENAS com este formato JSON:
     // ── 6. Chamar o modelo (GPT-4) ─────────────────────────────────────────
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
+    const startGPT = Date.now();
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
@@ -232,6 +234,20 @@ Responda APENAS com este formato JSON:
       response_format: { type: "json_object" },
       temperature: 0.1,
     });
+    const elapsedGPT = Date.now() - startGPT;
+    const usage = response.usage;
+
+    if (usage) {
+      await trackAICall({
+        module: 'silence_analyzer',
+        model: 'gpt-4o',
+        lead_id: leadId,
+        tokens_input: usage.prompt_tokens,
+        tokens_output: usage.completion_tokens,
+        duration_ms: elapsedGPT,
+        metadata: { action: 'silence_analysis' }
+      });
+    }
 
     const rawContent = response.choices[0].message.content || "{}";
     const parsed = JSON.parse(rawContent);

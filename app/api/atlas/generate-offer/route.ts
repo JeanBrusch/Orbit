@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
 import { createClient } from '@supabase/supabase-js'
 import { getSupabaseServer } from "@/lib/supabase-server"
+import { trackAICall } from '@/lib/observability'
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -76,6 +77,7 @@ Responda APENAS em JSON com o seguinte formato:
   ]
 }`
 
+    const startGPT = Date.now()
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
@@ -85,6 +87,20 @@ Responda APENAS em JSON com o seguinte formato:
       response_format: { type: "json_object" },
       temperature: 0.8,
     })
+    const elapsedGPT = Date.now() - startGPT
+    const usage = response.usage
+
+    if (usage) {
+      await trackAICall({
+        module: 'orbit_core',
+        model: 'gpt-4o',
+        lead_id: leadId,
+        tokens_input: usage.prompt_tokens,
+        tokens_output: usage.completion_tokens,
+        duration_ms: elapsedGPT,
+        metadata: { action: 'offer_generation', property_id: propertyId }
+      })
+    }
 
     const result = JSON.parse(response.choices[0].message.content || "{}")
 

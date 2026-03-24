@@ -4,6 +4,7 @@ import type { ZAPIWebhookMessage } from '@/lib/zapi/types'
 import { getContactProfile } from '@/lib/zapi/client'
 import { normalizePhone, isLidFormat, extractLid, hasRealPhone } from '@/lib/phone-utils'
 import { processEventWithCore } from '@/lib/orbit-core'
+import { trackAICall, trackEvent } from '@/lib/observability'
 import OpenAI from "openai"
 
 const supabase = getSupabaseServer() as any
@@ -47,7 +48,7 @@ async function closeReengagementLoop(
 
     if (fetchError || !experiment) return
 
-    // Classifica semanticamente com GPT-4o-mini (rápido e barato)
+    const startGPT = Date.now()
     const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
@@ -58,7 +59,7 @@ async function closeReengagementLoop(
         {
           role: "user",
           content: `Objetivo da mensagem enviada: "${experiment.objective}"
-Resposta do lead: "${incomingMessage}"
+Respostas do lead: "${incomingMessage}"
 
 Classifique em exatamente um valor:
 - "positive_progress": abre caminho, avança o objetivo
@@ -73,6 +74,20 @@ Retorne: {"response_type": "...", "confidence": 0.0, "signal": "palavra ou frase
       response_format: { type: "json_object" },
       temperature: 0,
     });
+    const elapsedGPT = Date.now() - startGPT
+    const usage = response.usage
+
+    if (usage) {
+      await trackAICall({
+        module: 'classifier',
+        model: 'gpt-4o-mini',
+        lead_id: leadId,
+        tokens_input: usage.prompt_tokens,
+        tokens_output: usage.completion_tokens,
+        duration_ms: elapsedGPT,
+        metadata: { action: 'reengagement_classification', experiment_id: experiment.id }
+      })
+    }
 
     const classification = JSON.parse(response.choices[0].message.content || "{}");
 
@@ -493,6 +508,17 @@ export async function POST(request: NextRequest) {
     let mediaData: { type: string; url: string; caption?: string } | undefined
     let messageText: string
     
+    const lead = await findOrCreateLeadSafe({
+      phone: payload.phone,
+      lid,
+      name: payload.chatName || payload.senderName
+    })
+    
+    if (!lead) {
+      console.error(`[WEBHOOK:${requestId}] FAILED: could not get/create lead for phone=${normalizedPhone}, lid=${lid}`)
+      return NextResponse.json({ status: 'error', error: 'Failed to create lead' }, { status: 500 })
+    }
+
     if (payload.text?.message) {
       messageText = payload.text.message
     } else if (payload.image?.imageUrl) {
@@ -515,22 +541,34 @@ export async function POST(request: NextRequest) {
            whisperForm.append("model", "whisper-1");
            whisperForm.append("language", "pt");
            
-           console.log(`[WEBHOOK:${requestId}] Sending to OpenAI Whisper...`);
-           const whisperRes = await fetch("https://api.openai.com/v1/audio/transcriptions", {
-             method: "POST",
-             headers: { Authorization: `Bearer ${openaiApiKey}` },
-             body: whisperForm,
-           });
-           
-           if (whisperRes.ok) {
-             const whisperData = await whisperRes.json();
-             if (whisperData.text) {
-               transcript = `[Áudio Transcrito] ${whisperData.text}`;
-               console.log(`[WEBHOOK:${requestId}] Audio transcribed successfully.`);
-             }
-           } else {
-             console.error(`[WEBHOOK:${requestId}] Whisper failed:`, await whisperRes.text());
-           }
+            const startWhisper = Date.now()
+            console.log(`[WEBHOOK:${requestId}] Sending to OpenAI Whisper...`);
+            const whisperRes = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+              method: "POST",
+              headers: { Authorization: `Bearer ${openaiApiKey}` },
+              body: whisperForm,
+            });
+            const elapsedWhisper = Date.now() - startWhisper
+            
+            if (whisperRes.ok) {
+              const whisperData = await whisperRes.json();
+              
+              await trackEvent({
+                lead_id: lead.id,
+                event_type: 'ai_call',
+                source: 'whatsapp',
+                module: 'orbit_core',
+                duration_ms: elapsedWhisper,
+                metadata_json: { model: 'whisper-1', action: 'transcription' }
+              })
+
+              if (whisperData.text) {
+                transcript = `[Áudio Transcrito] ${whisperData.text}`;
+                console.log(`[WEBHOOK:${requestId}] Audio transcribed successfully.`);
+              }
+            } else {
+              console.error(`[WEBHOOK:${requestId}] Whisper failed:`, await whisperRes.text());
+            }
         }
       } catch (e) {
          console.error(`[WEBHOOK:${requestId}] Error transcribing audio:`, e);
@@ -551,19 +589,7 @@ export async function POST(request: NextRequest) {
     const idempotencyKey = `zapi:${payload.messageId}`
     const direction: 'inbound' | 'outbound' = fromMe ? 'outbound' : 'inbound'
     
-    console.log(`[WEBHOOK:${requestId}] Processing: phone=${normalizedPhone}, lid=${lid}, direction=${direction}, key=${idempotencyKey}`)
-    
-    const lead = await findOrCreateLeadSafe({
-      phone: payload.phone,
-      lid,
-      name: payload.chatName || payload.senderName
-    })
-    
-    if (!lead) {
-      console.error(`[WEBHOOK:${requestId}] FAILED: could not get/create lead for phone=${normalizedPhone}, lid=${lid}`)
-      return NextResponse.json({ status: 'error', error: 'Failed to create lead' }, { status: 500 })
-    }
-    
+
     const result = await saveMessage(lead.id, messageText, fromMe ? 'operator' : 'whatsapp', idempotencyKey, mediaData)
     
     if (fromMe) {
