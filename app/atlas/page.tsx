@@ -231,6 +231,32 @@ function AtlasManagerContent() {
     setIngestStatus("processing")
     
     try {
+      // 🚀 Integração VistaNet - Bypass Rápido e Estruturado
+      const isVistaNet = ingestUrl.includes('novovista') || ingestUrl.includes('v.imo.bi') || ingestUrl.includes('v2=')
+      
+      if (isVistaNet) {
+        const res = await fetch("/api/property/import-vistanet", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: ingestUrl }),
+        })
+        const data = await res.json()
+        
+        if (!res.ok) throw new Error(data.error || "Erro na importação nativa do VistaNet")
+        
+        toast.success(`Captura estruturada: ${data.title}`)
+        setIngestStatus("complete")
+        await refetch()
+        
+        setTimeout(() => {
+          setIsIngestModalOpen(false)
+          setIngestStatus("idle")
+          setIngestUrl("")
+        }, 1500)
+        return
+      }
+
+      // 🤖 Fallback para AI Extractor (para VivaReal, Zap, etc)
       const previewRes = await fetch("/api/link-preview", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -257,9 +283,10 @@ function AtlasManagerContent() {
       })
       setIngestStep("review")
       setIngestStatus("idle")
-    } catch (err) {
+    } catch (err: any) {
       setIngestStatus("failed")
-      toast.error("Falha ao capturar dados do link")
+      toast.error(err.message || "Falha ao capturar dados do link")
+      setTimeout(() => setIngestStatus("idle"), 2000)
     }
   }
 
