@@ -178,7 +178,12 @@ async function getSelectionData(slug: string) {
     lead: lead ? { ...lead, id: lead.id ?? leadId, firstName } : { id: leadId, name: null, photo_url: null, firstName: 'Visitante' },
     preferences: prefs,
     items,
-    initialInteractions
+    initialInteractions,
+    _debug: {
+      sentError: sentError ? { message: sentError.message, code: sentError.code } : null,
+      contextError: contextsError ? { message: contextsError.message, code: contextsError.code } : null,
+      itemsCount: items.length
+    }
   }
 }
 

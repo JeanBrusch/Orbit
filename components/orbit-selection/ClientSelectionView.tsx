@@ -58,8 +58,13 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
   const sessionStartRef = useRef<number>(Date.now())
 
   useEffect(() => {
-    console.log("[DEBUG SELECTION] Items and Lead loaded:", { items, lead, slug })
-  }, [items, lead, slug])
+    console.log("[DEBUG SELECTION] Items and Lead loaded:", { 
+      itemsCount: items.length, 
+      lead: lead?.name, 
+      slug,
+      debug: (data as any)._debug 
+    })
+  }, [items.length, lead?.name, slug, data])
 
   // ── Tracking Helpers ─────────────────────────────────────────────────────────
   const trackInteraction = useCallback(async (propertyId: string, type: string, metadata?: any) => {
