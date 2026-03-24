@@ -1,5 +1,5 @@
-// app/api/property/import-vistanet/route.ts
 import { NextRequest, NextResponse } from 'next/server'
+import OpenAI from 'openai'
 import {
   decodeShortLink,
   extractV2FromUrl,
@@ -66,16 +66,28 @@ export async function POST(req: NextRequest) {
 
     const features: string[] = [
       ...Object.entries(featuresData).filter(([_, v]) => v === 'Sim').map(([k]) => k),
-      data.Vagas ? `${data.Vagas} vaga(s)` : null,
-      data.AreaTotal ? `Lote: ${data.AreaTotal}m²` : null,
     ].filter((v): v is string => typeof v === 'string' && v.length > 0)
 
-    const bairro = data.BairroComercial || data.Bairro || null
-    const title = [data.TipoImovel, bairro, data.Cidade].filter(Boolean).join(' - ')
+    let ui_type = null
+    let bairro = data.BairroComercial || data.Bairro || null
+
+    if (data.TipoImovel) {
+      const tipoLower = data.TipoImovel.toLowerCase()
+      if (tipoLower.includes('condomínio') || tipoLower.includes('sobrado')) {
+        ui_type = 'Casa Condomínio'
+        bairro = 'Condomínio'
+      } else if (tipoLower.includes('casa') || tipoLower.includes('duplex') || tipoLower.includes('geminada')) {
+        ui_type = 'Casa de Rua'
+      } else if (tipoLower.includes('apartamento') || tipoLower.includes('flat') || tipoLower.includes('cobertura')) {
+        ui_type = 'Apt'
+      }
+    }
+
+    const title = [ui_type || data.TipoImovel, bairro, data.Cidade].filter(Boolean).join(' - ')
 
     // --- Step 4: Build embedding text ---
     const embeddingText = [
-      data.TipoImovel,
+      ui_type || data.TipoImovel,
       bairro,
       data.Cidade,
       data.Dormitorios ? `${data.Dormitorios} dormitórios` : null,
@@ -87,6 +99,24 @@ export async function POST(req: NextRequest) {
 
     const embedding = await generateEmbedding(embeddingText)
 
+    let topics: string[] = []
+    if (data.DescricaoWeb) {
+      try {
+        const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+        const prompt = `Analise a descrição deste imóvel e liste de 3 a 5 tags impressionantes. Foque em estilo de vida, arquitetura ou diferenciais únicos (ex: "Vista Panorâmica", "Pé Direito Duplo", "Luz Natural"). Máximo de 4 palavras por tag. Retorne APENAS um JSON no formato {"topics": ["tag1", "tag2"]}.\n\nDescrição: ${data.DescricaoWeb}`
+        const aiResponse = await openai.chat.completions.create({
+          model: "gpt-4o-mini",
+          messages: [{ role: "user", content: prompt }],
+          response_format: { type: "json_object" },
+          temperature: 0.2
+        })
+        const parsed = JSON.parse(aiResponse.choices[0].message.content || '{"topics":[]}')
+        topics = Array.isArray(parsed) ? parsed : (parsed.topics || parsed.tags || [])
+      } catch (err) {
+        console.warn("[VistaNet Import] Falha ao gerar tópicos via IA:", err)
+      }
+    }
+
     // --- Step 5: Upsert into properties ---
     const supabase = getSupabaseServer()
 
@@ -95,30 +125,31 @@ export async function POST(req: NextRequest) {
       internal_name: data.Codigo ?? null,
       title,
       cover_image: photos[0] ?? null,
-      value: parseBRL(data.ValorVenda) ?? parseBRL(data.ValorLocacao),
+      value: parseBRL(data.ValorVenda) ?? null,
       neighborhood: bairro,
       city: data.Cidade ?? null,
       area_privativa: data.AreaPrivativa ? parseFloat(data.AreaPrivativa) : null,
       area_total: data.AreaTotal ? parseFloat(data.AreaTotal) : null,
       bedrooms: data.Dormitorios ? parseInt(data.Dormitorios, 10) : null,
       suites: data.Suites ? parseInt(data.Suites, 10) : null,
-      parking_spots: data.Vagas ? parseInt(data.Vagas, 10) : null,
       features,
       photos,
       ingestion_type: 'vistanet',
       ingestion_status: 'confirmed',
       property_embedding: embedding,
-      // payment_conditions stores agent metadata + all photos + vistanet identifiers
-      payment_conditions: {
+      ui_type,
+      topics,
+      condo_name: data.Edificio ?? null,
+      agent_data: {
         agent_name: data.Corretor?.Nome ?? null,
         agent_phone: data.Corretor?.Fone ?? null,
         agent_email: data.Corretor?.Email ?? null,
         agent_photo: data.Corretor?.Foto ?? null,
+      },
+      payment_conditions: {
         vistanet_key: params.key,
         vistanet_cod: params.cod,
         vistanet_v2: v2,
-        all_photos: photos,
-        description: data.DescricaoWeb ?? null,
       },
     }
 

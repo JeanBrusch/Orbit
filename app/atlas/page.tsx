@@ -96,10 +96,17 @@ function PropertyCard({
       </div>
 
       <div className="p-5">
-        <div className="flex justify-between items-start mb-2">
-          <h3 className="font-display text-[17px] font-medium text-[var(--orbit-text)] leading-tight group-hover:text-[var(--orbit-glow)] transition-colors pr-2">
-            {property.title || property.internal_name || "Sem título"}
-          </h3>
+        <div className="flex justify-between items-start mb-2.5">
+          <div className="pr-2">
+            {property.ui_type && (
+              <span className="text-[9px] uppercase tracking-widest font-mono text-[var(--orbit-glow)] opacity-80 mb-1.5 block">
+                {property.ui_type}
+              </span>
+            )}
+            <h3 className="font-display text-[17px] font-medium text-[var(--orbit-text)] leading-tight group-hover:text-[var(--orbit-glow)] transition-colors">
+              {property.title || property.internal_name || "Sem título"}
+            </h3>
+          </div>
           <span className="text-sm font-sans font-medium text-[var(--orbit-text)] whitespace-nowrap">
             {property.value ? `R$ ${(property.value / 1000000).toFixed(1)}M` : "Sob consulta"}
           </span>
@@ -110,6 +117,16 @@ function PropertyCard({
           {property.condo_name ? `${property.condo_name}, ` : ""}
           {property.neighborhood || property.location_text || "Localização não informada"}
         </p>
+
+        {property.topics && property.topics.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mb-4">
+            {property.topics.map((topic: string, i: number) => (
+              <span key={i} className="px-2 py-0.5 rounded-full bg-[var(--orbit-glow)]/10 text-[10px] text-[var(--orbit-glow)] font-medium border border-[var(--orbit-glow)]/20">
+                {topic}
+              </span>
+            ))}
+          </div>
+        )}
 
         {property.internal_name && (
           <div className="mb-4 px-2.5 py-1.5 bg-[var(--orbit-glow)]/5 border border-[var(--orbit-glow)]/15 rounded-md text-[10px] text-[var(--orbit-glow)] font-sans font-medium">
@@ -358,6 +375,12 @@ function AtlasManagerContent() {
           bedrooms: parseInt(updatedData.bedrooms) || null,
           suites: parseInt(updatedData.suites) || null,
           area_privativa: parseFloat(updatedData.area_privativa) || null,
+          area_total: parseFloat(updatedData.area_total) || null,
+          ui_type: updatedData.ui_type || null,
+          condo_name: updatedData.condo_name || null,
+          topics: typeof updatedData.topics === 'string'
+            ? updatedData.topics.split(',').map((t: string) => t.trim()).filter(Boolean)
+            : updatedData.topics,
           features: typeof updatedData.features === 'string'
             ? updatedData.features.split(',').map((f: string) => f.trim()).filter(Boolean)
             : updatedData.features

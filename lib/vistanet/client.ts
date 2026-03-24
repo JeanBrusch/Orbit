@@ -6,10 +6,10 @@ const VISTANET_HOST = 'novovista-rest.vistahost.com.br'
 const FIELDS = JSON.stringify({
   fields: [
     'Codigo', 'Cidade', 'Bairro', 'BairroComercial',
-    'ValorVenda', 'ValorLocacao', 'Dormitorios', 'Suites',
+    'ValorVenda', 'Dormitorios', 'Suites',
     'AreaTotal', 'AreaPrivativa',
     'DescricaoWeb', 'FotoDestaque',
-    'TipoImovel', 'Status',
+    'TipoImovel', 'Status', 'Edificio',
     { Foto: ['Foto', 'FotoPequena', 'Destaque'] },
     { Corretor: ['Nome', 'Fone', 'Email', 'Foto'] },
     'Caracteristicas',

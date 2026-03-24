@@ -46,6 +46,9 @@ export default function EditPropertyModal({ isOpen, onClose, property, onSave, o
         area_privativa: property.area_privativa || "",
         area_total: property.area_total || "",
         features: (property.features || []).join(", "),
+        ui_type: property.ui_type || "",
+        topics: (property.topics || []).join(", "),
+        condo_name: property.condo_name || "",
       })
       if (property.lat && property.lng) {
         setMarker({ lat: property.lat, lng: property.lng })
@@ -194,7 +197,17 @@ export default function EditPropertyModal({ isOpen, onClose, property, onSave, o
                   <input value={formData.city} onChange={e => setFormData({...formData, city: e.target.value})} className={inputClass} />
                 </div>
               </div>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={labelClass}>Nome do Condomínio / Edifício</label>
+                  <input value={formData.condo_name} onChange={e => setFormData({...formData, condo_name: e.target.value})} className={inputClass} placeholder="Ex: Alphaville"/>
+                </div>
+                <div>
+                  <label className={labelClass}>Categoria (Casa de Rua, Apt, Casa Condomínio)</label>
+                  <input value={formData.ui_type} onChange={e => setFormData({...formData, ui_type: e.target.value})} className={inputClass} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                 <div>
                   <label className={labelClass}>Quartos</label>
                   <input type="number" value={formData.bedrooms} onChange={e => setFormData({...formData, bedrooms: e.target.value})} className={inputClass} />
@@ -204,7 +217,7 @@ export default function EditPropertyModal({ isOpen, onClose, property, onSave, o
                   <input type="number" value={formData.suites} onChange={e => setFormData({...formData, suites: e.target.value})} className={inputClass} />
                 </div>
                 <div>
-                  <label className={labelClass}>Área (m²)</label>
+                  <label className={labelClass}>Área Cons. (m²)</label>
                   <input type="number" value={formData.area_privativa} onChange={e => setFormData({...formData, area_privativa: e.target.value})} className={inputClass} />
                 </div>
                 <div>
@@ -213,7 +226,11 @@ export default function EditPropertyModal({ isOpen, onClose, property, onSave, o
                 </div>
               </div>
               <div>
-                <label className={labelClass}>Destaques (separados por vírgula)</label>
+                <label className={labelClass}>Tópicos (Tags separadas por vírgula)</label>
+                <input value={formData.topics} onChange={e => setFormData({...formData, topics: e.target.value})} className={inputClass} placeholder="Ex: Vista Panorâmica, Pé direito duplo" />
+              </div>
+              <div>
+                <label className={labelClass}>Destaques Complementares (separados por vírgula)</label>
                 <input value={formData.features} onChange={e => setFormData({...formData, features: e.target.value})} className={inputClass} />
               </div>
 
