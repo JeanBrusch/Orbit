@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
     if (finalUrl.includes('v.imo.bi') && !finalUrl.includes('v2=')) {
       try {
         if (!finalUrl.startsWith('http')) finalUrl = `https://${finalUrl}`
-        const r = await fetch(finalUrl, { method: 'HEAD', redirect: 'follow' })
+        const r = await fetch(finalUrl, { method: 'GET', redirect: 'follow' })
         finalUrl = r.url
       } catch (err) {
         console.warn('[VistaNet] Falha ao resolver redirect:', err)
