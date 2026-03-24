@@ -77,7 +77,6 @@ async function getSelectionData(slug: string) {
         lng,
         bedrooms,
         suites,
-        bathrooms,
         area_privativa,
         area_total,
         photos
@@ -157,7 +156,6 @@ async function getSelectionData(slug: string) {
         recommendedReason: ctx?.recommended_reason,
         bedrooms: prop.bedrooms,
         suites: prop.suites,
-        bathrooms: prop.bathrooms,
         areaPrivativa: prop.area_privativa,
         areaTotal: prop.area_total,
         _debugRow: item
