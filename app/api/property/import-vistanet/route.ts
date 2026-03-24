@@ -16,15 +16,29 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Campo "url" obrigatório.' }, { status: 400 })
     }
 
-    // --- Step 1: Resolve the v2 token ---
-    // Accepts: full URL (novovista.com.br/?v2=...) or raw base64 string
-    const v2 = extractV2FromUrl(url.trim()) ?? url.trim()
+    // --- Step 1: Resolve the v2 token (following redirects if needed) ---
+    let finalUrl = url.trim()
+
+    // Follow redirect if it's a short link without v2
+    if (finalUrl.includes('v.imo.bi') && !finalUrl.includes('v2=')) {
+      try {
+        if (!finalUrl.startsWith('http')) finalUrl = `https://${finalUrl}`
+        const r = await fetch(finalUrl, { method: 'HEAD', redirect: 'follow' })
+        finalUrl = r.url
+      } catch (err) {
+        console.warn('[VistaNet] Falha ao resolver redirect:', err)
+      }
+    }
+
+    const v2 = extractV2FromUrl(finalUrl) ?? finalUrl
 
     let params
     try {
-      params = decodeShortLink(v2)
+      // Fix base64url characters just in case
+      const normalizedB64 = v2.replace(/-/g, '+').replace(/_/g, '/')
+      params = decodeShortLink(normalizedB64)
     } catch {
-      return NextResponse.json({ error: 'v2 inválido ou não é base64 decodificável.' }, { status: 400 })
+      return NextResponse.json({ error: 'v2 inválido ou não decodificável como base64.' }, { status: 400 })
     }
 
     if (!params.key || !params.cod) {
