@@ -1,19 +1,19 @@
 // lib/vistanet/client.ts
 // Handles decoding of the VistaNet public link format and fetching full property data.
 
-const VISTANET_HOST = 'novovista.vistahost.com.br'
+const VISTANET_HOST = 'novovista-rest.vistahost.com.br'
 
 const FIELDS = JSON.stringify({
   fields: [
     'Codigo', 'Cidade', 'Bairro', 'BairroComercial',
-    'ValorVenda', 'ValorLocacao', 'Dormitorio', 'Suites',
-    'Vagas', 'VagasCob', 'AreaTotal', 'AreaPrivativa',
-    'Descricao', 'FotoDestaque', 'Condominio', 'IPTU',
+    'ValorVenda', 'ValorLocacao', 'Dormitorios', 'Suites',
+    'Vagas', 'AreaTotal', 'AreaPrivativa',
+    'DescricaoWeb', 'FotoDestaque', 'ValorCondominio', 'ValorIptu',
     'TipoImovel', 'Status',
-    { fotos: ['Foto', 'FotoPequena', 'Destaque', 'Tipo'] },
+    { Foto: ['Foto', 'FotoPequena', 'Destaque'] },
     { Corretor: ['Nome', 'Fone', 'Email', 'Foto'] },
-    { Caracteristicas: ['Caracteristica'] },
-    { Infraestrutura: ['Caracteristica'] },
+    'Caracteristicas',
+    'InfraEstrutura',
   ]
 })
 

@@ -23,8 +23,14 @@ export async function POST(req: NextRequest) {
     if (finalUrl.includes('v.imo.bi') && !finalUrl.includes('v2=')) {
       try {
         if (!finalUrl.startsWith('http')) finalUrl = `https://${finalUrl}`
-        const r = await fetch(finalUrl, { method: 'GET', redirect: 'follow' })
-        finalUrl = r.url
+        const r = await fetch(finalUrl, { 
+          method: 'GET', 
+          redirect: 'follow',
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+          }
+        })
+        if (r.ok) finalUrl = r.url
       } catch (err) {
         console.warn('[VistaNet] Falha ao resolver redirect:', err)
       }
@@ -49,16 +55,20 @@ export async function POST(req: NextRequest) {
     const data = await fetchVistaNetProperty(params.key, params.cod)
 
     // --- Step 3: Map to Orbit schema ---
-    const fotos: string[] = ((data.fotos as any[]) || [])
-      .sort((a: any, b: any) => (b.Destaque ?? 0) - (a.Destaque ?? 0))
+    // VistaNet API returns related data as objects with numeric string keys, not arrays.
+    const fotosData = data.Foto && typeof data.Foto === 'object' ? Object.values(data.Foto) : []
+    const fotos: string[] = fotosData
+      .sort((a: any, b: any) => (b.Destaque === 'Sim' ? 1 : 0) - (a.Destaque === 'Sim' ? 1 : 0))
       .map((f: any) => f.Foto)
       .filter(Boolean)
 
+    const featuresData = data.Caracteristicas && typeof data.Caracteristicas === 'object' ? data.Caracteristicas : {}
+    const infraData = data.InfraEstrutura && typeof data.InfraEstrutura === 'object' ? data.InfraEstrutura : {}
+
     const features: string[] = [
-      ...((data.Caracteristicas as any[]) || []).map((c: any) => c.Caracteristica).filter(Boolean),
-      ...((data.Infraestrutura as any[]) || []).map((c: any) => c.Caracteristica).filter(Boolean),
+      ...Object.entries(featuresData).filter(([_, v]) => v === 'Sim').map(([k]) => k),
+      ...Object.entries(infraData).filter(([_, v]) => v === 'Sim').map(([k]) => k),
       data.Vagas ? `${data.Vagas} vaga(s)` : null,
-      data.VagasCob ? `${data.VagasCob} vaga(s) coberta(s)` : null,
     ].filter((v): v is string => typeof v === 'string' && v.length > 0)
 
     const bairro = data.BairroComercial || data.Bairro || null
@@ -69,7 +79,7 @@ export async function POST(req: NextRequest) {
       data.TipoImovel,
       bairro,
       data.Cidade,
-      data.Dormitorio ? `${data.Dormitorio} dormitórios` : null,
+      data.Dormitorios ? `${data.Dormitorios} dormitórios` : null,
       data.Suites ? `${data.Suites} suítes` : null,
       data.AreaPrivativa ? `${data.AreaPrivativa}m²` : null,
       ...features.slice(0, 10),
@@ -89,11 +99,11 @@ export async function POST(req: NextRequest) {
       neighborhood: bairro,
       city: data.Cidade ?? null,
       area_privativa: data.AreaPrivativa ? parseFloat(data.AreaPrivativa) : null,
-      bedrooms: data.Dormitorio ? parseInt(data.Dormitorio, 10) : null,
+      bedrooms: data.Dormitorios ? parseInt(data.Dormitorios, 10) : null,
       suites: data.Suites ? parseInt(data.Suites, 10) : null,
       parking_spots: data.Vagas ? parseInt(data.Vagas, 10) : null,
-      condo_fee: parseBRL(data.Condominio),
-      iptu: parseBRL(data.IPTU),
+      condo_fee: parseBRL(data.ValorCondominio),
+      iptu: parseBRL(data.ValorIptu),
       features,
       ingestion_type: 'vistanet',
       ingestion_status: 'confirmed',
@@ -108,7 +118,7 @@ export async function POST(req: NextRequest) {
         vistanet_cod: params.cod,
         vistanet_v2: v2,
         all_photos: fotos,
-        description: data.Descricao ?? null,
+        description: data.DescricaoWeb ?? null,
       },
     }
 
