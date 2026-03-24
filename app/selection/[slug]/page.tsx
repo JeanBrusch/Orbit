@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation'
 import { Home, ExternalLink, MapPin, MessageSquare, Star, Sparkles, Map as MapIcon, Grid } from 'lucide-react'
 import { getSupabaseServer } from '@/lib/supabase-server'
 import { Metadata } from 'next'
-import ClientSelectionView from '@/components/orbit-selection/ClientSelectionView'
+import ClientSelectionView from '@/components/orbit-selection/ClientSelectionViewV2'
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params
@@ -69,17 +69,17 @@ async function getSelectionData(slug: string) {
         id,
         title,
         internal_name,
-        source_link,
-        cover_image,
-        location_text,
         value,
+        location_text,
+        cover_image,
+        photos,
+        source_link,
         lat,
         lng,
         bedrooms,
         suites,
         area_privativa,
-        area_total,
-        photos
+        area_total
       )
     `)
     .eq('lead_id', leadId)
@@ -114,73 +114,52 @@ async function getSelectionData(slug: string) {
     })
   }
 
-  // Also include the current interaction state
-  if (sentItems) {
-    sentItems.forEach((item: any) => {
-      if (item.interaction_type && item.interaction_type !== 'sent') {
-        if (!initialInteractions[item.property_id]) {
-          initialInteractions[item.property_id] = []
-        }
-        if (!initialInteractions[item.property_id].includes(item.interaction_type)) {
-          initialInteractions[item.property_id].push(item.interaction_type)
-        }
-      }
-    })
-  }
-
   const contextMap = new Map((contexts || []).map((c: any) => [c.property_id, c]))
  
   const items = (sentItems || [])
     .map((item: any) => {
-      // Supabase join can return an object or an array of 1 element
       const propRaw = item.properties
       const prop = (Array.isArray(propRaw) ? propRaw[0] : propRaw) || {}
-      
       const ctx = contextMap.get(item.property_id) as any
       
+      // Transform photos to { url, alt }
+      const photosArray = Array.isArray(prop.photos) ? prop.photos : []
+      const photos = photosArray.map((url: string, idx: number) => ({
+        url,
+        alt: `${prop.title || 'Imóvel'} - Foto ${idx + 1}`
+      }))
+
       return {
         id: prop.id || item.property_id,
-        interactionId: item.id,
         title: prop.title || prop.internal_name || "Imóvel Desconhecido",
         price: prop.value || 0,
+        bedrooms: prop.bedrooms || 0,
+        bathrooms: prop.suites || 0, // Fallback suites as bathrooms
+        area: prop.area_privativa || prop.area_total || 0,
         location: prop.location_text || "",
-        coverImage: prop.cover_image || "",
-        photos: prop.photos || [],
-        url: prop.source_link || "",
-        lat: prop.lat || 0,
-        lng: prop.lng || 0,
         note: ctx?.note,
         videoUrl: ctx?.video_url,
-        audioUrl: ctx?.audio_url,
-        highlightLevel: ctx?.highlight_level || 0,
+        url: prop.source_link || "",
+        coverImage: prop.cover_image || "",
+        photos: photos.length > 0 ? photos : [{ url: prop.cover_image, alt: 'Capa' }],
         recommendedReason: ctx?.recommended_reason,
-        bedrooms: prop.bedrooms,
-        suites: prop.suites,
-        areaPrivativa: prop.area_privativa,
-        areaTotal: prop.area_total,
         _debugRow: item
       }
     })
 
-  // Normalize lead — Supabase returns object or array depending on relation
   const leadRaw = (space as any).leads
   const lead = (Array.isArray(leadRaw) ? leadRaw[0] : leadRaw) || { id: leadId, name: 'Cliente' }
   const firstName = lead?.name?.split(' ')[0] || 'Visitante'
 
-  if (process.env.NODE_ENV === 'development') {
-    console.log(`[DEBUG SELECTION] slug=${slug} leadId=${leadId} itemsFound=${items.length}`)
-  }
-
   return {
     space,
-    lead: lead ? { ...lead, id: lead.id ?? leadId, firstName } : { id: leadId, name: null, photo_url: null, firstName: 'Visitante' },
+    lead: { ...lead, id: lead.id ?? leadId, firstName },
     preferences: prefs,
     items,
-    initialInteractions,
-    _debug: {
-      sentError: sentError ? { message: sentError.message, code: sentError.code } : null,
-      contextError: contextsError ? { message: contextsError.message, code: contextsError.code } : null,
-      itemsCount: items.length
+    initialInteractions: {
+      favorited: Array.from(new Set((interactionsRaw || []).filter((i: any) => i.interaction_type === 'liked').map((i: any) => String(i.property_id)))),
+      discarded: Array.from(new Set((interactionsRaw || []).filter((i: any) => i.interaction_type === 'disliked').map((i: any) => String(i.property_id)))),
+      viewed: Array.from(new Set((interactionsRaw || []).filter((i: any) => i.interaction_type === 'viewed').map((i: any) => String(i.property_id))))
     }
   }
 }
@@ -191,5 +170,5 @@ export default async function SelectionPage({ params }: { params: Promise<{ slug
 
   if (!data) notFound()
 
-  return <ClientSelectionView data={data} slug={slug} />
+  return <ClientSelectionView data={data as any} slug={slug} />
 }
