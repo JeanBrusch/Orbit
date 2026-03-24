@@ -22,6 +22,10 @@ export interface OrbitEventPayload {
   event_type: OrbitEventType;
   source: 'whatsapp' | 'portal' | 'system';
   module: OrbitModule;
+  step?: string;          // ex: inbound, buffer, classifier, decision, persistence
+  action?: string;        // ex: message_received, ai_call, saved_to_db
+  origin?: string;        // etapa anterior
+  destination?: string;   // próxima etapa pretendida
   input_size?: number;
   output_size?: number;
   tokens_input?: number;
@@ -29,6 +33,8 @@ export interface OrbitEventPayload {
   cost_usd?: number;
   duration_ms?: number;
   metadata_json?: Record<string, any>;
+  has_ai?: boolean;       // envolveu IA?
+  saved_data?: boolean;   // houve persistência?
 }
 
 const PRICES = {
@@ -89,6 +95,9 @@ export async function trackAICall(params: {
     event_type: 'ai_call',
     source: 'system',
     module: params.module,
+    step: params.metadata?.step || 'ai_processing',
+    action: 'ai_completion',
+    has_ai: true,
     tokens_input: params.tokens_input,
     tokens_output: params.tokens_output,
     cost_usd: cost,

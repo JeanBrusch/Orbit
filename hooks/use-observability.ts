@@ -17,6 +17,12 @@ export interface OrbitEvent {
   cost_usd: number | null
   duration_ms: number | null
   metadata_json: any
+  step: string | null
+  action: string | null
+  origin: string | null
+  destination: string | null
+  has_ai: boolean | null
+  saved_data: boolean | null
   leads?: {
     name: string
   }

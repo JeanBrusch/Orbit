@@ -451,6 +451,18 @@ export async function POST(request: NextRequest) {
   try {
     const payload: ZAPIWebhookMessage = await request.json()
     
+    // ── Trace: Inbound ──
+    await trackEvent({
+      event_type: 'message_received',
+      source: 'whatsapp',
+      module: 'system',
+      step: 'inbound',
+      action: 'webhook_received',
+      origin: 'whatsapp',
+      destination: 'lead_identification',
+      metadata_json: { message_id: payload.messageId, type: payload.type }
+    })
+    
     const fromMe = isMessageFromMe(payload)
     
     console.log(`[WEBHOOK:${requestId}] === INCOMING PAYLOAD ===`)
@@ -519,6 +531,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ status: 'error', error: 'Failed to create lead' }, { status: 500 })
     }
 
+    // ── Trace: Lead Identified ──
+    await trackEvent({
+      lead_id: lead.id,
+      event_type: 'message_received',
+      source: 'whatsapp',
+      module: 'system',
+      step: 'processing',
+      action: 'lead_identified',
+      origin: 'lead_identification',
+      destination: 'content_extraction',
+      metadata_json: { lead_name: lead.name }
+    })
+
     if (payload.text?.message) {
       messageText = payload.text.message
     } else if (payload.image?.imageUrl) {
@@ -553,13 +578,19 @@ export async function POST(request: NextRequest) {
             if (whisperRes.ok) {
               const whisperData = await whisperRes.json();
               
-              await trackEvent({
+              await trackAICall({
                 lead_id: lead.id,
-                event_type: 'ai_call',
-                source: 'whatsapp',
                 module: 'orbit_core',
+                model: 'whisper-1',
+                tokens_input: 0, // Whisper doesn't use tokens
+                tokens_output: 0,
                 duration_ms: elapsedWhisper,
-                metadata_json: { model: 'whisper-1', action: 'transcription' }
+                metadata: { 
+                  step: 'processing', 
+                  action: 'transcription',
+                  origin: 'content_extraction',
+                  destination: 'message_persistence'
+                }
               })
 
               if (whisperData.text) {
@@ -591,6 +622,20 @@ export async function POST(request: NextRequest) {
     
 
     const result = await saveMessage(lead.id, messageText, fromMe ? 'operator' : 'whatsapp', idempotencyKey, mediaData)
+    
+    // ── Trace: Persisted ──
+    await trackEvent({
+      lead_id: lead.id,
+      event_type: direction === 'inbound' ? 'message_received' : 'ai_call',
+      source: 'system',
+      module: 'system',
+      step: 'persistence',
+      action: 'message_saved',
+      origin: direction === 'inbound' ? 'content_extraction' : 'ai_response',
+      destination: direction === 'inbound' ? 'orbit_core' : 'client',
+      saved_data: true,
+      metadata_json: { message_id: result.id, skipped: result.skipped }
+    })
     
     if (fromMe) {
       console.log(`[WEBHOOK:${requestId}] OUTBOUND SYNC: leadId=${lead.id}, saved=${result.saved}, skipped=${result.skipped}`)

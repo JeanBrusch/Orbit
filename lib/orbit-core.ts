@@ -1,7 +1,7 @@
 import OpenAI from "openai";
 import { getSupabaseServer } from "./supabase-server";
 import { Database } from "./database.types";
-import { trackAICall } from "./observability";
+import { trackAICall, trackEvent } from "./observability";
 
 let _openaiCache: OpenAI | null = null;
 function getOpenAI() {
@@ -470,7 +470,13 @@ Responda APENAS com JSON puro:
         tokens_input: usage.prompt_tokens,
         tokens_output: usage.completion_tokens,
         duration_ms: elapsed,
-        metadata: { action: 'analyze_context', event_type: type }
+        metadata: { 
+          step: 'decision',
+          action: 'analyze_context', 
+          origin: 'persistence',
+          destination: 'cognition',
+          event_type: type 
+        }
       });
     }
 
@@ -625,7 +631,22 @@ export async function processEventWithCore(
       central_conflict: analysis.central_conflict ?? null,
       what_not_to_do: analysis.what_not_to_do ?? null,
     });
-    if (r2?.error) console.error(`[ORBIT CORE] Passo 2 ERRO:`, r2.error);
+    if (r2?.error) {
+      console.error(`[ORBIT CORE] Passo 2 ERRO:`, r2.error);
+    } else {
+      await trackEvent({
+        lead_id: leadId,
+        event_type: 'classification',
+        source: 'system',
+        module: 'orbit_core',
+        step: 'cognition',
+        action: 'state_updated',
+        origin: 'decision',
+        destination: 'suggested_action',
+        saved_data: true,
+        metadata_json: { state: nextState, interest: newInterest, momentum: newMomentum }
+      });
+    }
 
     // 3. Gravar Insight
     console.log(`[ORBIT CORE] Passo 3 - inserindo insight...`);
