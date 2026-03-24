@@ -133,8 +133,12 @@ async function getSelectionData(slug: string) {
  
   const items = (sentItems || [])
     .map((item: any) => {
-      const prop = item.properties as any || {}
+      // Supabase join can return an object or an array of 1 element
+      const propRaw = item.properties
+      const prop = (Array.isArray(propRaw) ? propRaw[0] : propRaw) || {}
+      
       const ctx = contextMap.get(item.property_id) as any
+      
       return {
         id: prop.id || item.property_id,
         interactionId: item.id,
@@ -162,10 +166,12 @@ async function getSelectionData(slug: string) {
 
   // Normalize lead — Supabase returns object or array depending on relation
   const leadRaw = (space as any).leads
-  const lead = Array.isArray(leadRaw) ? leadRaw[0] : leadRaw
+  const lead = (Array.isArray(leadRaw) ? leadRaw[0] : leadRaw) || { id: leadId, name: 'Cliente' }
   const firstName = lead?.name?.split(' ')[0] || 'Visitante'
 
-  console.log(`[DEBUG SELECTION] slug=${slug} sentItems count:`, sentItems?.length)
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`[DEBUG SELECTION] slug=${slug} leadId=${leadId} itemsFound=${items.length}`)
+  }
 
   return {
     space,

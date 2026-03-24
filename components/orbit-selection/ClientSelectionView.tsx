@@ -57,6 +57,10 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
   const mapItems = items.filter(i => i.lat && i.lng)
   const sessionStartRef = useRef<number>(Date.now())
 
+  useEffect(() => {
+    console.log("[DEBUG SELECTION] Items and Lead loaded:", { items, lead, slug })
+  }, [items, lead, slug])
+
   // ── Tracking Helpers ─────────────────────────────────────────────────────────
   const trackInteraction = useCallback(async (propertyId: string, type: string, metadata?: any) => {
     if (!lead?.id) return
@@ -228,16 +232,32 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
           />
         ) : (
           <div className="space-y-4">
-            {items.map((item) => (
-              <SelectionCard 
-                key={item.id}
-                item={item}
-                interactions={interactions[item.id] || []}
-                onInteract={(state) => handleInteract(item, state)}
-                onOpenDetails={() => { setSelectedItem(item); trackInteraction(item.id, 'viewed'); }}
-                onOpenChat={() => { setChatProperty(item); trackInteraction(item.id, 'chat_opened'); }}
-              />
-            ))}
+            {items.length > 0 ? (
+              items.map((item) => (
+                <SelectionCard 
+                  key={item.id}
+                  item={item}
+                  interactions={interactions[item.id] || []}
+                  onInteract={(state) => handleInteract(item, state)}
+                  onOpenDetails={() => { setSelectedItem(item); trackInteraction(item.id, 'viewed'); }}
+                  onOpenChat={() => { setChatProperty(item); trackInteraction(item.id, 'chat_opened'); }}
+                />
+              ))
+            ) : (
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="bg-white rounded-[32px] p-12 text-center border border-gray-100 shadow-sm"
+              >
+                <div className="w-16 h-16 bg-[#FBFBFB] rounded-2xl flex items-center justify-center mx-auto mb-6">
+                  <Sparkles className="w-8 h-8 text-[#C9A84C]" />
+                </div>
+                <h3 className="text-lg font-bold text-[#1A1A1A] mb-2">Preparando sua curadoria</h3>
+                <p className="text-[#A1A1A1] text-[14px] max-w-[280px] mx-auto leading-relaxed">
+                  Trabalhamos para selecionar os imóveis perfeitos. Assim que finalizarmos, eles aparecerão aqui.
+                </p>
+              </motion.div>
+            )}
           </div>
         )}
       </main>
