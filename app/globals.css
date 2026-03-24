@@ -4,42 +4,43 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* Minimalist Luxury Light Mode */
-  --orbit-bg: #ffffff;
-  --orbit-bg-secondary: #f4f4f5;
-  --orbit-glass: rgba(255, 255, 255, 0.95);
-  --orbit-glass-border: rgba(0, 0, 0, 0.05);
-  --orbit-glow: #000000;
-  --orbit-glow-rgb: 0, 0, 0;
-  --orbit-accent: #3f3f46;
-  --orbit-accent-rgb: 63, 63, 70;
-  --orbit-text: #09090b;
-  --orbit-text-muted: #71717a;
-  --orbit-line: rgba(0, 0, 0, 0.1);
-  --orbit-shadow: 0 4px 20px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.02);
-  --orbit-shadow-hover: 0 8px 30px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04);
+  /* Premium Light Mode (Clean Slate & Sky) */
+  --orbit-bg: #f8fafc;
+  --orbit-bg-secondary: #f1f5f9;
+  --orbit-glass: rgba(255, 255, 255, 0.9);
+  --orbit-glass-border: rgba(15, 23, 42, 0.05);
+  --orbit-text: #0f172a;
+  --orbit-text-muted: #64748b;
+  --orbit-line: rgba(14, 165, 233, 0.15);
+  --orbit-shadow: 0 4px 20px rgba(0, 0, 0, 0.03), 0 1px 3px rgba(0, 0, 0, 0.02);
+  --orbit-shadow-hover: 0 8px 30px rgba(0, 0, 0, 0.06), 0 2px 6px rgba(0, 0, 0, 0.04);
+  
+  /* Retaining legacy glow variables for safety, but muted */
+  --orbit-glow: #0ea5e9;
+  --orbit-glow-rgb: 14, 165, 233;
+  --orbit-accent: #f59e0b;
 
-  /* Shadcn Native - Monochrome Light */
-  --background: #ffffff;
-  --foreground: #09090b;
+  /* Shadcn Native - Premium Light */
+  --background: #f8fafc; /* Slate 50 */
+  --foreground: #020617; /* Slate 950 */
   --card: #ffffff;
-  --card-foreground: #09090b;
+  --card-foreground: #020617;
   --popover: #ffffff;
-  --popover-foreground: #09090b;
-  --primary: #09090b; /* Pitch Black primary buttons */
+  --popover-foreground: #020617;
+  --primary: #0ea5e9; /* Sky 500 */
   --primary-foreground: #ffffff;
-  --secondary: #f4f4f5;
-  --secondary-foreground: #09090b;
-  --muted: #f4f4f5;
-  --muted-foreground: #71717a;
-  --accent: #f4f4f5;
-  --accent-foreground: #09090b;
+  --secondary: #e2e8f0; /* Slate 200 */
+  --secondary-foreground: #0f172a;
+  --muted: #f1f5f9; /* Slate 100 */
+  --muted-foreground: #64748b; /* Slate 500 */
+  --accent: #e2e8f0;
+  --accent-foreground: #0f172a;
   --destructive: #ef4444;
   --destructive-foreground: #ffffff;
-  --border: #e4e4e7;
-  --input: #e4e4e7;
-  --ring: #09090b;
-  --radius: 1rem; /* Apple-esque smoother curve */
+  --border: #e2e8f0;
+  --input: #e2e8f0;
+  --ring: #0ea5e9;
+  --radius: 1rem; /* Curvy Apple-like */
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
@@ -56,41 +57,42 @@
 }
 
 .dark {
-  /* Minimalist Luxury Dark Mode */
-  --orbit-bg: #000000; /* Absolute Black */
-  --orbit-bg-secondary: #0a0a0b;
-  --orbit-glass: rgba(10, 10, 11, 0.8);
+  /* Premium Dark Mode (Deep Space / Slate) */
+  --orbit-bg: #020617; /* Slate 950 - Deep, rich, alive */
+  --orbit-bg-secondary: #0f172a; /* Slate 900 */
+  --orbit-glass: rgba(15, 23, 42, 0.85); /* Slate 900 glass */
   --orbit-glass-border: rgba(255, 255, 255, 0.08);
-  --orbit-glow: #ffffff;
-  --orbit-glow-rgb: 255, 255, 255;
-  --orbit-accent: #a1a1aa;
-  --orbit-accent-rgb: 161, 161, 170;
-  --orbit-text: #fafafa;
-  --orbit-text-muted: #a1a1aa;
+  --orbit-text: #f8fafc; /* Slate 50 */
+  --orbit-text-muted: #94a3b8; /* Slate 400 */
   --orbit-line: rgba(255, 255, 255, 0.1);
-  --orbit-shadow: 0 0 30px rgba(0, 0, 0, 0.8), 0 0 60px rgba(0, 0, 0, 0.5);
-  --orbit-shadow-hover: 0 0 40px rgba(255, 255, 255, 0.05), 0 0 80px rgba(255, 255, 255, 0.02);
+  --orbit-shadow: 0 4px 20px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.2);
+  --orbit-shadow-hover: 0 8px 30px rgba(14, 165, 233, 0.08), 0 2px 6px rgba(0, 0, 0, 0.4);
 
-  /* Shadcn Native - Monochrome Dark */
-  --background: #000000;
-  --foreground: #fafafa;
-  --card: #0a0a0b;
-  --card-foreground: #fafafa;
-  --popover: #0a0a0b;
-  --popover-foreground: #fafafa;
-  --primary: #ffffff; /* Stark white primary buttons */
-  --primary-foreground: #000000; /* Black text on primary buttons */
-  --secondary: #18181b; /* Zinc-900 */
-  --secondary-foreground: #fafafa;
-  --muted: #18181b;
-  --muted-foreground: #a1a1aa;
-  --accent: #18181b;
-  --accent-foreground: #fafafa;
+  /* Legacy glow vars safely muted */
+  --orbit-glow: #38bdf8;
+  --orbit-glow-rgb: 56, 189, 248;
+  --orbit-accent: #fbbf24;
+
+  /* Shadcn Native - Deep Space Dark */
+  --background: #020617; /* Slate 950 */
+  --foreground: #f8fafc; /* Slate 50 */
+  --card: #0f172a; /* Slate 900 */
+  --card-foreground: #f8fafc;
+  --popover: #0f172a;
+  --popover-foreground: #f8fafc;
+  --primary: #0ea5e9; /* Sky 500 - Brings life and color back */
+  --primary-foreground: #ffffff; /* White text on blue button */
+  --secondary: #1e293b; /* Slate 800 */
+  --secondary-foreground: #f8fafc;
+  --muted: #1e293b; 
+  --muted-foreground: #94a3b8; /* Slate 400 */
+  --accent: #1e293b;
+  --accent-foreground: #f8fafc;
   --destructive: #7f1d1d;
-  --destructive-foreground: #fafafa;
-  --border: #27272a; /* Zinc-800 */
-  --input: #27272a;
-  --ring: #ffffff;
+  --destructive-foreground: #f8fafc;
+  --border: #1e293b; /* Slate 800 */
+  --input: #1e293b;
+  --ring: #0ea5e9;
   --chart-1: oklch(0.488 0.243 264.376);
   --chart-2: oklch(0.696 0.17 162.48);
   --chart-3: oklch(0.769 0.188 70.08);
