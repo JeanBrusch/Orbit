@@ -97,17 +97,18 @@ export function PropertyChat({ leadId, propertyId, propertyTitle, isOpen, onClos
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 25, stiffness: 200 }}
-            className="fixed bottom-0 left-0 right-0 h-[85vh] bg-[#0c0c0c] border-t border-white/10 rounded-t-[32px] z-[101] flex flex-col overflow-hidden"
+            className="fixed bottom-0 left-0 right-0 h-[85vh] bg-[#FBFBFB] border-t border-gray-100 rounded-t-[32px] z-[101] flex flex-col overflow-hidden shadow-2xl shadow-black/20"
           >
             {/* Header */}
-            <div className="p-6 border-b border-white/5 flex items-center justify-between">
+            <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-white/50 backdrop-blur-sm">
               <div>
-                <h3 className="text-white font-bold text-lg leading-tight">Discussão</h3>
-                <p className="text-white/40 text-xs mt-0.5 truncate max-w-[200px]">{propertyTitle}</p>
+                <h3 className="text-[#1A1A1A] font-bold text-lg leading-tight">Discussão</h3>
+                <p className="text-[#A1A1A1] text-xs mt-1 font-medium truncate max-w-[200px]">{propertyTitle}</p>
               </div>
               <button 
                 onClick={onClose}
-                className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-white/60"
+                className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-[#A1A1A1] hover:text-[#1A1A1A] transition-colors"
+                aria-label="Fechar"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -116,18 +117,21 @@ export function PropertyChat({ leadId, propertyId, propertyTitle, isOpen, onClos
             {/* Messages */}
             <div 
               ref={scrollRef}
-              className="flex-1 overflow-y-auto p-6 space-y-4"
+              className="flex-1 overflow-y-auto p-6 space-y-6 bg-[#FBFBFB]"
             >
               {loading ? (
                 <div className="flex h-full items-center justify-center">
-                  <Loader2 className="w-6 h-6 text-[#d4af35] animate-spin" />
+                  <Loader2 className="w-6 h-6 text-[#C9A84C] animate-spin" />
                 </div>
               ) : messages.length === 0 ? (
                 <div className="flex flex-col h-full items-center justify-center text-center px-6">
-                  <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
-                    <MessageSquare className="w-8 h-8 text-white/10" />
+                  <div className="w-16 h-16 rounded-full bg-gray-50 flex items-center justify-center mb-6">
+                    <MessageSquare className="w-8 h-8 text-[#DEDDDA]" />
                   </div>
-                  <p className="text-white/40 text-sm">Nenhuma mensagem ainda.<br />Tire suas dúvidas sobre este imóvel aqui.</p>
+                  <p className="text-[#A1A1A1] text-sm font-medium leading-relaxed">
+                    Nenhuma mensagem ainda.<br />
+                    Tire suas dúvidas técnicas ou comerciais aqui.
+                  </p>
                 </div>
               ) : (
                 messages.map((msg) => (
@@ -135,14 +139,14 @@ export function PropertyChat({ leadId, propertyId, propertyTitle, isOpen, onClos
                     key={msg.id}
                     className={`flex ${msg.sender_type === 'lead' ? 'justify-end' : 'justify-start'}`}
                   >
-                    <div className={`max-w-[85%] rounded-2xl p-4 ${
+                    <div className={`max-w-[85%] rounded-[20px] p-4 shadow-sm ${
                       msg.sender_type === 'lead' 
-                        ? 'bg-[#d4af35] text-black font-medium' 
-                        : 'bg-white/5 text-white/80'
+                        ? 'bg-[#1A1A1A] text-white font-medium' 
+                        : 'bg-white border border-gray-100 text-[#444]'
                     }`}>
                       <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
-                      <span className={`text-[10px] mt-2 block opacity-40 ${
-                        msg.sender_type === 'lead' ? 'text-black' : 'text-white'
+                      <span className={`text-[9px] mt-2 block font-bold uppercase tracking-wider opacity-40 ${
+                        msg.sender_type === 'lead' ? 'text-gray-400' : 'text-gray-400'
                       }`}>
                         {new Date(msg.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                       </span>
@@ -153,19 +157,25 @@ export function PropertyChat({ leadId, propertyId, propertyTitle, isOpen, onClos
             </div>
 
             {/* Input */}
-            <div className="p-6 bg-[#121212] border-t border-white/5 pb-10">
+            <div className="p-6 bg-white border-t border-gray-100 pb-10">
               <div className="relative flex items-center gap-3">
                 <textarea
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSend();
+                    }
+                  }}
                   placeholder="Escreva sua dúvida..."
-                  className="flex-1 bg-white/5 border border-white/10 rounded-2xl py-3 px-4 text-white text-sm focus:outline-none focus:border-[#d4af35]/50 resize-none max-h-32"
+                  className="flex-1 bg-gray-50 border border-[#EDEDED] rounded-[20px] py-4 px-5 text-[#1A1A1A] text-sm focus:outline-none focus:border-[#C9A84C]/50 resize-none max-h-32 placeholder:text-[#A1A1A1]"
                   rows={1}
                 />
                 <button
                   onClick={handleSend}
                   disabled={!newMessage.trim() || sending}
-                  className="w-12 h-12 rounded-2xl bg-[#d4af35] flex items-center justify-center text-black disabled:opacity-50 transition-all active:scale-90"
+                  className="w-14 h-14 rounded-[20px] bg-[#C9A84C] flex items-center justify-center text-white disabled:opacity-50 transition-all active:scale-[0.98] shadow-lg shadow-[#C9A84C]/20"
                 >
                   {sending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
                 </button>

@@ -1,11 +1,12 @@
 "use client"
 import { useState, useMemo, useEffect, useRef, useCallback } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Phone, ExternalLink, Map, LayoutGrid, Building2, ChevronRight, X, MessageCircle, Sparkles } from "lucide-react"
+import { Phone, ExternalLink, Map, LayoutGrid, Building2, ChevronRight, X, MessageCircle, Sparkles, MapPin, Ruler, BedDouble, Bath } from "lucide-react"
 import { toast } from "sonner"
 import { VideoEmbed } from "./VideoEmbed"
 import { SelectionCard } from "./SelectionCard"
 import { PropertyChat } from "./PropertyChat"
+import { PropertyCarousel } from "./PropertyCarousel"
 import dynamic from "next/dynamic"
 import "../../styles/themes/jean-brusch.css"
 
@@ -16,11 +17,12 @@ const SelectionMap = dynamic(() => import("./SelectionMap"), {
 
 interface SelectionItem {
   id: string;
-  capsuleItemId: string;
+  interactionId: string;
   title: string;
   price: number | null;
   location: string | null;
   coverImage: string | null;
+  photos: string[];
   url: string | null;
   lat: number | null;
   lng: number | null;
@@ -29,7 +31,9 @@ interface SelectionItem {
   recommendedReason?: string;
   bedrooms?: number;
   suites?: number;
+  bathrooms?: number;
   areaPrivativa?: number;
+  areaTotal?: number;
 }
 
 interface ClientSelectionViewProps {
@@ -97,7 +101,7 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
     return () => window.removeEventListener('beforeunload', handleUnload)
   }, [lead?.id, items])
 
-  // Scroll Tracking (The "Thermometer" logic)
+  // Scroll Tracking
   useEffect(() => {
     let lastDepth = 0
     const handleScroll = () => {
@@ -105,7 +109,6 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
       if (scrollHeight <= 0) return
       const depth = Math.round((window.scrollY / scrollHeight) * 100)
       
-      // Track in 25% increments to avoid too many requests
       if (depth >= lastDepth + 25) {
         lastDepth = depth
         if (items[0]?.id) trackInteraction(items[0].id, 'scroll_depth', { depth })
@@ -114,6 +117,13 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
     window.addEventListener('scroll', handleScroll)
     return () => window.removeEventListener('scroll', handleScroll)
   }, [trackInteraction, items])
+
+  // Video Track when modal opens
+  useEffect(() => {
+    if (selectedItem?.videoUrl) {
+      trackInteraction(selectedItem.id, 'video_viewed')
+    }
+  }, [selectedItem?.id, trackInteraction])
 
   // ── Actions ──────────────────────────────────────────────────────────────────
   const handleInteract = async (item: SelectionItem, state: string) => {
@@ -135,58 +145,72 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
     if (next.includes('discarded')) toast.info("Removido da seleção")
   }
 
+  const formatPrice = (value: number | null) => {
+    if (!value) return "Sob consulta";
+    return new Intl.NumberFormat("pt-BR", { 
+      style: "currency", 
+      currency: "BRL", 
+      maximumFractionDigits: 0 
+    }).format(value);
+  };
+
   return (
-    <div className="min-h-screen bg-[#F8F9FA] text-gray-900 selection:bg-blue-100">
+    <div className="min-h-screen bg-[#FBFBFB] text-[#1A1A1A] selection:bg-[#C9A84C]/20">
       {/* Premium Header */}
-      <header className="fixed top-0 left-0 right-0 z-[60] bg-white/80 backdrop-blur-xl border-b border-gray-100 px-6 h-20 flex items-center justify-between shadow-sm">
+      <header className="fixed top-0 left-0 right-0 z-[60] bg-white/70 backdrop-blur-2xl border-b border-gray-100 px-6 h-20 flex items-center justify-between">
         <div className="flex flex-col">
-          <span className="text-[10px] font-bold tracking-[0.2em] text-gray-900 uppercase">Orbit Selection</span>
-          <span className="text-sm font-medium text-gray-500">Curadoria Jean Brusch</span>
+          <span className="text-[9px] font-black tracking-[0.3em] text-[#C9A84C] uppercase">Atlas Intelligence</span>
+          <span className="text-[13px] font-bold text-[#1A1A1A]">Orbit Selection</span>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="hidden sm:flex flex-col items-end mr-2">
-            <span className="text-xs text-gray-400 font-bold uppercase tracking-tighter">Cliente</span>
-            <span className="text-sm font-black text-gray-900">{lead?.name || 'Visitante'}</span>
+        <div className="flex items-center gap-4">
+          <div className="hidden sm:flex flex-col items-end">
+            <span className="text-[9px] text-[#A1A1A1] font-bold uppercase tracking-widest">Consultor</span>
+            <span className="text-[13px] font-bold text-[#1A1A1A]">Jean Brusch</span>
           </div>
-          <div className="w-10 h-10 rounded-full bg-gray-900 flex items-center justify-center text-white font-bold text-sm shadow-xl shadow-gray-200">
-            {lead?.name?.[0] || 'U'}
+          <div className="w-10 h-10 rounded-full bg-[#1A1A1A] flex items-center justify-center text-white font-bold text-[13px] border border-white/10 shadow-lg shadow-black/5">
+            JB
           </div>
         </div>
       </header>
 
-      <main className="pt-24 pb-32 px-6 max-w-2xl mx-auto">
+      <main className="pt-28 pb-32 px-6 max-w-2xl mx-auto">
         {/* Intro */}
         <motion.div 
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-12"
+          className="mb-14"
         >
-          <h1 className="text-4xl font-black leading-tight mb-4 tracking-tighter">
-            Sua nova jornada<br />
-            <span className="text-gray-400">começa agora.</span>
+          <div className="flex items-center gap-2 mb-4">
+            <div className="h-[1px] w-8 bg-[#C9A84C]" />
+            <span className="text-[10px] font-black tracking-[0.2em] text-[#C9A84C] uppercase">Exclusive Access</span>
+          </div>
+          <h1 className="text-[38px] font-bold leading-[1.1] mb-6 tracking-tight font-serif text-[#1A1A1A]">
+            Olá, {lead?.firstName || 'Visitante'}.<br />
+            <span className="text-[#A1A1A1] italic font-normal">Sua seleção está pronta.</span>
           </h1>
-          <p className="text-gray-500 leading-relaxed text-sm font-medium">
-            Preparei esta curadoria exclusiva baseada no seu perfil. 
-            Deslize para explorar e use os botões para indicar seu interesse em cada imóvel.
+          <p className="text-[#666] leading-relaxed text-[15px] font-medium max-w-[90%]">
+            Fizemos uma curadoria minuciosa baseada no seu perfil. 
+            Deslize para explorar cada detalhe e utilize as interações para nos guiar até sua próxima conquista.
           </p>
         </motion.div>
 
         {/* View Toggle */}
-        <div className="flex items-center justify-between mb-8">
-          <span className="text-[10px] font-bold text-gray-300 uppercase tracking-widest">
-            {items.length} Imóveis Disponíveis
-          </span>
-          <div className="flex bg-gray-100 p-1 rounded-full border border-gray-200">
+        <div className="flex items-center justify-between mb-10">
+          <div className="flex flex-col">
+            <span className="text-[11px] font-bold text-[#1A1A1A] tracking-tight">Catalogo Curado</span>
+            <span className="text-[10px] font-medium text-[#A1A1A1] uppercase tracking-[0.05em]">{items.length} Imóveis selecionados</span>
+          </div>
+          <div className="flex bg-[#F1F1F1] p-1 rounded-[14px]">
             <button 
               onClick={() => setActiveView('grid')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-full text-[10px] font-bold transition-all ${activeView === 'grid' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+              className={`flex items-center gap-2 px-4 py-2 rounded-[11px] text-[10px] font-bold transition-all ${activeView === 'grid' ? 'bg-white text-[#1A1A1A] shadow-sm' : 'text-[#A1A1A1] hover:text-[#666]'}`}
             >
               <LayoutGrid className="w-3.5 h-3.5" />
-              Geral
+              Lista
             </button>
             <button 
               onClick={() => setActiveView('map')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-full text-[10px] font-bold transition-all ${activeView === 'map' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+              className={`flex items-center gap-2 px-4 py-2 rounded-[11px] text-[10px] font-bold transition-all ${activeView === 'map' ? 'bg-white text-[#1A1A1A] shadow-sm' : 'text-[#A1A1A1] hover:text-[#666]'}`}
             >
               <Map className="w-3.5 h-3.5" />
               Mapa
@@ -203,8 +227,8 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
             }} 
           />
         ) : (
-          <div className="space-y-6">
-            {items.map((item, idx) => (
+          <div className="space-y-4">
+            {items.map((item) => (
               <SelectionCard 
                 key={item.id}
                 item={item}
@@ -222,54 +246,82 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
       <AnimatePresence>
         {selectedItem && (
           <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            initial={{ y: "100%" }}
+            animate={{ y: 0 }}
+            exit={{ y: "100%" }}
+            transition={{ type: "spring", damping: 25, stiffness: 200 }}
             className="fixed inset-0 z-[100] bg-white overflow-y-auto"
           >
-            <button 
-              onClick={() => setSelectedItem(null)}
-              className="fixed top-8 right-8 z-[110] w-12 h-12 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-900 transition-colors shadow-sm"
-            >
-              <X className="w-6 h-6" />
-            </button>
+            {/* Header Fixed Inside Modal */}
+            <div className="sticky top-0 left-0 right-0 z-[110] bg-white/80 backdrop-blur-xl border-b border-gray-100 flex items-center justify-between h-20 px-6">
+              <span className="text-[11px] font-bold tracking-tight text-[#1A1A1A] uppercase">Detalhes da Unidade</span>
+              <button 
+                onClick={() => setSelectedItem(null)}
+                className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 hover:text-gray-900 transition-colors"
+                aria-label="Voltar"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
 
-            <div className="max-w-2xl mx-auto py-12 px-6">
-              <div className="rounded-[40px] overflow-hidden bg-gray-50 border border-gray-100 mb-8 shadow-2xl shadow-gray-100">
-                {selectedItem.coverImage && (
-                  <img src={selectedItem.coverImage} alt={selectedItem.title} className="w-full h-auto" />
-                )}
+            <div className="max-w-2xl mx-auto py-8 px-6">
+              <div className="rounded-[32px] overflow-hidden bg-[#FBFBF9] border border-gray-100 mb-10 shadow-xl shadow-[#DEDDDA]/20">
+                <PropertyCarousel 
+                  photos={selectedItem.photos || []} 
+                  coverImage={selectedItem.coverImage || ""} 
+                  title={selectedItem.title} 
+                />
               </div>
 
-              <div className="space-y-8">
-                <div>
-                  <h2 className="text-3xl font-black mb-2 tracking-tighter text-gray-900">{selectedItem.title}</h2>
-                  <div className="flex items-center gap-2 text-gray-400 text-xs font-bold uppercase tracking-widest">
-                    <MapPin className="w-4 h-4" />
+              <div className="space-y-10">
+                <div className="border-b border-gray-100 pb-8">
+                  <h2 className="text-[32px] font-bold leading-tight mb-4 tracking-tight font-serif text-[#1A1A1A]">{selectedItem.title}</h2>
+                  <div className="flex items-center gap-2 text-[#A1A1A1] text-xs font-bold uppercase tracking-[0.1em]">
+                    <MapPin className="w-3.5 h-3.5" />
                     {selectedItem.location}
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-[#F8F9FA] rounded-3xl p-6 border border-gray-100">
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">Preço Premium</span>
-                    <span className="text-xl font-black text-gray-900">
-                      {selectedItem.price ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(selectedItem.price) : 'Sob consulta'}
+                  <div className="bg-[#FBFBF9] rounded-[24px] p-6 border border-gray-100">
+                    <span className="text-[9px] font-bold text-[#A1A1A1] uppercase tracking-widest block mb-2">Valor do Imóvel</span>
+                    <span className="text-xl font-bold text-[#1A1A1A] tracking-tight">
+                      {formatPrice(selectedItem.price)}
                     </span>
                   </div>
-                  <div className="bg-[#F8F9FA] rounded-3xl p-6 border border-gray-100">
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">Área Privativa</span>
-                    <span className="text-xl font-black text-gray-900">{selectedItem.areaPrivativa || '—'}m²</span>
+                  <div className="bg-[#FBFBF9] rounded-[24px] p-6 border border-gray-100">
+                    <span className="text-[9px] font-bold text-[#A1A1A1] uppercase tracking-widest block mb-2">Área Privativa</span>
+                    <span className="text-xl font-bold text-[#1A1A1A] tracking-tight">{selectedItem.areaPrivativa || '—'} m²</span>
                   </div>
                 </div>
 
+                {/* Badges Line */}
+                <div className="flex items-center gap-8 py-4 border-y border-gray-50">
+                  <div className="flex items-center gap-2.5">
+                    <BedDouble className="w-4 h-4 text-[#C9A84C]" />
+                    <span className="text-[13px] font-bold">{selectedItem.bedrooms || 0} Dorms</span>
+                  </div>
+                  <div className="flex items-center gap-2.5">
+                    <Bath className="w-4 h-4 text-[#C9A84C]" />
+                    <span className="text-[13px] font-bold">{selectedItem.bathrooms || selectedItem.suites || 0} Banheiros</span>
+                  </div>
+                  {selectedItem.areaTotal && (
+                    <div className="flex items-center gap-2.5">
+                      <Ruler className="w-4 h-4 text-[#C9A84C]" />
+                      <span className="text-[13px] font-bold">Lote: {selectedItem.areaTotal}m²</span>
+                    </div>
+                  )}
+                </div>
+
                 {selectedItem.recommendedReason && (
-                  <div className="bg-blue-50/50 rounded-3xl p-8 border border-blue-100">
-                    <h4 className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-4 flex items-center gap-2">
-                      <Sparkles size={14} />
-                      Curadoria Jean Brusch
-                    </h4>
-                    <p className="text-gray-700 leading-relaxed italic font-medium">
+                  <div className="bg-[#FBFBF9] rounded-[28px] p-8 border border-[#EBEBEB]">
+                    <div className="flex items-center gap-2.5 mb-5">
+                      <div className="w-2 h-2 rounded-full bg-[#C9A84C]" />
+                      <h4 className="text-[10px] font-black text-[#1A1A1A] uppercase tracking-[0.2em] flex items-center gap-2">
+                        Por que recomendamos
+                      </h4>
+                    </div>
+                    <p className="text-[#444] leading-relaxed italic text-lg font-serif">
                       "{selectedItem.recommendedReason}"
                     </p>
                   </div>
@@ -277,27 +329,27 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
 
                 {selectedItem.videoUrl && (
                   <div>
-                    <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-6">Apresentação em Vídeo</h4>
-                    <VideoEmbed url={selectedItem.videoUrl} className="mb-4" />
+                    <h4 className="text-[10px] font-black text-[#A1A1A1] uppercase tracking-[0.25em] mb-6 pl-1">Apresentação Exclusiva</h4>
+                    <VideoEmbed url={selectedItem.videoUrl} className="mb-4 rounded-[28px] shadow-lg" />
                   </div>
                 )}
 
-                <div className="pt-8 flex flex-col gap-4 pb-20">
+                <div className="pt-8 flex flex-col gap-4 pb-28">
                   <button 
-                    onClick={() => { setChatProperty(selectedItem); setSelectedItem(null); }}
-                    className="w-full h-16 rounded-2xl bg-gray-900 text-white font-bold flex items-center justify-center gap-3 transition-all active:scale-95 shadow-xl shadow-gray-200"
+                    onClick={() => { setChatProperty(selectedItem); setSelectedItem(null); trackInteraction(selectedItem.id, 'chat_opened'); }}
+                    className="w-full h-16 rounded-[20px] bg-[#1A1A1A] text-white text-[15px] font-bold flex items-center justify-center gap-3 transition-all active:scale-[0.98] shadow-xl shadow-black/10"
                   >
-                    <MessageCircle className="w-5 h-5 fill-white" />
-                    Enviar dúvida sobre este imóvel
+                    <MessageCircle className="w-5 h-5" />
+                    Consultar Agente Atlas
                   </button>
                   {selectedItem.url && (
                     <a 
                       href={selectedItem.url} 
                       target="_blank" 
-                      className="w-full h-16 rounded-2xl bg-white border border-gray-100 text-gray-500 font-bold flex items-center justify-center gap-3 transition-all active:scale-95 shadow-sm"
+                      className="w-full h-16 rounded-[20px] bg-white border border-[#EDEDED] text-[#666] text-[15px] font-bold flex items-center justify-center gap-3 transition-all active:scale-[0.98]"
                     >
                       <ExternalLink className="w-5 h-5" />
-                      Ver todos os detalhes originais
+                      Especificações Técnicas
                     </a>
                   )}
                 </div>
@@ -308,14 +360,14 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
       </AnimatePresence>
 
       {/* Persistent WhatsApp FAB - Bottom Zone */}
-      <div className="fixed bottom-0 left-0 right-0 p-6 z-50 pointer-events-none">
+      <div className="fixed bottom-0 left-0 right-0 p-8 z-50 pointer-events-none">
         <a 
           href={`https://wa.me/5551982237325`}
           target="_blank"
-          className="pointer-events-auto h-14 bg-emerald-500 rounded-full flex items-center justify-center gap-3 px-6 text-white font-bold shadow-2xl shadow-emerald-500/20 max-w-sm mx-auto transition-transform active:scale-95"
+          className="pointer-events-auto h-16 bg-[#25D366] rounded-full flex items-center justify-center gap-4 px-8 text-white font-black text-[15px] shadow-2xl shadow-green-500/30 max-w-md mx-auto transition-transform active:scale-95 group"
         >
-          <Phone className="w-5 h-5 fill-white" />
-          Falar com Jean Brusch
+          <Phone className="w-5 h-5 fill-white group-hover:scale-110 transition-transform" />
+          FALAR COM JEAN BRUSCH
         </a>
       </div>
 
@@ -330,25 +382,5 @@ export default function ClientSelectionView({ data, slug }: ClientSelectionViewP
         />
       )}
     </div>
-  )
-}
-
-function MapPin(props: any) {
-  return (
-    <svg 
-      {...props}
-      xmlns="http://www.w3.org/2000/svg" 
-      width="24" 
-      height="24" 
-      viewBox="0 0 24 24" 
-      fill="none" 
-      stroke="currentColor" 
-      strokeWidth="2" 
-      strokeLinecap="round" 
-      strokeLinejoin="round"
-    >
-      <path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0" />
-      <circle cx="12" cy="10" r="3" />
-    </svg>
   )
 }

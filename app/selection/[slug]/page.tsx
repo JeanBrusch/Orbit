@@ -77,7 +77,10 @@ async function getSelectionData(slug: string) {
         lng,
         bedrooms,
         suites,
-        area_privativa
+        bathrooms,
+        area_privativa,
+        area_total,
+        photos
       )
     `)
     .eq('lead_id', leadId)
@@ -134,11 +137,12 @@ async function getSelectionData(slug: string) {
       const ctx = contextMap.get(item.property_id) as any
       return {
         id: prop.id || item.property_id,
-        interactionId: item.id, // For interaction tracking
-        title: prop.title || prop.internal_name || "Imóvel Desconhecido (Falha no Join)",
+        interactionId: item.id,
+        title: prop.title || prop.internal_name || "Imóvel Desconhecido",
         price: prop.value || 0,
         location: prop.location_text || "",
         coverImage: prop.cover_image || "",
+        photos: prop.photos || [],
         url: prop.source_link || "",
         lat: prop.lat || 0,
         lng: prop.lng || 0,
@@ -149,20 +153,23 @@ async function getSelectionData(slug: string) {
         recommendedReason: ctx?.recommended_reason,
         bedrooms: prop.bedrooms,
         suites: prop.suites,
+        bathrooms: prop.bathrooms,
         areaPrivativa: prop.area_privativa,
+        areaTotal: prop.area_total,
         _debugRow: item
       }
     })
 
   // Normalize lead — Supabase returns object or array depending on relation
-  const leadRaw = space.leads
+  const leadRaw = (space as any).leads
   const lead = Array.isArray(leadRaw) ? leadRaw[0] : leadRaw
+  const firstName = lead?.name?.split(' ')[0] || 'Visitante'
 
-  console.log(`[DEBUG SELECTION] slug=${slug} sentItems count:`, sentItems?.length, "first item:", sentItems?.[0])
+  console.log(`[DEBUG SELECTION] slug=${slug} sentItems count:`, sentItems?.length)
 
   return {
     space,
-    lead: lead ? { ...lead, id: lead.id ?? leadId } : { id: leadId, name: null, photo_url: null },
+    lead: lead ? { ...lead, id: lead.id ?? leadId, firstName } : { id: leadId, name: null, photo_url: null, firstName: 'Visitante' },
     preferences: prefs,
     items,
     initialInteractions
