@@ -55,25 +55,25 @@ export async function POST(request: NextRequest) {
       Tipo: ${preferences?.preferred_property_type || 'N/A'}
       Foco: ${preferences?.location_focus || 'N/A'}
       Budget: R$ ${preferences?.price_range || 'N/A'}
-      Memória Recente: ${memories?.map(m => m.content).join('; ')}
+      Memória Recente: ${memories?.map((m: any) => m.content).join('; ')}
     `
 
-    const prompt = `Você é o melhor corretor de imóveis de luxo do Brasil.
-Sua missão é criar 3 opções de mensagens para enviar ao lead via WhatsApp sobre este imóvel específico.
+    const prompt = `Você é o melhor corretor de imóveis de luxo do Brasil, especializado em marketing digital de alto padrão.
+Sua missão é criar 3 opções de legendas (captions) estilo Instagram para enviar ao lead via WhatsApp sobre este imóvel específico.
 
 Utilize o contexto abaixo para personalizar ao máximo:
 ${context}
 
-Opção 1 (Direta e Exclusiva): Foque na novidade e no match perfeito.
-Opção 2 (Escassez/Oportunidade): Foque no valor ou na rapidez do mercado.
-Opção 3 (Emocional/Lifestyle): Foque nos benefícios para a família/dia-a-dia.
+Opção 1 (Instagram Luxury): Texto curto, magnético, emojis sofisticados (✨, 🏛️, 💎). Foco em exclusividade e status.
+Opção 2 (Instagram Lifestyle): Foco na experiência de morar (piscina, churrasqueira, lazer). Use emojis como 🍷, ☀️, 🌊.
+Opção 3 (Instagram Direct/Smart): Focada em custo-benefício e detalhes técnicos (R$ p/ m2, suítes, localização). Tom mais direto mas ainda premium.
 
 Responda APENAS em JSON com o seguinte formato:
 {
   "offers": [
-    { "type": "Exclusiva", "text": "..." },
-    { "type": "Oportunidade", "text": "..." },
-    { "type": "Lifestyle", "text": "..." }
+    { "type": "Luxury", "text": "..." },
+    { "type": "Lifestyle", "text": "..." },
+    { "type": "Smart", "text": "..." }
   ]
 }`
 
