@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
     // --- Step 3: Map to Orbit schema ---
     // VistaNet API returns related data as objects with numeric string keys, not arrays.
     const fotosData = data.Foto && typeof data.Foto === 'object' ? Object.values(data.Foto) : []
-    const fotos: string[] = fotosData
+    const photos: string[] = fotosData
       .sort((a: any, b: any) => (b.Destaque === 'Sim' ? 1 : 0) - (a.Destaque === 'Sim' ? 1 : 0))
       .map((f: any) => f.Foto)
       .filter(Boolean)
@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
       source_link: url.trim(),
       internal_name: data.Codigo ?? null,
       title,
-      cover_image: fotos[0] ?? null,
+      cover_image: photos[0] ?? null,
       value: parseBRL(data.ValorVenda) ?? parseBRL(data.ValorLocacao),
       neighborhood: bairro,
       city: data.Cidade ?? null,
@@ -105,6 +105,7 @@ export async function POST(req: NextRequest) {
       condo_fee: parseBRL(data.ValorCondominio),
       iptu: parseBRL(data.ValorIptu),
       features,
+      photos,
       ingestion_type: 'vistanet',
       ingestion_status: 'confirmed',
       property_embedding: embedding,
@@ -117,7 +118,7 @@ export async function POST(req: NextRequest) {
         vistanet_key: params.key,
         vistanet_cod: params.cod,
         vistanet_v2: v2,
-        all_photos: fotos,
+        all_photos: photos,
         description: data.DescricaoWeb ?? null,
       },
     }
@@ -135,7 +136,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       ok: true,
       property,
-      photos_count: fotos.length,
+      photos_count: photos.length,
       agent: data.Corretor?.Nome ?? null,
       title,
     })

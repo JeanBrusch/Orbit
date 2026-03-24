@@ -230,9 +230,29 @@ export default function EditPropertyModal({ isOpen, onClose, property, onSave, o
                 </div>
                 <input value={formData.cover_image} onChange={e => setFormData({...formData, cover_image: e.target.value})} className={inputClass} placeholder="Ou cole a URL direta..." />
                 {formData.cover_image && (
-                  <img src={formData.cover_image} alt="" className="mt-2 w-full h-24 object-cover rounded-xl border border-[rgba(46,197,255,0.1)] opacity-80" />
+                  <img src={formData.cover_image} alt="" className="mt-2 w-full h-32 object-cover rounded-xl border border-[rgba(46,197,255,0.1)] opacity-80" />
                 )}
               </div>
+
+              {property.photos && property.photos.length > 0 && (
+                <div>
+                  <label className={labelClass}>Todas as Fotos ({property.photos.length})</label>
+                  <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar">
+                    {property.photos.map((url: string, idx: number) => (
+                      <div key={idx} className="relative shrink-0 w-20 h-20 rounded-lg overflow-hidden border border-[var(--orbit-line)] group">
+                        <img src={url} alt="" className="w-full h-full object-cover opacity-70 hover:opacity-100 transition-opacity" />
+                        <button 
+                          type="button" 
+                          onClick={() => setFormData({...formData, cover_image: url})}
+                          className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity text-[8px] text-white font-mono uppercase"
+                        >
+                          Usar Capa
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div className="pt-2 flex gap-3">
                 <button type="button" onClick={onClose} className={`flex-1 h-11 rounded-xl border transition-all text-[10px] font-mono uppercase tracking-widest ${isDark ? 'border-[rgba(46,197,255,0.15)] text-[#94a3b8] hover:text-[#e6eef6] hover:bg-white/5' : 'border-[var(--orbit-line)] text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)] hover:bg-[var(--orbit-line)]'}`}>

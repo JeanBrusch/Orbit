@@ -79,6 +79,13 @@ function PropertyCard({
           Curadoria Orbit
         </div>
 
+        {property.photos && property.photos.length > 0 && (
+          <div className="absolute top-3 right-3 px-2 py-1 rounded-full bg-[var(--orbit-bg)]/80 backdrop-blur-md border border-[var(--orbit-line)] text-[9px] font-mono text-[var(--orbit-text)] shadow-sm flex items-center gap-1.5">
+            <LayoutGrid size={10} className="text-[var(--orbit-glow)]" />
+            {property.photos.length} fotos
+          </div>
+        )}
+
         {isSelected && (
           <div className="absolute inset-0 bg-[var(--orbit-glow)]/10 flex items-center justify-center backdrop-blur-[1px]">
             <div className="bg-[var(--orbit-glow)] text-white p-2.5 rounded-full shadow-[var(--orbit-shadow)]">
@@ -277,6 +284,7 @@ function AtlasManagerContent() {
         condo_fee: data.condo_fee || "",
         iptu: data.iptu || "",
         features: data.features || [],
+        photos: data.photos || [],
         payment: "",
         source_link: data.sourceLink || ingestUrl,
         source_domain: data.sourceDomain || ""
@@ -309,6 +317,7 @@ function AtlasManagerContent() {
         condo_fee: parseFloat(scrapedData.condo_fee) || null,
         iptu: parseFloat(scrapedData.iptu) || null,
         features: scrapedData.features || [],
+        photos: scrapedData.photos || [],
         payment_conditions: scrapedData.payment ? { custom: scrapedData.payment } : null,
         source_link: scrapedData.source_link,
         source_domain: scrapedData.source_domain
@@ -325,7 +334,7 @@ function AtlasManagerContent() {
         setIngestStatus("idle")
         setIngestUrl("")
         setIngestStep("url")
-        setScrapedData({ title: "", image: "", value: "", condo_name: "", payment: "" })
+        setScrapedData({ title: "", image: "", value: "", condo_name: "", payment: "", photos: [] })
       }, 1500)
     } catch(err: any) {
       setIngestStatus("failed")

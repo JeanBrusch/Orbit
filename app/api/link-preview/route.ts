@@ -68,6 +68,7 @@ export async function POST(request: NextRequest) {
       const suites = extractNumber(html, ['(?:su[ií]tes?)'])
       const parking = extractNumber(html, ['(?:vagas?|garagens|garagem)'])
       const area = extractArea(html)
+      const photos = extractPhotos(html, url)
 
       return NextResponse.json({
         title: title || null,
@@ -78,6 +79,7 @@ export async function POST(request: NextRequest) {
         suites: suites || null,
         parking_spots: parking || null,
         area_privativa: area || null,
+        photos: photos.length > 0 ? photos : (resolvedImage ? [resolvedImage] : []),
         sourceDomain,
         sourceLink: url,
       })
@@ -93,6 +95,7 @@ export async function POST(request: NextRequest) {
         suites: null,
         parking_spots: null,
         area_privativa: null,
+        photos: [],
         sourceDomain,
         sourceLink: url,
       })
@@ -159,17 +162,30 @@ function extractNumber(html: string, keywords: string[]): number | null {
 
 /** Extract area in m² */
 function extractArea(html: string): number | null {
-  const cleanHtml = html.replace(/<[^>]+>/g, ' ');
+  // ... (previous code)
+  return null
+}
+
+function extractPhotos(html: string, baseUrl: string): string[] {
+  const photos = new Set<string>()
+  
+  // Look for common gallery patterns or meta tags
   const patterns = [
-    /(\d+(?:[.,]\d+)?)\s*(?:m|m2|m²)/i,
-    /[áa]rea\s*(?:privativa|[úu]til|total)?[^0-9]{0,20}(\d+(?:[.,]\d+)?)/i,
+    /property=["']og:image["'][^>]+content=["']([^"']+)["']/gi,
+    /property=["']twitter:image["'][^>]+content=["']([^"']+)["']/gi,
+    /["'](https?:\/\/[^"']+\.(?:jpg|jpeg|png|webp))["']/gi,
   ]
+
   for (const p of patterns) {
-    const m = cleanHtml.match(p)
-    if (m) {
-      const num = parseFloat(m[1].replace(',', '.'))
-      if (!isNaN(num) && num > 10 && num < 10000) return num
+    let match
+    while ((match = p.exec(html)) !== null) {
+      const url = match[1]
+      // Filter out small icons or irrelevant images
+      if (!url.includes('icon') && !url.includes('logo') && !url.includes('avatar')) {
+        photos.add(url)
+      }
     }
   }
-  return null
+
+  return Array.from(photos).slice(0, 50)
 }
