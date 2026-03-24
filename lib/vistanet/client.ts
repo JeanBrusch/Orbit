@@ -9,7 +9,7 @@ const FIELDS = JSON.stringify({
     'ValorVenda', 'Dormitorios', 'Suites',
     'AreaTotal', 'AreaPrivativa',
     'DescricaoWeb', 'FotoDestaque',
-    'TipoImovel', 'Status', 'Edificio',
+    'TipoImovel', 'Status',
     { Foto: ['Foto', 'FotoPequena', 'Destaque'] },
     { Corretor: ['Nome', 'Fone', 'Email', 'Foto'] },
     'Caracteristicas',

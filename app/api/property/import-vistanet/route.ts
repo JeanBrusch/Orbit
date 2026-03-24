@@ -154,7 +154,7 @@ export async function POST(req: NextRequest) {
     }
 
     const { data: property, error } = await (supabase.from('properties') as any)
-      .upsert(payload, { onConflict: 'source_link' })
+      .upsert(payload, { onConflict: 'source_link', ignoreDuplicates: false })
       .select()
       .single()
 
