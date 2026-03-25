@@ -24,11 +24,15 @@ export function ZenOverlay({ mapRef }: ZenOverlayProps) {
       map.addSource(SOURCE_ID, {
         type: 'image',
         url: '/overlays/zen-overlay.png',
+        // Coordenadas derivadas do KML (LatLonBox + rotation: -12.97°)
+        // north: -29.82216860959286 | south: -29.82763396467291
+        // east:  -50.05663217442957 | west:  -50.06764261422266
+        // O Mapbox não aceita rotação direta — os 4 cantos já são passados rotacionados
         coordinates: [
-          [-50.07120908969696, -29.82131016434248], // Top-Left (Manual Offset)
-          [-50.06047950314367, -29.819166464595237], // Top-Right (Manual Offset)
-          [-50.05906569895528, -29.824492409923294], // Bottom-Right (Manual Offset)
-          [-50.06979528550857, -29.826636109670533]  // Bottom-Left (Manual Offset)
+          [-50.06688891512792, -29.82100282298439],  // Top-Left
+          [-50.05615932857463, -29.823473805953324], // Top-Right
+          [-50.05738587352431, -29.82879975128138],  // Bottom-Right
+          [-50.0681154600776, -29.826328768312447], // Bottom-Left
         ]
       })
 
