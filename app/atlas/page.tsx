@@ -128,7 +128,35 @@ function PropertyCard({
   onToggleSelect: (p: any) => void,
   onEdit?: (p: any) => void
 }) {
-  const match = useMemo(() => computeMatch(property, selectedLead), [property, selectedLead]);
+  const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0)
+  const match = useMemo(() => computeMatch(property, selectedLead), [property, selectedLead])
+
+  const allPhotos = useMemo(() => {
+    const photos = property.photos || []
+    if (property.cover_image && !photos.includes(property.cover_image)) {
+      return [property.cover_image, ...photos]
+    }
+    return photos.length > 0 ? photos : [property.cover_image].filter(Boolean)
+  }, [property])
+
+  const formatPrice = (val: number) => {
+    if (!val) return "Sob consulta"
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+      maximumFractionDigits: 0
+    }).format(val)
+  }
+
+  const nextPhoto = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    setCurrentPhotoIndex((prev) => (prev + 1) % allPhotos.length)
+  }
+
+  const prevPhoto = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    setCurrentPhotoIndex((prev) => (prev - 1 + allPhotos.length) % allPhotos.length)
+  }
 
   return (
     <motion.div
@@ -138,25 +166,52 @@ function PropertyCard({
       className={`group relative bg-[var(--orbit-bg)] border ${isSelected ? 'border-[var(--orbit-glow)] ring-1 ring-[var(--orbit-glow)]/30 shadow-[var(--orbit-shadow)]' : 'border-[var(--orbit-line)]'} rounded-2xl overflow-hidden hover:shadow-[var(--orbit-shadow-hover)] hover:border-[var(--orbit-glow)]/40 transition-all duration-300 cursor-pointer`}
       onClick={() => onEdit && onEdit(property)}
     >
-      <div className="aspect-[16/10] overflow-hidden bg-[var(--orbit-bg-secondary)] relative">
-        {property.cover_image ? (
-          <img
-            src={property.cover_image}
-            alt={property.title}
-            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 opacity-90 group-hover:opacity-100"
+      {/* PHOTO CAROUSEL */}
+      <div className="aspect-[4/5] overflow-hidden bg-[var(--orbit-bg-secondary)] relative group/carousel">
+        <AnimatePresence mode="wait">
+          <motion.img
+            key={currentPhotoIndex}
+            src={allPhotos[currentPhotoIndex] || "/placeholder-property.jpg"}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="w-full h-full object-cover opacity-95 group-hover:opacity-100"
           />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-[var(--orbit-text-muted)]">
-            <Building2 className="h-8 w-8 opacity-20" />
-          </div>
+        </AnimatePresence>
+
+        {/* NAVIGATION ARROWS */}
+        {allPhotos.length > 1 && (
+          <>
+            <button 
+              onClick={prevPhoto}
+              className="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-black/20 backdrop-blur-md text-white opacity-0 group-hover/carousel:opacity-100 transition-opacity hover:bg-black/40"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <button 
+              onClick={nextPhoto}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-black/20 backdrop-blur-md text-white opacity-0 group-hover/carousel:opacity-100 transition-opacity hover:bg-black/40"
+            >
+              <ChevronRight size={16} />
+            </button>
+            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1">
+              {allPhotos.slice(0, 5).map((_, i) => (
+                <div 
+                  key={i} 
+                  className={`w-1 h-1 rounded-full transition-all ${i === currentPhotoIndex ? 'bg-white w-2' : 'bg-white/40'}`} 
+                />
+              ))}
+            </div>
+          </>
         )}
 
         {/* TOP BADGES */}
         <div className="absolute top-3 left-3 flex flex-col gap-2">
-          <div className="px-2.5 py-1 rounded-lg bg-[var(--orbit-bg)]/60 backdrop-blur-md border border-[var(--orbit-line)] text-[9px] font-mono uppercase tracking-wider text-[var(--orbit-glow)] shadow-sm">
+          <div className="px-2.5 py-1 rounded-lg bg-black/40 backdrop-blur-md border border-white/10 text-[9px] font-mono uppercase tracking-wider text-white shadow-sm">
             Curadoria Orbit
           </div>
-          {match && (
+          {match && match.score > 0 && (
             <motion.div 
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
@@ -167,13 +222,6 @@ function PropertyCard({
           )}
         </div>
 
-        {property.photos && property.photos.length > 0 && (
-          <div className="absolute top-3 right-3 px-2 py-1 rounded-full bg-[var(--orbit-bg)]/80 backdrop-blur-md border border-[var(--orbit-line)] text-[9px] font-mono text-[var(--orbit-text)] shadow-sm flex items-center gap-1.5">
-            <LayoutGrid size={10} className="text-[var(--orbit-glow)]" />
-            {property.photos.length} fotos
-          </div>
-        )}
-
         {isSelected && (
           <div className="absolute inset-0 bg-[var(--orbit-glow)]/10 flex items-center justify-center backdrop-blur-[1px]">
             <div className="bg-[var(--orbit-glow)] text-white p-2.5 rounded-full shadow-[var(--orbit-shadow)]">
@@ -183,70 +231,47 @@ function PropertyCard({
         )}
       </div>
 
-      <div className="p-5">
-        <div className="flex justify-between items-start mb-2.5">
-          <div className="pr-2">
-            {property.ui_type && (
-              <span className="text-[9px] uppercase tracking-widest font-mono text-[var(--orbit-glow)] opacity-80 mb-1.5 block">
-                {property.ui_type}
-              </span>
-            )}
-            <h3 className="font-display text-[17px] font-medium text-[var(--orbit-text)] leading-tight group-hover:text-[var(--orbit-glow)] transition-colors">
-              {property.title || property.internal_name || "Sem título"}
-            </h3>
-          </div>
-          <span className="text-sm font-sans font-medium text-[var(--orbit-text)] whitespace-nowrap">
-            {property.value ? `R$ ${(property.value / 1000000).toFixed(1)}M` : "Sob consulta"}
+      {/* CONTENT */}
+      <div className="p-4">
+        <div className="flex justify-between items-start mb-1">
+          <h3 className="font-display text-[15px] font-semibold text-[var(--orbit-text)] leading-tight group-hover:text-[var(--orbit-glow)] transition-colors line-clamp-1 flex-1 pr-2">
+            {property.title || property.internal_name || "Sem título"}
+          </h3>
+          <span className="text-[14px] font-semibold text-[var(--orbit-text)] whitespace-nowrap">
+            {formatPrice(property.value)}
           </span>
         </div>
 
-        <p className="text-[11px] text-[var(--orbit-text-muted)] mb-3 flex items-center gap-1.5 font-medium">
+        <p className="text-[11px] text-[var(--orbit-text-muted)] mb-2 flex items-center gap-1.5 font-medium opacity-80">
           <MapIcon className="h-3 w-3 text-[var(--orbit-glow)]/70" />
-          {property.condo_name ? `${property.condo_name}, ` : ""}
           {property.neighborhood || property.location_text || "Localização não informada"}
         </p>
 
-        {/* MATCH METRICS */}
-        {match && (
-          <div className="mb-4 space-y-2.5">
-            <div className="w-full bg-[var(--orbit-line)] rounded-full h-1.5 overflow-hidden">
-              <motion.div 
-                initial={{ width: 0 }}
-                animate={{ width: `${match.score * 10}%` }}
-                className={`h-full ${getScoreColor(match.score)}`}
-              />
-            </div>
-            
-            <div className="flex flex-wrap gap-1.5">
-              {match.reasons.map((reason: string, i: number) => (
-                <span key={i} className="px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-500 text-[9px] font-medium border border-emerald-500/20">
-                  {reason}
-                </span>
-              ))}
-              {match.warnings.map((warning: string, i: number) => (
-                <span key={i} className="px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-500 text-[9px] font-medium border border-amber-500/20">
-                  {warning}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
+        {/* TECH SPECS: Minimalist Line */}
+        <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-wider text-[var(--orbit-text-muted)] py-2 border-y border-[var(--orbit-line)]/50 mb-3">
+          <span>{property.area_privativa || property.area_total || "--"} m²</span>
+          <span className="w-1 h-1 rounded-full bg-[var(--orbit-line)]" />
+          <span>{property.bedrooms || "0"} dorm</span>
+          <span className="w-1 h-1 rounded-full bg-[var(--orbit-line)]" />
+          <span>{property.suites || "0"} suítes</span>
+        </div>
 
-        {!match && property.topics && property.topics.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 mb-4">
-            {property.topics.map((topic: string, i: number) => (
-              <span key={i} className="px-2 py-0.5 rounded-full bg-[var(--orbit-glow)]/10 text-[10px] text-[var(--orbit-glow)] font-medium border border-[var(--orbit-glow)]/20">
-                {topic}
+        {/* MATCH REASONS: Only if match exists and is relevant */}
+        {match && match.score > 0 && (
+          <div className="flex flex-wrap gap-1 mb-3">
+            {match.reasons.slice(0, 2).map((reason: string, i: number) => (
+              <span key={i} className="px-2 py-0.5 rounded-md bg-emerald-500/5 text-emerald-500 text-[9px] font-medium border border-emerald-500/10">
+                {reason}
               </span>
             ))}
           </div>
         )}
 
-        <div className="flex items-center gap-2 pt-4 border-t border-[var(--orbit-line)]">
+        <div className="flex items-center justify-between pt-1">
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 px-2 text-[10px] uppercase tracking-widest font-mono text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)] hover:bg-[var(--orbit-glow)]/5"
+            className="h-7 px-0 text-[10px] uppercase tracking-[0.15em] font-bold text-[var(--orbit-text-muted)] hover:text-[var(--orbit-glow)] hover:bg-transparent transition-all"
             onClick={(e) => {
               e.stopPropagation()
               if (onEdit) onEdit(property)
@@ -254,19 +279,16 @@ function PropertyCard({
           >
             Ver Detalhes
           </Button>
-          <div className="ml-auto flex gap-1.5">
-            <Button
-              size="icon"
-              variant="ghost"
-              className={`h-8 w-8 rounded-full border ${isSelected ? 'border-[var(--orbit-glow)] bg-[var(--orbit-glow)] text-white hover:bg-[var(--orbit-glow)]/90 shadow-[var(--orbit-shadow)]' : 'border-[var(--orbit-line)] text-[var(--orbit-text-muted)] hover:border-[var(--orbit-glow)]/40 hover:text-[var(--orbit-glow)] hover:bg-[var(--orbit-glow)]/5'}`}
-              onClick={(e) => {
-                e.stopPropagation()
-                onToggleSelect(property)
-              }}
-            >
-              {isSelected ? <Check className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
-            </Button>
-          </div>
+          
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              onToggleSelect(property)
+            }}
+            className={`p-1.5 rounded-full transition-all border ${isSelected ? 'bg-[var(--orbit-glow)] border-[var(--orbit-glow)] text-white shadow-sm' : 'bg-transparent border-[var(--orbit-line)] text-[var(--orbit-text-muted)] hover:border-[var(--orbit-glow)]'}`}
+          >
+            {isSelected ? <Check size={14} /> : <Plus size={14} />}
+          </button>
         </div>
       </div>
     </motion.div>
@@ -427,6 +449,7 @@ function AtlasManagerContent() {
         iptu: data.iptu || "",
         features: data.features || [],
         photos: data.photos || [],
+        description: data.description || "",
         payment: "",
         source_link: data.sourceLink || ingestUrl,
         source_domain: data.sourceDomain || ""
@@ -460,6 +483,7 @@ function AtlasManagerContent() {
         iptu: parseFloat(scrapedData.iptu) || null,
         features: scrapedData.features || [],
         photos: scrapedData.photos || [],
+        description: scrapedData.description || null,
         payment_conditions: scrapedData.payment ? { custom: scrapedData.payment } : null,
         source_link: scrapedData.source_link,
         source_domain: scrapedData.source_domain,
@@ -520,7 +544,8 @@ function AtlasManagerContent() {
             : updatedData.topics,
           features: typeof updatedData.features === 'string'
             ? updatedData.features.split(',').map((f: string) => f.trim()).filter(Boolean)
-            : updatedData.features
+            : updatedData.features,
+          description: updatedData.description || null
         })
       })
 

@@ -34,6 +34,7 @@ export default function EditPropertyModal({ isOpen, onClose, property, onSave, o
   const [deleting, setDeleting] = useState(false)
   const [markingSold, setMarkingSold] = useState(false)
   const [confirmSold, setConfirmSold] = useState(false)
+  const [activeTab, setActiveTab] = useState<'details' | 'media' | 'location'>('details')
 
   useEffect(() => {
     if (property) {
@@ -52,6 +53,7 @@ export default function EditPropertyModal({ isOpen, onClose, property, onSave, o
         ui_type: property.ui_type || "",
         topics: (property.topics || []).join(", "),
         condo_name: property.condo_name || "",
+        description: property.description || "",
       })
       if (property.lat && property.lng) {
         setMarker({ lat: property.lat, lng: property.lng })
@@ -157,245 +159,310 @@ export default function EditPropertyModal({ isOpen, onClose, property, onSave, o
           initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.95, opacity: 0 }}
-          className={`border rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col md:flex-row max-h-[90vh] ${
+          className={`border rounded-2xl shadow-2xl w-full max-w-5xl overflow-hidden flex flex-col max-h-[90vh] ${
             isDark ? "bg-[var(--orbit-bg-secondary)] border-[var(--orbit-line)]" : "bg-[var(--orbit-bg)] border-[var(--orbit-line)]"
           }`}
         >
-          {/* Form Side */}
-          <div 
-            className="w-full md:w-1/2 p-8 overflow-y-auto space-y-5" 
-            style={{ 
-              scrollbarWidth: "thin", 
-              scrollbarColor: isDark ? "rgba(46,197,255,0.15) transparent" : "var(--orbit-line) transparent" 
-            }}
-          >
-            <div className="flex items-center justify-between">
+          {/* Header Area */}
+          <div className="p-6 border-b border-[var(--orbit-line)] flex items-center justify-between bg-black/20">
+            <div className="flex items-center gap-6">
+              <div className="hidden md:block w-20 h-20 rounded-xl overflow-hidden border border-[var(--orbit-line)]">
+                <img src={formData.cover_image} alt="" className="w-full h-full object-cover" />
+              </div>
               <div>
-                <h3 className={`font-sans font-semibold text-xl ${isDark ? 'text-[var(--orbit-text)]' : 'text-[var(--orbit-text)]'}`}>Editar Ativo</h3>
-                <p className={`text-[9px] font-mono uppercase tracking-widest mt-1 ${isDark ? 'text-[var(--orbit-glow)]/70' : 'text-[var(--orbit-glow)]/70'}`}>ID: {property.id?.split('-')[0]}</p>
+                <h3 className={`font-sans font-bold text-2xl ${isDark ? 'text-[var(--orbit-text)]' : 'text-[var(--orbit-text)]'}`}>{formData.title || "Sem Título"}</h3>
+                <div className="flex items-center gap-3 mt-1.5">
+                  <span className="text-xl font-mono text-[var(--orbit-glow)] font-bold">R$ {formData.value ? Number(formData.value).toLocaleString('pt-BR') : "---"}</span>
+                  <div className="px-2 py-0.5 rounded-full bg-[var(--orbit-glow)]/10 border border-[var(--orbit-glow)]/20 text-[var(--orbit-glow)] text-[10px] font-mono uppercase font-bold tracking-tighter">
+                    {formData.ui_type || "Ativo"}
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex gap-2">
+              <div className="flex bg-black/40 p-1 rounded-xl border border-[var(--orbit-line)] mr-4">
+                {(['details', 'media', 'location'] as const).map((tab) => (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveTab(tab)}
+                    className={`px-4 py-2 rounded-lg text-[10px] font-mono uppercase tracking-widest transition-all ${
+                      activeTab === tab 
+                        ? 'bg-[var(--orbit-glow)] text-black font-bold shadow-lg' 
+                        : 'text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)]'
+                    }`}
+                  >
+                    {tab === 'details' ? '📋 Detalhes' : tab === 'media' ? '🖼️ Galeria' : '📍 Localização'}
+                  </button>
+                ))}
               </div>
               <button 
                 type="button"
                 onClick={onClose} 
-                className="p-2 hover:bg-white/5 rounded-full text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)] transition-colors md:hidden"
+                className="p-2.5 hover:bg-white/5 rounded-xl text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)] transition-colors border border-transparent hover:border-[var(--orbit-line)]"
               >
                  <X size={20} />
               </button>
             </div>
+          </div>
 
-            <form id="edit-form" onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className={labelClass}>Título</label>
-                <input value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className={inputClass} />
-              </div>
-              <div>
-                <label className={labelClass}>Valor Nominal</label>
-                <input 
-                  type="text" 
-                  value={formData.value ? Number(formData.value).toLocaleString('pt-BR') : ""} 
-                  onChange={e => {
-                    const rawValue = e.target.value.replace(/\D/g, '');
-                    setFormData({...formData, value: rawValue ? Number(rawValue) : ""});
-                  }} 
-                  className={inputClass} 
-                />
-              </div>
-              <div>
-                <label className={labelClass}>Localidade Resumida</label>
-                <input value={formData.location_text} onChange={e => setFormData({...formData, location_text: e.target.value})} className={inputClass} />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className={labelClass}>Bairro</label>
-                  <input value={formData.neighborhood} onChange={e => setFormData({...formData, neighborhood: e.target.value})} className={inputClass} />
-                </div>
-                <div>
-                  <label className={labelClass}>Cidade</label>
-                  <input value={formData.city} onChange={e => setFormData({...formData, city: e.target.value})} className={inputClass} />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className={labelClass}>Nome do Condomínio / Edifício</label>
-                  <input value={formData.condo_name} onChange={e => setFormData({...formData, condo_name: e.target.value})} className={inputClass} placeholder="Ex: Alphaville"/>
-                </div>
-                <div>
-                  <label className={labelClass}>Categoria (Casa de Rua, Apt, Casa Condomínio)</label>
-                  <input value={formData.ui_type} onChange={e => setFormData({...formData, ui_type: e.target.value})} className={inputClass} />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                <div>
-                  <label className={labelClass}>Quartos</label>
-                  <input type="number" value={formData.bedrooms} onChange={e => setFormData({...formData, bedrooms: e.target.value})} className={inputClass} />
-                </div>
-                <div>
-                  <label className={labelClass}>Suítes</label>
-                  <input type="number" value={formData.suites} onChange={e => setFormData({...formData, suites: e.target.value})} className={inputClass} />
-                </div>
-                <div>
-                  <label className={labelClass}>Área Cons. (m²)</label>
-                  <input type="number" value={formData.area_privativa} onChange={e => setFormData({...formData, area_privativa: e.target.value})} className={inputClass} />
-                </div>
-                <div>
-                  <label className={labelClass}>Lote (m²)</label>
-                  <input type="number" value={formData.area_total} onChange={e => setFormData({...formData, area_total: e.target.value})} className={inputClass} />
-                </div>
-              </div>
-              <div>
-                <label className={labelClass}>Tópicos (Tags separadas por vírgula)</label>
-                <input value={formData.topics} onChange={e => setFormData({...formData, topics: e.target.value})} className={inputClass} placeholder="Ex: Vista Panorâmica, Pé direito duplo" />
-              </div>
-              <div>
-                <label className={labelClass}>Destaques Complementares (separados por vírgula)</label>
-                <input value={formData.features} onChange={e => setFormData({...formData, features: e.target.value})} className={inputClass} />
-              </div>
-
-              <div>
-                <label className={labelClass}>Imagem de Capa</label>
-                <div className="flex gap-2 items-center mb-2">
-                  <input 
-                    type="file" 
-                    accept="image/*" 
-                    onChange={handleImageUpload} 
-                    disabled={uploadingImage}
-                    className={`w-full h-11 border rounded-xl px-4 text-xs file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold transition-all ${
-                      isDark 
-                        ? 'bg-[var(--orbit-bg)] border-[var(--orbit-line)] text-[var(--orbit-text-muted)] file:bg-[var(--orbit-glow)]/10 file:text-[var(--orbit-glow)] hover:file:bg-[var(--orbit-glow)]/20' 
-                        : 'bg-[var(--orbit-bg)] border-[var(--orbit-line)] text-[var(--orbit-text-muted)] file:bg-[var(--orbit-glow)]/10 file:text-[var(--orbit-glow)] hover:file:bg-[var(--orbit-glow)]/20'
-                    }`}
-                  />
-                  {uploadingImage && <Loader2 className={`h-5 w-5 animate-spin shrink-0 ${isDark ? 'text-[var(--orbit-glow)]' : 'text-[var(--orbit-glow)]'}`} />}
-                </div>
-                <input value={formData.cover_image} onChange={e => setFormData({...formData, cover_image: e.target.value})} className={inputClass} placeholder="Ou cole a URL direta..." />
-                {formData.cover_image && (
-                  <img src={formData.cover_image} alt="" className="mt-2 w-full h-32 object-cover rounded-xl border border-[rgba(46,197,255,0.1)] opacity-80" />
-                )}
-              </div>
-
-              {property.photos && property.photos.length > 0 && (
-                <div>
-                  <label className={labelClass}>Todas as Fotos ({property.photos.length})</label>
-                  <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar">
-                    {property.photos.map((url: string, idx: number) => (
-                      <div key={idx} className="relative shrink-0 w-20 h-20 rounded-lg overflow-hidden border border-[var(--orbit-line)] group">
-                        <img src={url} alt="" className="w-full h-full object-cover opacity-70 hover:opacity-100 transition-opacity" />
-                        <button 
-                          type="button" 
-                          onClick={() => setFormData({...formData, cover_image: url})}
-                          className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity text-[8px] text-white font-mono uppercase"
-                        >
-                          Usar Capa
-                        </button>
+          <div className="flex flex-1 overflow-hidden min-h-[600px]">
+            {/* Main Content Area */}
+            <div 
+              className="flex-1 overflow-y-auto p-8 custom-scrollbar"
+              style={{ 
+                scrollbarWidth: "thin", 
+                scrollbarColor: isDark ? "rgba(46,197,255,0.15) transparent" : "var(--orbit-line) transparent" 
+              }}
+            >
+              {activeTab === 'details' && (
+                <form id="edit-form" onSubmit={handleSubmit} className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    {/* Left Column: Basic Info */}
+                    <div className="space-y-5">
+                      <h4 className="text-[10px] font-mono uppercase tracking-[0.3em] text-[var(--orbit-glow)] opacity-60 border-b border-[var(--orbit-line)] pb-2">Informações Básicas</h4>
+                      
+                      <div>
+                        <label className={labelClass}>Título do Imóvel</label>
+                        <input value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className={inputClass} placeholder="Ex: Casa duplex de alto padrão" />
                       </div>
-                    ))}
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className={labelClass}>Valor de Venda</label>
+                          <input 
+                            type="text" 
+                            value={formData.value ? Number(formData.value).toLocaleString('pt-BR') : ""} 
+                            onChange={e => {
+                              const rawValue = e.target.value.replace(/\D/g, '');
+                              setFormData({...formData, value: rawValue ? Number(rawValue) : ""});
+                            }} 
+                            className={inputClass} 
+                          />
+                        </div>
+                        <div>
+                          <label className={labelClass}>Condomínio (Mensal)</label>
+                          <input 
+                            type="number" 
+                            value={formData.condo_fee} 
+                            onChange={e => setFormData({...formData, condo_fee: e.target.value})} 
+                            className={inputClass} 
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className={labelClass}>Bairro</label>
+                          <input value={formData.neighborhood} onChange={e => setFormData({...formData, neighborhood: e.target.value})} className={inputClass} />
+                        </div>
+                        <div>
+                          <label className={labelClass}>Cidade</label>
+                          <input value={formData.city} onChange={e => setFormData({...formData, city: e.target.value})} className={inputClass} />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Right Column: Structure & Tags */}
+                    <div className="space-y-5">
+                      <h4 className="text-[10px] font-mono uppercase tracking-[0.3em] text-[var(--orbit-glow)] opacity-60 border-b border-[var(--orbit-line)] pb-2">Atributos e Tags</h4>
+                      
+                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                        <div>
+                          <label className={labelClass}>Quartos</label>
+                          <input type="number" value={formData.bedrooms} onChange={e => setFormData({...formData, bedrooms: e.target.value})} className={inputClass} />
+                        </div>
+                        <div>
+                          <label className={labelClass}>Suítes</label>
+                          <input type="number" value={formData.suites} onChange={e => setFormData({...formData, suites: e.target.value})} className={inputClass} />
+                        </div>
+                        <div>
+                          <label className={labelClass}>Área (m²)</label>
+                          <input type="number" value={formData.area_privativa} onChange={e => setFormData({...formData, area_privativa: e.target.value})} className={inputClass} />
+                        </div>
+                        <div>
+                          <label className={labelClass}>Vagas</label>
+                          <input type="number" value={formData.parking_spots} onChange={e => setFormData({...formData, parking_spots: e.target.value})} className={inputClass} />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className={labelClass}>Tópicos (Pills de Destaque)</label>
+                        <div className="flex flex-wrap gap-2 mb-2 min-h-8 p-3 rounded-xl border border-dashed border-[var(--orbit-line)]">
+                          {(formData.topics || "").split(',').filter(Boolean).map((t: string, i: number) => (
+                            <span key={i} className="px-2.5 py-1 rounded-lg bg-[var(--orbit-glow)]/10 text-[var(--orbit-glow)] text-[10px] font-mono border border-[var(--orbit-glow)]/20">
+                              {t.trim()}
+                            </span>
+                          ))}
+                        </div>
+                        <input value={formData.topics} onChange={e => setFormData({...formData, topics: e.target.value})} className={inputClass} placeholder="Separe itens por vírgula..." />
+                      </div>
+
+                      <div>
+                        <label className={labelClass}>Destaques Complementares</label>
+                        <input value={formData.features} onChange={e => setFormData({...formData, features: e.target.value})} className={inputClass} />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Full Width Description Area */}
+                  <div className="space-y-3 pt-4">
+                    <h4 className="text-[10px] font-mono uppercase tracking-[0.3em] text-[var(--orbit-glow)] opacity-60 border-b border-[var(--orbit-line)] pb-2">Descritivo Detalhado</h4>
+                    <textarea 
+                      value={formData.description} 
+                      onChange={e => setFormData({...formData, description: e.target.value})} 
+                      className={`${inputClass} !h-40 py-3 resize-none leading-relaxed transition-all focus:ring-1 focus:ring-[var(--orbit-glow)]/30`}
+                      placeholder="Descreva o imóvel com detalhes para que os leads possam entender o valor real..."
+                    />
+                  </div>
+
+                  {/* Sold & Action Section */}
+                  <div className="flex flex-col md:flex-row gap-6 pt-6 border-t border-[var(--orbit-line)]">
+                    <div className="flex-1 space-y-4">
+                      {onMarkAsSold && (
+                        <div>
+                          {!confirmSold ? (
+                            <button
+                              type="button"
+                              onClick={() => setConfirmSold(true)}
+                              className="w-full h-12 rounded-xl border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/5 hover:border-emerald-500/40 text-[10px] font-mono uppercase tracking-widest transition-all flex items-center justify-center gap-2"
+                            >
+                              <span>✓</span> Marcar como Vendido
+                            </button>
+                          ) : (
+                            <div className="p-4 bg-emerald-500/5 border border-emerald-500/20 rounded-xl space-y-3">
+                              <p className="text-xs text-[var(--orbit-text-muted)]">O imóvel será <strong>inativado</strong> da lista principal.</p>
+                              <div className="flex gap-2">
+                                <button type="button" onClick={() => setConfirmSold(false)} className="flex-1 h-9 rounded-lg border border-white/10 text-[#94a3b8] hover:bg-white/5 text-[10px] font-mono uppercase tracking-widest transition-all">Cancelar</button>
+                                <button type="button" onClick={handleMarkAsSold} disabled={markingSold} className="flex-1 h-9 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2">
+                                  {markingSold ? <Loader2 size={13} className="animate-spin" /> : '✓ Confirmar Venda'}
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="flex-[2] flex gap-3">
+                      <button type="button" onClick={onClose} className="flex-1 h-12 rounded-xl border border-[var(--orbit-line)] text-[10px] font-mono uppercase tracking-widest text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)] hover:bg-white/5 transition-all">
+                        Descartar
+                      </button>
+                      <button type="submit" disabled={saving} className="flex-[2] h-12 rounded-xl bg-[var(--orbit-glow)] hover:bg-[var(--orbit-glow)]/90 text-black font-bold uppercase tracking-widest text-[11px] shadow-[0_0_20px_rgba(var(--orbit-glow-rgb),0.3)] transition-all disabled:opacity-50">
+                        {saving ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : 'Salvar Alterações'}
+                      </button>
+                    </div>
+                  </div>
+                </form>
+              )}
+
+              {activeTab === 'media' && (
+                <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div>
+                      <label className={labelClass}>Imagem de Capa (Principal)</label>
+                      <div className="relative group rounded-2xl overflow-hidden border border-[var(--orbit-line)] bg-black/40 h-64">
+                         {formData.cover_image ? (
+                           <img src={formData.cover_image} alt="" className="w-full h-full object-cover" />
+                         ) : (
+                           <div className="w-full h-full flex items-center justify-center text-[var(--orbit-text-muted)] opacity-50 font-mono text-[10px]">Sem imagem</div>
+                         )}
+                         <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center p-6 text-center">
+                            <div>
+                               <p className="text-[10px] font-mono text-white mb-4 uppercase tracking-widest">Alterar capa principal</p>
+                               <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" id="cover-upload" />
+                               <label htmlFor="cover-upload" className="cursor-pointer px-6 py-2 bg-[var(--orbit-glow)] rounded-lg text-black text-[10px] font-bold uppercase">Fazer Upload</label>
+                            </div>
+                         </div>
+                      </div>
+                      <input value={formData.cover_image} onChange={e => setFormData({...formData, cover_image: e.target.value})} className={`${inputClass} mt-4`} placeholder="Ou cole a URL direta aqui..." />
+                    </div>
+
+                    <div className="space-y-4">
+                       <h4 className="text-[10px] font-mono uppercase tracking-[0.3em] text-[var(--orbit-glow)] opacity-60">Todas as Fotos ({property.photos?.length || 0})</h4>
+                       <div className="grid grid-cols-3 gap-3">
+                         {property.photos?.map((url: string, idx: number) => (
+                           <div key={idx} className="relative aspect-square rounded-xl overflow-hidden border border-[var(--orbit-line)] group cursor-pointer hover:border-[var(--orbit-glow)]/50 transition-all">
+                              <img src={url} alt="" className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity" />
+                              <button 
+                                type="button" 
+                                onClick={() => setFormData({...formData, cover_image: url})}
+                                className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity text-[8px] text-white font-mono uppercase font-bold"
+                              >
+                                Usar Capa
+                              </button>
+                           </div>
+                         ))}
+                         <label className="aspect-square rounded-xl border border-dashed border-[var(--orbit-line)] hover:border-[var(--orbit-glow)]/50 flex flex-col items-center justify-center cursor-pointer hover:bg-white/5 transition-all text-[var(--orbit-text-muted)] gap-1">
+                            <span className="text-xl">+</span>
+                            <span className="text-[8px] font-mono uppercase">Add</span>
+                         </label>
+                       </div>
+                    </div>
                   </div>
                 </div>
               )}
 
-              <div className="pt-2 flex gap-3">
-                <button type="button" onClick={onClose} className={`flex-1 h-11 rounded-xl border transition-all text-[10px] font-mono uppercase tracking-widest ${isDark ? 'border-[rgba(46,197,255,0.15)] text-[#94a3b8] hover:text-[#e6eef6] hover:bg-white/5' : 'border-[var(--orbit-line)] text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)] hover:bg-[var(--orbit-line)]'}`}>
-                  Cancelar
-                </button>
-                <button type="submit" disabled={saving} className={`flex-[2] h-11 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all disabled:opacity-50 flex items-center justify-center gap-2 ${
-                  isDark 
-                    ? 'bg-[var(--orbit-glow)] hover:bg-[var(--orbit-glow)]/90 text-black shadow-[0_0_20px_rgba(var(--orbit-glow-rgb),0.2)]' 
-                    : 'bg-[var(--orbit-glow)] hover:brightness-110 text-white shadow-[var(--orbit-shadow)]'
-                }`}>
-                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Salvar Alterações'}
-                </button>
-              </div>
-            </form>
-
-            {/* Sold Section */}
-            {onMarkAsSold && (
-              <div className={`pt-4 border-t ${isDark ? 'border-[rgba(46,197,255,0.08)]' : 'border-[var(--orbit-line)]'}`}>
-                {!confirmSold ? (
-                  <button
-                    onClick={() => setConfirmSold(true)}
-                    className="w-full h-10 rounded-xl border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/5 hover:border-emerald-500/40 text-[10px] font-mono uppercase tracking-widest transition-all flex items-center justify-center gap-2"
-                  >
-                    <span>✓</span> Marcar como Vendido
-                  </button>
-                ) : (
-                  <div className="p-4 bg-emerald-500/5 border border-emerald-500/20 rounded-xl space-y-3">
-                    <p className="text-xs text-[var(--orbit-text-muted)]">O imóvel será <strong>inativado</strong> e sumirá da lista, mas todo o histórico e interações serão preservados.</p>
-                    <div className="flex gap-2">
-                      <button onClick={() => setConfirmSold(false)} className="flex-1 h-9 rounded-lg border border-white/10 text-[#94a3b8] hover:bg-white/5 text-[10px] font-mono uppercase tracking-widest transition-all">
-                        Cancelar
-                      </button>
-                      <button onClick={handleMarkAsSold} disabled={markingSold} className="flex-1 h-9 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 disabled:opacity-50">
-                        {markingSold ? <span className="animate-spin">⏳</span> : '✓ Confirmar Venda'}
-                      </button>
+              {activeTab === 'location' && (
+                <div className="h-full min-h-[500px] flex flex-col animate-in fade-in slide-in-from-bottom-2 duration-300">
+                  <div className="p-4 bg-[var(--orbit-bg-secondary)] border border-[var(--orbit-line)] rounded-xl mb-4 flex items-center justify-between">
+                     <div className="flex items-center gap-3">
+                       <MapPin className="text-[var(--orbit-glow)]" size={18} />
+                       <div>
+                         <p className="text-[10px] font-mono uppercase font-bold tracking-widest text-[var(--orbit-text)]">Coordenadas de Precisão</p>
+                         <p className="text-[10px] text-[var(--orbit-text-muted)]">O mapa define a localização exata nas buscas por geolocalização.</p>
+                       </div>
+                     </div>
+                     {marker && (
+                       <div className="px-3 py-1.5 rounded-lg bg-black/40 font-mono text-[10px] text-[var(--orbit-glow)] border border-[var(--orbit-glow)]/20">
+                         {marker.lat.toFixed(6)}, {marker.lng.toFixed(6)}
+                       </div>
+                     )}
+                  </div>
+                  
+                  <div className="flex-1 rounded-2xl overflow-hidden border border-[var(--orbit-line)] group relative">
+                    <MapAtlas 
+                      properties={[]}
+                      isPlacing={true}
+                      previewMarker={marker}
+                      onMapClick={(lat, lng) => setMarker({ lat, lng })}
+                      initialCenter={marker ? [marker.lng, marker.lat] : [-50.0333, -29.8000]}
+                      initialZoom={marker ? 16 : 13}
+                    />
+                    <div className="absolute top-4 right-4 z-10 p-3 bg-black/60 backdrop-blur-md rounded-xl border border-white/10 text-[9px] font-mono text-white/70 max-w-[200px] pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
+                      Clique em qualquer lugar no mapa para posicionar o marcador do imóvel.
                     </div>
                   </div>
-                )}
-              </div>
-            )}
-
-            {/* Delete Section */}
-            {onDelete && (
-              <div className={`pt-4 border-t ${isDark ? 'border-[rgba(46,197,255,0.08)]' : 'border-[var(--orbit-line)]'}`}>
-                {!confirmDelete ? (
-                  <button
-                    onClick={() => setConfirmDelete(true)}
-                    className="w-full h-10 rounded-xl border border-red-500/20 text-red-400 hover:bg-red-500/5 hover:border-red-500/40 text-[10px] font-mono uppercase tracking-widest transition-all flex items-center justify-center gap-2"
-                  >
-                    <Trash2 size={13} /> Excluir Ativo do Banco
-                  </button>
-                ) : (
-                  <div className="p-4 bg-red-500/5 border border-red-500/20 rounded-xl space-y-3">
-                    <div className="flex items-center gap-2 text-red-400">
-                      <AlertTriangle size={15} />
-                      <span className="text-[11px] font-bold uppercase tracking-wider">Ação Irreversível</span>
-                    </div>
-                    <p className="text-xs text-[var(--orbit-text-muted)]">Isso remove o imóvel do banco, junto com todas as interações e dados vinculados.</p>
-                    <div className="flex gap-2">
-                      <button onClick={() => setConfirmDelete(false)} className="flex-1 h-9 rounded-lg border border-white/10 text-[#94a3b8] hover:bg-white/5 text-[10px] font-mono uppercase tracking-widest transition-all">
-                        Cancelar
-                      </button>
-                      <button onClick={handleDelete} disabled={deleting} className="flex-1 h-9 rounded-lg bg-red-500 hover:bg-red-600 text-white text-[10px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 disabled:opacity-50">
-                        {deleting ? <Loader2 size={13} className="animate-spin" /> : <><Trash2 size={13} /> Confirmar Exclusão</>}
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-          
-          {/* Map Side */}
-          <div className={`w-full md:w-1/2 relative min-h-[400px] md:min-h-0 border-l ${isDark ? 'bg-[#05060a] border-[rgba(46,197,255,0.1)]' : 'bg-[var(--orbit-bg)] border-[var(--orbit-line)]'}`}>
-            <button 
-              type="button"
-              onClick={onClose} 
-              className="absolute top-5 right-5 z-10 p-2 hover:bg-white/10 rounded-full text-[var(--orbit-text-muted)] hidden md:block backdrop-blur-md transition-colors"
-            >
-              <X size={18} />
-            </button>
-            <div className={`absolute top-5 left-5 z-10 p-4 backdrop-blur-md rounded-xl border max-w-[80%] pointer-events-none ${
-              isDark ? 'bg-[#0b1220]/80 border-[rgba(46,197,255,0.15)]' : 'bg-[var(--orbit-bg)]/80 border-[var(--orbit-line)]'
-            }`}>
-              <div className="flex items-center gap-2 mb-1">
-                <MapPin className={`h-3.5 w-3.5 ${isDark ? 'text-[var(--orbit-glow)]' : 'text-[var(--orbit-glow)]'}`} />
-                <span className={`text-[10px] font-bold uppercase tracking-widest ${isDark ? 'text-[var(--orbit-text)]' : 'text-[var(--orbit-text)]'}`}>Localização</span>
-              </div>
-              <p className={`text-[10px] ${isDark ? 'text-[var(--orbit-text-muted)]' : 'text-[var(--orbit-text-muted)]'}`}>Clique no mapa para registrar as coordenadas.</p>
-              {marker && (
-                <p className={`text-[9px] mt-1 font-mono ${isDark ? 'text-[#2ec5ff]' : 'text-[var(--orbit-glow)]'}`}>{marker.lat.toFixed(5)}, {marker.lng.toFixed(5)}</p>
+                </div>
               )}
             </div>
-            
-            <MapAtlas 
-               properties={[]}
-               isPlacing={true}
-               previewMarker={marker}
-               onMapClick={(lat, lng) => setMarker({ lat, lng })}
-               initialCenter={marker ? [marker.lng, marker.lat] : [-50.0333, -29.8000]}
-               initialZoom={marker ? 15 : 12}
-            />
+
+            {/* Right Side Sidebar (Optional - for Match Insights later) */}
+            <div className={`hidden lg:block w-72 border-l border-[var(--orbit-line)] p-6 bg-black/10 overflow-y-auto ${activeTab === 'details' ? '' : 'opacity-20 pointer-events-none'}`}>
+               <h4 className="text-[10px] font-mono uppercase tracking-[0.3em] text-[var(--orbit-text-muted)] mb-6">Match Intelligence</h4>
+               
+               <div className="space-y-6">
+                  <div className="p-4 rounded-xl bg-[var(--orbit-glow)]/5 border border-[var(--orbit-glow)]/10 space-y-3">
+                    <p className="text-[10px] font-mono text-[var(--orbit-glow)] uppercase font-bold">Por que é um match?</p>
+                    <p className="text-[11px] text-[var(--orbit-text-muted)] leading-relaxed italic">"Nenhum lead selecionado para análise de afinidade no momento."</p>
+                  </div>
+
+                  <div className="space-y-3">
+                     <p className="text-[9px] font-mono text-[var(--orbit-text-muted)] uppercase">Status de Mercado</p>
+                     <div className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/5">
+                        <span className="text-[10px] text-[var(--orbit-text-muted)]">Visualizações</span>
+                        <span className="text-[10px] font-mono font-bold">124</span>
+                     </div>
+                     <div className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/5">
+                        <span className="text-[10px] text-[var(--orbit-text-muted)]">Interesse</span>
+                        <span className="text-[10px] font-mono font-bold text-emerald-400">Alto</span>
+                     </div>
+                  </div>
+               </div>
+            </div>
           </div>
         </motion.div>
+
       </div>
     </AnimatePresence>
   )

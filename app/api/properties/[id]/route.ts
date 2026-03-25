@@ -19,8 +19,7 @@ export async function DELETE(
 
     const supabase = getSupabaseServer()
     
-    const { data: property, error: fetchError } = await supabase
-      .from('properties')
+    const { data: property, error: fetchError } = await (supabase.from('properties') as any)
       .select('id, title, internal_name')
       .eq('id', id)
       .single()
@@ -114,8 +113,7 @@ export async function PUT(
 
     const supabase = getSupabaseServer()
 
-    const { data: existingProperty, error: fetchError } = await supabase
-      .from('properties')
+    const { data: existingProperty, error: fetchError } = await (supabase.from('properties') as any)
       .select('id, source_link, cover_image')
       .eq('id', id)
       .single()
@@ -149,14 +147,14 @@ export async function PUT(
     let newEmbedding = undefined
     const triggersEmbeddingRegen = [
       'title', 'neighborhood', 'city', 'area_privativa', 'bedrooms', 
-      'suites', 'features', 'value', 'payment_conditions'
+      'suites', 'features', 'description', 'value', 'payment_conditions'
     ].some(key => Object.keys(otherUpdates).includes(key))
 
     if (triggersEmbeddingRegen) {
       console.log('[PUT /api/properties] Regenerating embedding due to field updates...')
       
       // We need the merged data of existing + updates to generate a full context
-      const { data: fullProp } = await supabase.from('properties').select('*').eq('id', id).single()
+      const { data: fullProp } = await (supabase.from('properties') as any).select('*').eq('id', id).single()
       const merged = { ...fullProp, ...otherUpdates }
 
       const cleanFeatures = typeof merged.features === 'string' 
@@ -183,6 +181,7 @@ export async function PUT(
         ${locationContext}
         ${structuralContext}
         Amenidades: ${cleanFeatures}
+        Descrição: ${merged.description || ""}
         ${financialContext}
       `.replace(/\s+/g, ' ').trim()
 
@@ -208,8 +207,7 @@ export async function PUT(
       ...(newEmbedding && { property_embedding: newEmbedding }),
     }
 
-    const { data: updatedProperty, error: updateError } = await supabase
-      .from('properties')
+    const { data: updatedProperty, error: updateError } = await (supabase.from('properties') as any)
       .update(updateData)
       .eq('id', id)
       .select()
