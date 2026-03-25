@@ -25,10 +25,10 @@ export function ZenOverlay({ mapRef }: ZenOverlayProps) {
         type: 'image',
         url: '/overlays/zen-overlay.png',
         coordinates: [
-          [-50.06764261422266, -29.82216860959286], // Top-Left (West, North)
-          [-50.05663217442957, -29.82216860959286], // Top-Right (East, North)
-          [-50.05663217442957, -29.82763396467291], // Bottom-Right (East, South)
-          [-50.06764261422266, -29.82763396467291]  // Bottom-Left (West, South)
+          [-50.06820908969696, -29.82331016434248], // Top-Left (Rotated)
+          [-50.05747950314367, -29.821166464595237], // Top-Right (Rotated)
+          [-50.05606569895528, -29.826492409923294], // Bottom-Right (Rotated)
+          [-50.06679528550857, -29.828636109670533]  // Bottom-Left (Rotated)
         ]
       })
 
