@@ -273,6 +273,7 @@ interface PropertyRow {
   id: string
   source_link: string
   internal_name: string | null
+  internal_code: string | null
   title: string | null
   cover_image: string | null
   source_domain: string | null
@@ -359,6 +360,8 @@ export interface PropertyInteractionRow {
   property?: {
     id: string
     title: string | null
+    internal_name?: string | null
+    internal_code?: string | null
     cover_image: string | null
     source_link: string | null
     source_domain: string | null

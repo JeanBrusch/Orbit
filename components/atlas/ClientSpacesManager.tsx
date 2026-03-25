@@ -109,7 +109,7 @@ export default function ClientSpacesManager({ leadId, onClose }: ClientSpacesMan
     // For maximum reliability, we fetch all active capsule_items for this lead
     const { data: capsuleItems, error: itemsError } = await (supabase
       .from('property_interactions') as any)
-      .select('property_id, properties(title, internal_name, cover_image, value, location_text)')
+      .select('property_id, properties(title, internal_name, internal_code, cover_image, value, location_text)')
       .eq('lead_id', leadId)
       .eq('interaction_type', 'sent')
 
@@ -138,7 +138,7 @@ export default function ClientSpacesManager({ leadId, onClose }: ClientSpacesMan
         return {
           ...props,
           property_id: item.property_id,
-          title: props.title || props.internal_name || 'Imóvel sem título',
+          title: (props.internal_code ? `[${props.internal_code}] ` : '') + (props.title || props.internal_name || 'Imóvel sem título'),
           context: contextMap.get(item.property_id) || { note: '', video_url: '' }
         };
       });

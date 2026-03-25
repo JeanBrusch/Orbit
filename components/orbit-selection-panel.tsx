@@ -34,6 +34,7 @@ interface SelectionProperty {
   id: string;
   title: string | null;
   internal_name: string | null;
+  internal_code: string | null;
   cover_image: string | null;
   value: number | null;
   source_link: string | null;
@@ -155,10 +156,10 @@ function PropertyRow({ prop, isTop }: { prop: SelectionProperty; isTop?: boolean
           )}
         </div>
 
-        {/* Info */}
         <div className="flex-1 min-w-0">
           <p className="text-[11px] font-bold text-slate-200 truncate leading-tight">
-            {prop.title || prop.internal_name || "Imóvel"}
+             {prop.internal_code && <span className="text-[var(--orbit-glow)] mr-1">[{prop.internal_code}]</span>}
+             {prop.title || prop.internal_name || "Imóvel"}
           </p>
           <div className="flex items-center gap-2 mt-0.5">
             <span className="text-[10px] text-[#d4af35]/80 font-medium">{formatValue(prop.value)}</span>
@@ -326,6 +327,7 @@ export function OrbitSelectionPanel({ leadId }: OrbitSelectionPanelProps) {
             id: p.id,
             title: p.title,
             internal_name: p.internal_name,
+            internal_code: p.internal_code || null,
             cover_image: p.cover_image,
             value: p.value,
             source_link: p.source_link,
@@ -510,6 +512,7 @@ export function OrbitSelectionPanel({ leadId }: OrbitSelectionPanelProps) {
           <div className="flex-1 min-w-0">
             <p className="text-[9px] text-blue-400/70 uppercase tracking-widest font-bold mb-0.5">Top Interesse</p>
             <p className="text-[11px] text-slate-200 truncate font-medium">
+              {topInterest.property.internal_code && <span className="text-[var(--orbit-glow)] mr-1">[{topInterest.property.internal_code}]</span>}
               {topInterest.property.title || topInterest.property.internal_name || "Imóvel"}
             </p>
           </div>

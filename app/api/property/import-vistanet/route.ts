@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
     const supabase = getSupabaseServer()
     const { data: existingProperty } = await (supabase
       .from('properties')
-      .select('id, topics, property_embedding, title, value, neighborhood, features, description')
+      .select('id, topics, property_embedding, title, value, neighborhood, features, description, internal_code, internal_notes')
       .eq('internal_name', data.Codigo)
       .maybeSingle() as any)
 
@@ -133,6 +133,26 @@ export async function POST(req: NextRequest) {
     // Merge location tags and AI topics into the 'topics' column
     const finalTopics = [...new Set([...location_tags, ...aiTopics])].slice(0, 8)
 
+    // Preserve or generate internal code sequentially (starting at 100)
+    let internalCode = existingProperty?.internal_code;
+    if (!internalCode) {
+      const { data } = await supabase
+        .from('properties')
+        .select('internal_code');
+      const codesData = data as any[];
+      
+      let maxCode = 99; // Defaults to starting at 100
+      if (codesData) {
+        for (const row of codesData) {
+          if (row.internal_code && /^\d+$/.test(row.internal_code.trim())) {
+            const num = parseInt(row.internal_code.trim(), 10);
+            if (num > maxCode) maxCode = num;
+          }
+        }
+      }
+      internalCode = (maxCode + 1).toString();
+    }
+
     // --- Step 5: Upsert into properties ---
     const payload = {
       source_link: url.trim(),
@@ -167,6 +187,9 @@ export async function POST(req: NextRequest) {
         vistanet_cod: params.cod,
         vistanet_v2: v2,
       },
+      vista_code: params.cod,
+      internal_code: internalCode,
+      internal_notes: existingProperty?.internal_notes || null,
       status: 'active'
     }
 

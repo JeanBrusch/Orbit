@@ -54,6 +54,9 @@ export default function EditPropertyModal({ isOpen, onClose, property, onSave, o
         topics: (property.topics || []).join(", "),
         condo_name: property.condo_name || "",
         description: property.description || "",
+        vista_code: property.vista_code || "",
+        internal_code: property.internal_code || "",
+        internal_notes: property.internal_notes || "",
       })
       if (property.lat && property.lng) {
         setMarker({ lat: property.lat, lng: property.lng })
@@ -148,9 +151,11 @@ export default function EditPropertyModal({ isOpen, onClose, property, onSave, o
   const inputClass = `w-full h-11 border rounded-xl px-4 text-sm transition-all focus:outline-none ${
     isDark 
       ? "bg-[var(--orbit-bg)] border-[var(--orbit-line)] text-[var(--orbit-text)] placeholder:text-[var(--orbit-text-muted)] focus:border-[var(--orbit-glow)]/50" 
-      : "bg-[var(--orbit-bg)] border-[var(--orbit-line)] text-[var(--orbit-text)] placeholder:text-[var(--orbit-text-muted)] focus:border-[var(--orbit-glow)]/50"
+      : "bg-white border-gray-200 text-slate-900 placeholder:text-slate-400 focus:border-[var(--orbit-glow)] focus:ring-1 focus:ring-[var(--orbit-glow)]/30"
   }`
-  const labelClass = `text-[9px] font-mono uppercase tracking-[0.2em] block mb-1.5 ${isDark ? "text-[var(--orbit-text-muted)]" : "text-[var(--orbit-text-muted)]"}`
+  const labelClass = `text-[9px] font-mono uppercase tracking-[0.2em] block mb-1.5 ${
+    isDark ? "text-[var(--orbit-text-muted)]" : "text-slate-500 font-bold"
+  }`
 
   return (
     <AnimatePresence>
@@ -160,11 +165,15 @@ export default function EditPropertyModal({ isOpen, onClose, property, onSave, o
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.95, opacity: 0 }}
           className={`border rounded-2xl shadow-2xl w-full max-w-5xl overflow-hidden flex flex-col max-h-[90vh] ${
-            isDark ? "bg-[var(--orbit-bg-secondary)] border-[var(--orbit-line)]" : "bg-[var(--orbit-bg)] border-[var(--orbit-line)]"
+            isDark 
+              ? "bg-[var(--orbit-bg-secondary)] border-[var(--orbit-line)] text-white" 
+              : "bg-white border-gray-200 text-slate-900"
           }`}
         >
           {/* Header Area */}
-          <div className="p-6 border-b border-[var(--orbit-line)] flex items-center justify-between bg-black/20">
+          <div className={`p-6 border-b flex items-center justify-between ${
+            isDark ? "bg-black/20 border-[var(--orbit-line)]" : "bg-gray-50 border-gray-200"
+          }`}>
             <div className="flex items-center gap-6">
               <div className="hidden md:block w-20 h-20 rounded-xl overflow-hidden border border-[var(--orbit-line)]">
                 <img src={formData.cover_image} alt="" className="w-full h-full object-cover" />
@@ -181,7 +190,9 @@ export default function EditPropertyModal({ isOpen, onClose, property, onSave, o
             </div>
             
             <div className="flex gap-2">
-              <div className="flex bg-black/40 p-1 rounded-xl border border-[var(--orbit-line)] mr-4">
+              <div className={`flex p-1 rounded-xl border mr-4 ${
+                isDark ? "bg-black/40 border-[var(--orbit-line)]" : "bg-gray-100 border-gray-200"
+              }`}>
                 {(['details', 'media', 'location'] as const).map((tab) => (
                   <button
                     key={tab}
@@ -189,7 +200,9 @@ export default function EditPropertyModal({ isOpen, onClose, property, onSave, o
                     className={`px-4 py-2 rounded-lg text-[10px] font-mono uppercase tracking-widest transition-all ${
                       activeTab === tab 
                         ? 'bg-[var(--orbit-glow)] text-black font-bold shadow-lg' 
-                        : 'text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)]'
+                        : isDark 
+                          ? 'text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)] hover:bg-white/5'
+                          : 'text-slate-500 hover:text-slate-900 hover:bg-black/5'
                     }`}
                   >
                     {tab === 'details' ? '📋 Detalhes' : tab === 'media' ? '🖼️ Galeria' : '📍 Localização'}
@@ -199,7 +212,11 @@ export default function EditPropertyModal({ isOpen, onClose, property, onSave, o
               <button 
                 type="button"
                 onClick={onClose} 
-                className="p-2.5 hover:bg-white/5 rounded-xl text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)] transition-colors border border-transparent hover:border-[var(--orbit-line)]"
+                className={`p-2.5 rounded-xl transition-colors border border-transparent ${
+                  isDark 
+                    ? "hover:bg-white/5 text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)] hover:border-[var(--orbit-line)]" 
+                    : "hover:bg-gray-200 text-slate-500 hover:text-slate-900 hover:border-gray-300"
+                }`}
               >
                  <X size={20} />
               </button>
@@ -220,11 +237,22 @@ export default function EditPropertyModal({ isOpen, onClose, property, onSave, o
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     {/* Left Column: Basic Info */}
                     <div className="space-y-5">
-                      <h4 className="text-[10px] font-mono uppercase tracking-[0.3em] text-[var(--orbit-glow)] opacity-60 border-b border-[var(--orbit-line)] pb-2">Informações Básicas</h4>
+                      <h4 className={`text-[10px] font-mono uppercase tracking-[0.3em] text-[var(--orbit-glow)] opacity-60 border-b pb-2 ${isDark ? "border-[var(--orbit-line)]" : "border-gray-200"}`}>Informações Básicas</h4>
                       
                       <div>
                         <label className={labelClass}>Título do Imóvel</label>
                         <input value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className={inputClass} placeholder="Ex: Casa duplex de alto padrão" />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className={labelClass}>Cód. Interno (Visível)</label>
+                          <input value={formData.internal_code} onChange={e => setFormData({...formData, internal_code: e.target.value})} className={inputClass} placeholder="ORB-0000" />
+                        </div>
+                        <div>
+                          <label className={labelClass}>Cód. VistaNet</label>
+                          <input value={formData.vista_code || ""} readOnly className={`${inputClass} opacity-50 cursor-not-allowed ${!isDark && "bg-gray-100"}`} placeholder="N/A" title="Código original da importação" />
+                        </div>
                       </div>
 
                       <div className="grid grid-cols-2 gap-4">
@@ -265,7 +293,7 @@ export default function EditPropertyModal({ isOpen, onClose, property, onSave, o
 
                     {/* Right Column: Structure & Tags */}
                     <div className="space-y-5">
-                      <h4 className="text-[10px] font-mono uppercase tracking-[0.3em] text-[var(--orbit-glow)] opacity-60 border-b border-[var(--orbit-line)] pb-2">Atributos e Tags</h4>
+                      <h4 className={`text-[10px] font-mono uppercase tracking-[0.3em] text-[var(--orbit-glow)] opacity-60 border-b pb-2 ${isDark ? "border-[var(--orbit-line)]" : "border-gray-200"}`}>Atributos e Tags</h4>
                       
                       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                         <div>
@@ -288,7 +316,7 @@ export default function EditPropertyModal({ isOpen, onClose, property, onSave, o
 
                       <div>
                         <label className={labelClass}>Tópicos (Pills de Destaque)</label>
-                        <div className="flex flex-wrap gap-2 mb-2 min-h-8 p-3 rounded-xl border border-dashed border-[var(--orbit-line)]">
+                        <div className={`flex flex-wrap gap-2 mb-2 min-h-8 p-3 rounded-xl border border-dashed ${isDark ? "border-[var(--orbit-line)]" : "border-gray-300 bg-gray-50"}`}>
                           {(formData.topics || "").split(',').filter(Boolean).map((t: string, i: number) => (
                             <span key={i} className="px-2.5 py-1 rounded-lg bg-[var(--orbit-glow)]/10 text-[var(--orbit-glow)] text-[10px] font-mono border border-[var(--orbit-glow)]/20">
                               {t.trim()}
@@ -307,7 +335,7 @@ export default function EditPropertyModal({ isOpen, onClose, property, onSave, o
 
                   {/* Full Width Description Area */}
                   <div className="space-y-3 pt-4">
-                    <h4 className="text-[10px] font-mono uppercase tracking-[0.3em] text-[var(--orbit-glow)] opacity-60 border-b border-[var(--orbit-line)] pb-2">Descritivo Detalhado</h4>
+                    <h4 className={`text-[10px] font-mono uppercase tracking-[0.3em] text-[var(--orbit-glow)] opacity-60 border-b pb-2 ${isDark ? "border-[var(--orbit-line)]" : "border-gray-200"}`}>Descritivo Detalhado</h4>
                     <textarea 
                       value={formData.description} 
                       onChange={e => setFormData({...formData, description: e.target.value})} 
@@ -316,8 +344,22 @@ export default function EditPropertyModal({ isOpen, onClose, property, onSave, o
                     />
                   </div>
 
+                  {/* Internal Notes Area */}
+                  <div className="space-y-3 pt-4">
+                    <h4 className={`flex items-center gap-2 text-[10px] font-mono uppercase tracking-[0.3em] text-red-400 opacity-80 border-b pb-2 ${isDark ? "border-[var(--orbit-line)]" : "border-gray-200"}`}>
+                      <AlertTriangle size={12} />
+                      Notas Internas (Apenas Corretores)
+                    </h4>
+                    <textarea 
+                      value={formData.internal_notes} 
+                      onChange={e => setFormData({...formData, internal_notes: e.target.value})} 
+                      className={`${inputClass} !h-32 py-3 resize-none leading-relaxed transition-all focus:ring-1 focus:ring-red-500/30 border-red-500/20`}
+                      placeholder="Informações sigilosas, condições de pagamento, regras de parceria, etc..."
+                    />
+                  </div>
+
                   {/* Sold & Action Section */}
-                  <div className="flex flex-col md:flex-row gap-6 pt-6 border-t border-[var(--orbit-line)]">
+                  <div className={`flex flex-col md:flex-row gap-6 pt-6 border-t ${isDark ? "border-[var(--orbit-line)]" : "border-gray-200"}`}>
                     <div className="flex-1 space-y-4">
                       {onMarkAsSold && (
                         <div>
@@ -330,10 +372,14 @@ export default function EditPropertyModal({ isOpen, onClose, property, onSave, o
                               <span>✓</span> Marcar como Vendido
                             </button>
                           ) : (
-                            <div className="p-4 bg-emerald-500/5 border border-emerald-500/20 rounded-xl space-y-3">
+                            <div className={`p-4 rounded-xl space-y-3 border ${
+                              isDark ? "bg-emerald-500/5 border-emerald-500/20" : "bg-emerald-50 border-emerald-200"
+                            }`}>
                               <p className="text-xs text-[var(--orbit-text-muted)]">O imóvel será <strong>inativado</strong> da lista principal.</p>
                               <div className="flex gap-2">
-                                <button type="button" onClick={() => setConfirmSold(false)} className="flex-1 h-9 rounded-lg border border-white/10 text-[#94a3b8] hover:bg-white/5 text-[10px] font-mono uppercase tracking-widest transition-all">Cancelar</button>
+                                <button type="button" onClick={() => setConfirmSold(false)} className={`flex-1 h-9 rounded-lg border text-[10px] font-mono uppercase tracking-widest transition-all ${
+                                  isDark ? "border-white/10 text-[#94a3b8] hover:bg-white/5" : "border-emerald-200 text-emerald-700 hover:bg-emerald-100"
+                                }`}>Cancelar</button>
                                 <button type="button" onClick={handleMarkAsSold} disabled={markingSold} className="flex-1 h-9 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2">
                                   {markingSold ? <Loader2 size={13} className="animate-spin" /> : '✓ Confirmar Venda'}
                                 </button>
@@ -345,11 +391,35 @@ export default function EditPropertyModal({ isOpen, onClose, property, onSave, o
                     </div>
                     
                     <div className="flex-[2] flex gap-3">
-                      <button type="button" onClick={onClose} className="flex-1 h-12 rounded-xl border border-[var(--orbit-line)] text-[10px] font-mono uppercase tracking-widest text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)] hover:bg-white/5 transition-all">
-                        Descartar
+                      {onDelete && (
+                        <div className="relative">
+                          {!confirmDelete ? (
+                            <button type="button" onClick={() => setConfirmDelete(true)} className="h-12 px-4 rounded-xl border border-red-500/20 text-red-500 hover:bg-red-500/10 text-[10px] font-mono uppercase tracking-widest transition-all" title="Excluir Imóvel">
+                               <Trash2 size={16} />
+                            </button>
+                          ) : (
+                            <div className={`absolute bottom-full left-0 mb-2 p-3 backdrop-blur-md border rounded-xl min-w-[200px] z-50 ${
+                              isDark ? "bg-red-500/10 border-red-500/30" : "bg-white border-red-200 shadow-xl"
+                            }`}>
+                               <p className="text-[10px] font-mono text-red-400 mb-2">Excluir este imóvel?</p>
+                               <div className="flex gap-2">
+                                  <button type="button" onClick={() => setConfirmDelete(false)} className="flex-1 py-1.5 rounded bg-white/5 hover:bg-white/10 text-[9px] uppercase font-mono text-white/70">Não</button>
+                                  <button type="button" onClick={handleDelete} disabled={deleting} className="flex-1 py-1.5 rounded bg-red-500/20 hover:bg-red-500/40 text-[9px] uppercase font-mono text-red-400 font-bold flex justify-center items-center">{deleting ? <Loader2 size={12} className="animate-spin" /> : 'Sim, excluir'}</button>
+                               </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      
+                      <button type="button" onClick={onClose} className={`flex-1 h-12 rounded-xl border text-[10px] font-mono uppercase tracking-widest transition-all ${
+                        isDark 
+                          ? "border-[var(--orbit-line)] text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)] hover:bg-white/5" 
+                          : "border-gray-300 text-slate-500 hover:text-slate-900 hover:bg-gray-100"
+                      }`}>
+                        Cancelar
                       </button>
-                      <button type="submit" disabled={saving} className="flex-[2] h-12 rounded-xl bg-[var(--orbit-glow)] hover:bg-[var(--orbit-glow)]/90 text-black font-bold uppercase tracking-widest text-[11px] shadow-[0_0_20px_rgba(var(--orbit-glow-rgb),0.3)] transition-all disabled:opacity-50">
-                        {saving ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : 'Salvar Alterações'}
+                      <button type="submit" disabled={saving} className="flex-[2] h-12 rounded-xl bg-[var(--orbit-glow)] hover:bg-[var(--orbit-glow)]/90 text-black font-bold uppercase tracking-widest text-[11px] shadow-[0_0_20px_rgba(var(--orbit-glow-rgb),0.3)] transition-all disabled:opacity-50 flex items-center justify-center">
+                        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Salvar Alterações'}
                       </button>
                     </div>
                   </div>
@@ -438,8 +508,10 @@ export default function EditPropertyModal({ isOpen, onClose, property, onSave, o
             </div>
 
             {/* Right Side Sidebar (Optional - for Match Insights later) */}
-            <div className={`hidden lg:block w-72 border-l border-[var(--orbit-line)] p-6 bg-black/10 overflow-y-auto ${activeTab === 'details' ? '' : 'opacity-20 pointer-events-none'}`}>
-               <h4 className="text-[10px] font-mono uppercase tracking-[0.3em] text-[var(--orbit-text-muted)] mb-6">Match Intelligence</h4>
+            <div className={`hidden lg:block w-72 border-l p-6 overflow-y-auto ${
+              isDark ? "border-[var(--orbit-line)] bg-black/10" : "border-gray-200 bg-gray-50"
+            } ${activeTab === 'details' ? '' : 'opacity-20 pointer-events-none'}`}>
+               <h4 className={`text-[10px] font-mono uppercase tracking-[0.3em] mb-6 ${isDark ? "text-[var(--orbit-text-muted)]" : "text-slate-500 font-bold"}`}>Match Intelligence</h4>
                
                <div className="space-y-6">
                   <div className="p-4 rounded-xl bg-[var(--orbit-glow)]/5 border border-[var(--orbit-glow)]/10 space-y-3">

@@ -36,6 +36,7 @@ interface Property {
   photos?: PropertyPhoto[]
   recommendedReason?: string
   description?: string
+  internalCode?: string
   _debugRow?: any
 }
 
@@ -227,7 +228,7 @@ export default function ClientSelectionView({
     const propertyUrl = `${window.location.origin}/selection/${slug}#${property.id}`
     const message = `Olá Jean! Estou no seu portal e tenho uma dúvida sobre este imóvel:\n\n*${property.title}*\n${formatPrice(property.price)}\n\nLink: ${propertyUrl}`
     const encodedMessage = encodeURIComponent(message)
-    const whatsappUrl = `https://wa.me/5554991150004?text=${encodedMessage}`
+    const whatsappUrl = `https://wa.me/5551982237325?text=${encodedMessage}`
     
     // Track interaction before redirecting
     if (lead.id) {
@@ -413,10 +414,17 @@ export default function ClientSelectionView({
                 {/* Card Body */}
                 <div className="p-6 space-y-5">
                   <div className="space-y-1.5">
-                    {/* Title */}
-                    <h3 className="text-[26px] font-[family-name:var(--font-display)] text-[#1A1A1A] leading-[1.1] tracking-tight">
-                      {item.title}
-                    </h3>
+                    {/* Title & Internal Code */}
+                    <div className="flex flex-col gap-2">
+                      {item.internalCode && (
+                        <div className="self-start px-2 py-0.5 rounded-full bg-gray-100 border border-gray-200 text-[#C9A84C] text-[10px] font-mono font-semibold tracking-widest uppercase">
+                          Ref: {item.internalCode}
+                        </div>
+                      )}
+                      <h3 className="text-[26px] font-[family-name:var(--font-display)] text-[#1A1A1A] leading-[1.1] tracking-tight">
+                        {item.title}
+                      </h3>
+                    </div>
 
                     {/* Price */}
                     <div className="text-[17px] font-medium text-[#C9A84C] tracking-wide">

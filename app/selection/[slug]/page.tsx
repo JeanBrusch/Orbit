@@ -80,7 +80,8 @@ async function getSelectionData(slug: string) {
         suites,
         area_privativa,
         area_total,
-        description
+        description,
+        internal_code
       )
     `)
     .eq('lead_id', leadId)
@@ -145,6 +146,7 @@ async function getSelectionData(slug: string) {
         photos: photos.length > 0 ? photos : [{ url: prop.cover_image, alt: 'Capa' }],
         recommendedReason: ctx?.recommended_reason,
         description: prop.description || "",
+        internalCode: prop.internal_code || undefined,
         _debugRow: item
       }
     })
