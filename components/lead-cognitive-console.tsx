@@ -6,7 +6,7 @@ import {
   X, ArrowUp, Play, Loader2, Check, Brain,
   Mic, Zap, Star, Building2, ExternalLink, Copy, CheckCheck,
   Square, Paperclip, Search, StopCircle, FileText, User, HelpCircle,
-  Trash2, AlertTriangle, MessageSquare
+  Trash2, AlertTriangle, MessageSquare, Ban
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { getSupabase } from "@/lib/supabase";
@@ -650,6 +650,8 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
   const [aiSuggestion, setAiSuggestion] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [showStageDropdown, setShowStageDropdown] = useState(false);
+  const [showBlockConfirm, setShowBlockConfirm] = useState(false);
+  const [isBlocking, setIsBlocking] = useState(false);
 
   // Composer
   const [composerText, setComposerText] = useState("");
@@ -674,6 +676,26 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  const handleBlock = useCallback(async () => {
+    if (!leadId) return;
+    setIsBlocking(true);
+    try {
+      const res = await fetch("/api/block", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ leadId }),
+      });
+      if (res.ok) {
+        setShowBlockConfirm(false);
+        onClose();
+      }
+    } catch (err) {
+      console.error("[COG] Error blocking lead:", err);
+    } finally {
+      setIsBlocking(false);
+    }
+  }, [leadId, onClose]);
 
   // --- File attachment ---
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -1454,6 +1476,16 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
                       {humanCogState(cog?.current_state)}
                     </span>
                   </div>
+
+                  <button 
+                    onClick={() => setShowBlockConfirm(true)}
+                    className={`w-7 h-7 rounded-full flex items-center justify-center transition-all ${
+                      isDark ? 'hover:bg-red-500/20 text-slate-500 hover:text-red-400' : 'hover:bg-red-50/80 text-gray-400 hover:text-red-500'
+                    }`}
+                    title="Bloquear Lead"
+                  >
+                    <Ban className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               </div>
             </header>
@@ -1949,6 +1981,61 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
                 </div>
               )}
             </div>
+
+            {/* Block Confirmation Modal */}
+            <AnimatePresence>
+              {showBlockConfirm && (
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="absolute inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm"
+                >
+                  <motion.div
+                    initial={{ scale: 0.9, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.9, opacity: 0 }}
+                    className={`mx-4 w-full max-w-xs rounded-2xl p-6 shadow-2xl border ${
+                      isDark ? 'bg-[#0a0a0c] border-white/10' : 'bg-white border-[var(--orbit-line)]'
+                    }`}
+                  >
+                    <div className="flex items-center gap-4 mb-4">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-500/10 border border-red-500/20">
+                        <Ban className="h-6 w-6 text-red-500" />
+                      </div>
+                      <div>
+                        <h3 className={`text-sm font-bold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
+                          Bloquear contato?
+                        </h3>
+                        <p className={`text-xs ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>
+                          {lead?.name || "Este lead"}
+                        </p>
+                      </div>
+                    </div>
+                    <p className={`text-xs mb-6 leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                      Este número será marcado como bloqueado e não aparecerá mais nas listas ativas do Orbit.
+                    </p>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => setShowBlockConfirm(false)}
+                        className={`flex-1 rounded-xl py-2.5 text-xs font-bold uppercase tracking-wider transition-colors border ${
+                          isDark ? 'hover:bg-white/5 border-white/10 text-slate-400' : 'hover:bg-gray-50 border-[var(--orbit-line)] text-slate-600'
+                        }`}
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        onClick={handleBlock}
+                        disabled={isBlocking}
+                        className="flex-1 rounded-xl bg-red-500 py-2.5 text-xs font-bold uppercase tracking-wider text-white hover:bg-red-600 transition-colors shadow-lg shadow-red-500/20 disabled:opacity-50"
+                      >
+                        {isBlocking ? "Bloqueando..." : "Bloquear"}
+                      </button>
+                    </div>
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </>
         )}
       </motion.div>
