@@ -312,7 +312,7 @@ export default function ClientSelectionView({
         </div>
 
         {/* Properties Feed */}
-        <div className="space-y-4 px-4 pb-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 px-6 pb-20 max-w-7xl mx-auto">
           {items.map((item, index) => {
             const images = getPropertyImages(item)
             const currentIndex = getInitialImageIndex(item.id)
@@ -361,7 +361,7 @@ export default function ClientSelectionView({
                         <img
                           src={image}
                           alt={`${item.title} - Foto ${imgIndex + 1}`}
-                          className="w-full h-[56vw] max-h-[340px] object-cover"
+                          className="w-full aspect-[4/5] object-cover"
                         />
                       </div>
                     ))}
