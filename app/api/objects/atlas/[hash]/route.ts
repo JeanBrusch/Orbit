@@ -10,7 +10,7 @@ export async function GET(
   try {
     const { hash } = await params
 
-    if (!hash || !/^[a-f0-9]+\.webp$/i.test(hash)) {
+    if (!hash || !/^[\w.-]+\.(webp|jpg|jpeg|png|gif)$/i.test(hash)) {
       return NextResponse.json(
         { error: 'Invalid object hash' },
         { status: 400 }

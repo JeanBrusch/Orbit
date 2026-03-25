@@ -15,6 +15,7 @@ const FIELDS = JSON.stringify({
     'AreaTotal',
     'TituloSite',
     'DescricaoWeb',
+    { Foto: ['Foto', 'Destaque'] },
     { Corretor: ['Nome', 'Fone', 'Email', 'Foto'] },
   ]
 })
