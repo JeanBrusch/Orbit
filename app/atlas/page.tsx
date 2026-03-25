@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
-import { useSupabaseProperties, useSupabaseLeads } from "@/hooks/use-supabase-data"
+import { useSupabaseProperties, useSupabaseLeads, useLeadDetails } from "@/hooks/use-supabase-data"
 import { useAuth } from "@/hooks/use-auth"
 import { useTheme } from "next-themes"
 import ClientSpacesManager from "@/components/atlas/ClientSpacesManager"
@@ -41,28 +41,104 @@ const theme = {
   accentBg: "var(--orbit-glow-light)",
 }
 
+// ── Match Engine ─────────────────────────────────────────────────────────────
+
+function computeMatch(property: any, lead: any) {
+  if (!lead) return null;
+  
+  let score = 0;
+  const reasons: string[] = [];
+  const warnings: string[] = [];
+
+  // 1. Orçamento (Peso 3)
+  const propPrice = property.value || 0;
+  const leadBudget = lead.budget || 0;
+  if (leadBudget > 0) {
+    if (propPrice <= leadBudget) {
+      score += 3;
+      reasons.push("Dentro do orçamento");
+    } else if (propPrice <= leadBudget * 1.1) {
+      score += 1;
+      warnings.push("Levemente acima do budget");
+    } else {
+      warnings.push("Acima do orçamento");
+    }
+  }
+
+  // 2. Dormitórios (Peso 2)
+  const propBeds = property.bedrooms || 0;
+  const leadBeds = lead.desired_bedrooms || lead.bedrooms || 0;
+  if (leadBeds > 0) {
+    if (propBeds >= leadBeds) {
+      score += 2;
+      reasons.push(`${propBeds} dormitórios`);
+    } else {
+      warnings.push("Menos dormitórios que o ideal");
+    }
+  }
+
+  // 3. Características (Peso 2 por match)
+  const propFeatures = property.features || [];
+  const leadFeatures = lead.desired_features || [];
+  if (leadFeatures.length > 0) {
+    const matchedFeatures = propFeatures.filter((f: string) => 
+      leadFeatures.some((lf: string) => f.toLowerCase().includes(lf.toLowerCase()))
+    );
+    if (matchedFeatures.length > 0) {
+      score += matchedFeatures.length * 2;
+      matchedFeatures.forEach((f: string) => reasons.push(f));
+    }
+  }
+
+  // 4. Localização (Peso 2)
+  const propNeighborhood = property.neighborhood?.toLowerCase() || "";
+  const leadLocations = lead.preferred_locations || [];
+  if (leadLocations.length > 0) {
+    if (leadLocations.some((loc: string) => propNeighborhood.includes(loc.toLowerCase()))) {
+      score += 2;
+      reasons.push("Localização desejada");
+    }
+  }
+
+  return {
+    score: Math.min(score, 10), // Normalizar para 10
+    reasons,
+    warnings
+  };
+}
+
+function getScoreColor(score: number) {
+  if (score >= 8) return "bg-emerald-500";
+  if (score >= 5) return "bg-amber-500";
+  return "bg-rose-500";
+}
+
 // ── Components ───────────────────────────────────────────────────────────────
 
 function PropertyCard({
   property,
   isSelected,
+  selectedLead,
   onToggleSelect,
   onEdit
 }: {
   property: any,
   isSelected: boolean,
+  selectedLead?: any,
   onToggleSelect: (p: any) => void,
   onEdit?: (p: any) => void
 }) {
+  const match = useMemo(() => computeMatch(property, selectedLead), [property, selectedLead]);
+
   return (
     <motion.div
       layout
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`group relative bg-[var(--orbit-bg)] border ${isSelected ? 'border-[var(--orbit-glow)] ring-1 ring-[var(--orbit-glow)]/30 shadow-[var(--orbit-shadow)]' : 'border-[var(--orbit-line)]'} rounded-xl overflow-hidden hover:shadow-[var(--orbit-shadow-hover)] hover:border-[var(--orbit-glow)]/40 transition-all duration-300 cursor-pointer`}
+      className={`group relative bg-[var(--orbit-bg)] border ${isSelected ? 'border-[var(--orbit-glow)] ring-1 ring-[var(--orbit-glow)]/30 shadow-[var(--orbit-shadow)]' : 'border-[var(--orbit-line)]'} rounded-2xl overflow-hidden hover:shadow-[var(--orbit-shadow-hover)] hover:border-[var(--orbit-glow)]/40 transition-all duration-300 cursor-pointer`}
       onClick={() => onEdit && onEdit(property)}
     >
-      <div className="aspect-[16/10] overflow-hidden bg-[var(--orbit-bg-secondary)]">
+      <div className="aspect-[16/10] overflow-hidden bg-[var(--orbit-bg-secondary)] relative">
         {property.cover_image ? (
           <img
             src={property.cover_image}
@@ -75,8 +151,20 @@ function PropertyCard({
           </div>
         )}
 
-        <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-[var(--orbit-bg)]/60 backdrop-blur-md border border-[var(--orbit-line)] text-[9px] font-mono uppercase tracking-wider text-[var(--orbit-glow)] shadow-sm">
-          Curadoria Orbit
+        {/* TOP BADGES */}
+        <div className="absolute top-3 left-3 flex flex-col gap-2">
+          <div className="px-2.5 py-1 rounded-lg bg-[var(--orbit-bg)]/60 backdrop-blur-md border border-[var(--orbit-line)] text-[9px] font-mono uppercase tracking-wider text-[var(--orbit-glow)] shadow-sm">
+            Curadoria Orbit
+          </div>
+          {match && (
+            <motion.div 
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className={`px-2.5 py-1 rounded-lg ${getScoreColor(match.score)} text-white text-[10px] font-bold shadow-lg flex items-center gap-1.5`}
+            >
+              🔥 Match {match.score.toFixed(1)}
+            </motion.div>
+          )}
         </div>
 
         {property.photos && property.photos.length > 0 && (
@@ -118,20 +206,39 @@ function PropertyCard({
           {property.neighborhood || property.location_text || "Localização não informada"}
         </p>
 
-        {property.topics && property.topics.length > 0 && (
+        {/* MATCH METRICS */}
+        {match && (
+          <div className="mb-4 space-y-2.5">
+            <div className="w-full bg-[var(--orbit-line)] rounded-full h-1.5 overflow-hidden">
+              <motion.div 
+                initial={{ width: 0 }}
+                animate={{ width: `${match.score * 10}%` }}
+                className={`h-full ${getScoreColor(match.score)}`}
+              />
+            </div>
+            
+            <div className="flex flex-wrap gap-1.5">
+              {match.reasons.map((reason: string, i: number) => (
+                <span key={i} className="px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-500 text-[9px] font-medium border border-emerald-500/20">
+                  {reason}
+                </span>
+              ))}
+              {match.warnings.map((warning: string, i: number) => (
+                <span key={i} className="px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-500 text-[9px] font-medium border border-amber-500/20">
+                  {warning}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {!match && property.topics && property.topics.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mb-4">
             {property.topics.map((topic: string, i: number) => (
               <span key={i} className="px-2 py-0.5 rounded-full bg-[var(--orbit-glow)]/10 text-[10px] text-[var(--orbit-glow)] font-medium border border-[var(--orbit-glow)]/20">
                 {topic}
               </span>
             ))}
-          </div>
-        )}
-
-        {property.internal_name && (
-          <div className="mb-4 px-2.5 py-1.5 bg-[var(--orbit-glow)]/5 border border-[var(--orbit-glow)]/15 rounded-md text-[10px] text-[var(--orbit-glow)] font-sans font-medium">
-            <span className="font-bold opacity-70 flex items-center gap-1 mb-0.5"><Eye size={10} /> USO INTERNO:</span>
-            Cód. {property.internal_name}
           </div>
         )}
 
@@ -159,19 +266,6 @@ function PropertyCard({
             >
               {isSelected ? <Check className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
             </Button>
-            {onEdit && (
-              <Button
-                size="icon"
-                variant="ghost"
-                className="h-8 w-8 rounded-full border border-[var(--orbit-line)] text-[var(--orbit-text-muted)] hover:border-[var(--orbit-glow)]/40 hover:text-[var(--orbit-glow)] hover:bg-[var(--orbit-glow)]/5"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onEdit(property)
-                }}
-              >
-                <Pencil className="h-3.5 w-3.5" />
-              </Button>
-            )}
           </div>
         </div>
       </div>
@@ -221,6 +315,38 @@ function AtlasManagerContent() {
   const [neighborhoods, setNeighborhoods] = useState<string[]>([])
 
   const { refetch: refetchProps } = useSupabaseProperties()
+  const { memories: leadMemories, cognitiveState: activeCog, loading: leadDetailsLoading } = useLeadDetails(selectedLeadId)
+
+  const leadPreferences = useMemo(() => {
+    if (!selectedLeadId || !leadMemories) return null;
+    
+    const prefs: any = {
+      budget: 0,
+      bedrooms: 0,
+      desired_features: [],
+      preferred_locations: []
+    };
+
+    leadMemories.forEach((m: any) => {
+      const content = m.content.toLowerCase();
+      if (m.type === 'budget' || m.type === 'budget_range') {
+        const match = content.match(/(\d+[\d.]*)/g);
+        if (match) prefs.budget = Math.max(prefs.budget, ...match.map((n: string) => parseFloat(n.replace(/\./g, ''))));
+      }
+      if (m.type === 'feature_preference') {
+        prefs.desired_features.push(m.content);
+      }
+      if (m.type === 'location_preference' || m.type === 'location_focus') {
+        prefs.preferred_locations.push(m.content);
+      }
+      if (content.includes('quarto') || content.includes('dorm')) {
+        const match = content.match(/(\d+)/);
+        if (match) prefs.bedrooms = Math.max(prefs.bedrooms, parseInt(match[1]));
+      }
+    });
+
+    return prefs;
+  }, [selectedLeadId, leadMemories]);
 
   // ── Search Params Logic ───────────────────────────────────────────────────
   useEffect(() => {
@@ -775,6 +901,7 @@ function AtlasManagerContent() {
                         key={prop.id}
                         property={prop}
                         isSelected={selectedPropertyIds.has(prop.id)}
+                        selectedLead={leadPreferences}
                         onToggleSelect={togglePropertySelection}
                         onEdit={(p) => {
                           setEditingProperty({ ...p })
@@ -858,35 +985,56 @@ function AtlasManagerContent() {
                       />
                     </div>
 
-                    <div className="space-y-1.5">
+                    <div className="space-y-1.5 min-h-[140px]">
                       {(() => {
-                        const selectedLead = leads?.find(l => l.id === selectedLeadId)
+                        const selectedLeadDetails = leads?.find(l => l.id === selectedLeadId)
                         let displayLeads = [...filteredLeads]
-                        if (selectedLead && !displayLeads.find(l => l.id === selectedLeadId)) {
-                          displayLeads.unshift(selectedLead)
+                        if (selectedLeadDetails && !displayLeads.find(l => l.id === selectedLeadId)) {
+                          displayLeads.unshift(selectedLeadDetails)
                         }
-                        if (selectedLeadId && !selectedLead && !leadsLoading) {
+                        if (selectedLeadId && !selectedLeadDetails && !leadsLoading) {
                           displayLeads.unshift({ id: selectedLeadId, name: 'Lead Selecionado...', orbitStage: '' } as any)
                         }
 
-                        return displayLeads.map(lead => (
-                          <button
-                            key={lead.id}
-                            onClick={() => setSelectedLeadId(lead.id)}
-                            className={`w-full flex items-center gap-3 p-2.5 rounded-xl border transition-all ${selectedLeadId === lead.id ? 'bg-[var(--orbit-glow)]/5 border-[var(--orbit-glow)]/25 shadow-sm' : 'border-transparent hover:bg-[var(--orbit-glow)]/5'}`}
-                          >
-                            <div className="w-8 h-8 rounded-lg bg-[var(--orbit-bg-secondary)] border border-[var(--orbit-line)] flex items-center justify-center text-[10px] font-bold text-[var(--orbit-text)]">
-                              {lead.name ? lead.name[0] : 'L'}
-                            </div>
-                            <div className="flex-1 text-left min-w-0">
-                              <p className="text-[11px] font-medium leading-none truncate text-[var(--orbit-text)]">{lead.name}</p>
-                              <p className={`text-[9px] mt-1 uppercase font-mono tracking-tighter ${selectedLeadId === lead.id ? 'text-[var(--orbit-glow)] font-bold' : 'text-[var(--orbit-text-muted)]'}`}>
-                                {selectedLeadId === lead.id ? 'Lid Ativo' : (lead.orbitStage || 'Exploração')}
-                              </p>
-                            </div>
-                            {selectedLeadId === lead.id && <Check className="h-3 w-3 text-[var(--orbit-glow)]" />}
-                          </button>
-                        ))
+                        return (
+                          <>
+                            {displayLeads.map(lead => {
+                              const isSelected = selectedLeadId === lead.id
+                              return (
+                                <motion.button
+                                  layout
+                                  key={lead.id}
+                                  onClick={() => setSelectedLeadId(lead.id)}
+                                  className={`w-full flex items-center gap-3 p-3 rounded-2xl border transition-all ${isSelected ? 'bg-[var(--orbit-glow)]/10 border-[var(--orbit-glow)]/30 shadow-[var(--orbit-shadow)]' : 'border-transparent hover:bg-[var(--orbit-glow)]/5 hover:border-[var(--orbit-line)]'}`}
+                                >
+                                  <div className={`w-10 h-10 rounded-xl ${isSelected ? 'bg-[var(--orbit-glow)] text-white' : 'bg-[var(--orbit-bg-secondary)] border border-[var(--orbit-line)] text-[var(--orbit-text)]'} flex items-center justify-center text-xs font-bold shadow-sm transition-colors`}>
+                                    {lead.name ? lead.name[0] : 'L'}
+                                  </div>
+                                  <div className="flex-1 text-left min-w-0">
+                                    <p className="text-[12px] font-bold leading-tight truncate text-[var(--orbit-text)]">{lead.name}</p>
+                                    <div className="flex items-center gap-2 mt-1">
+                                      <p className={`text-[9px] uppercase font-mono tracking-wider ${isSelected ? 'text-[var(--orbit-glow)] font-bold' : 'text-[var(--orbit-text-muted)]'}`}>
+                                        {isSelected ? 'Lid Ativo' : (lead.orbitStage || 'Exploração')}
+                                      </p>
+                                      {isSelected && activeCog && (
+                                        <div className="flex gap-1 items-center">
+                                          <div className="w-1 h-1 rounded-full bg-[var(--orbit-glow)] opacity-40 mx-1" />
+                                          <Sparkles size={10} className="text-[var(--orbit-glow)]" />
+                                          <span className="text-[9px] font-mono text-[var(--orbit-glow)] font-bold">{Math.round(activeCog.interest_score || 0)}%</span>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                  {isSelected && (
+                                    <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="bg-[var(--orbit-glow)] p-1 rounded-full shadow-lg border border-white/20">
+                                      <Check className="h-3 w-3 text-white stroke-[3px]" />
+                                    </motion.div>
+                                  )}
+                                </motion.button>
+                              )
+                            })}
+                          </>
+                        )
                       })()}
                     </div>
                   </div>

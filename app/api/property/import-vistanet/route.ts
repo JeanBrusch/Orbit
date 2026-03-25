@@ -9,6 +9,7 @@ import {
 import { getSupabaseServer } from '@/lib/supabase-server'
 import { generateEmbedding } from '@/lib/orbit-core'
 import { trackAICall } from '@/lib/observability'
+import { enrichmentPipeline, shouldUseAI } from '@/lib/vistanet/enrichment'
 
 export async function POST(req: NextRequest) {
   try {
@@ -55,82 +56,51 @@ export async function POST(req: NextRequest) {
     // --- Step 2: Fetch from VistaNet ---
     const data = await fetchVistaNetProperty(params.key, params.cod)
 
-    // --- Step 3: Map to Orbit schema ---
-    // VistaNet API returns related data as objects with numeric string keys, not arrays.
+    // --- Step 3: Enriched Pipeline ---
+    const { 
+      description: cleanedDescription,
+      features,
+      type,
+      location_tags,
+      semantic_summary,
+      score,
+      ...normalizedData
+    } = enrichmentPipeline(data as any)
+
+    // Preserve photos and agent data (not part of the enrichment logic but needed for the portal)
     const fotosData = data.Foto && typeof data.Foto === 'object' ? Object.values(data.Foto) : []
     const photos: string[] = fotosData
       .sort((a: any, b: any) => (b.Destaque === 'Sim' ? 1 : 0) - (a.Destaque === 'Sim' ? 1 : 0))
       .map((f: any) => f.Foto)
       .filter(Boolean)
 
-    const featuresData = data.Caracteristicas && typeof data.Caracteristicas === 'object' ? data.Caracteristicas : {}
-
-    const features: string[] = [
-      ...Object.entries(featuresData).filter(([_, v]) => v === 'Sim').map(([k]) => k),
-    ].filter((v): v is string => typeof v === 'string' && v.length > 0)
-
-    let ui_type = null
-    let bairro = data.BairroComercial || data.Bairro || null
-
-    if (data.TipoImovel) {
-      const tipoLower = data.TipoImovel.toLowerCase()
-      if (tipoLower.includes('condomínio') || tipoLower.includes('sobrado')) {
-        ui_type = 'Casa Condomínio'
-        bairro = 'Condomínio'
-      } else if (tipoLower.includes('casa') || tipoLower.includes('duplex') || tipoLower.includes('geminada')) {
-        ui_type = 'Casa de Rua'
-      } else if (tipoLower.includes('apartamento') || tipoLower.includes('flat') || tipoLower.includes('cobertura')) {
-        ui_type = 'Apt'
-      }
-    }
-
-    const title = [ui_type || data.TipoImovel, bairro, data.Cidade].filter(Boolean).join(' - ')
-
     // --- Step 4: Scraping Lite & Embedding Optimization ---
     const supabase = getSupabaseServer()
     const { data: existingProperty } = await (supabase
       .from('properties')
-      .select('id, topics, property_embedding, title, value, neighborhood, features')
+      .select('id, topics, property_embedding, title, value, neighborhood, features, description')
       .eq('internal_name', data.Codigo)
       .maybeSingle() as any)
 
-    if (existingProperty) {
-      console.log(`[VistaNet] Imóvel ${data.Codigo} já existe. Verificando necessidade de atualização.`)
-      // Se já existe e não houve mudança crítica, podemos pular a IA e o re-embedding
-      // Mas para este MVP, vamos focar na deduplicação e economia.
-    }
-
     const embeddingText = [
-      ui_type || data.TipoImovel,
-      bairro,
-      data.Cidade,
-      data.Dormitorios ? `${data.Dormitorios} dormitórios` : null,
-      data.Suites ? `${data.Suites} suítes` : null,
-      data.AreaPrivativa ? `${data.AreaPrivativa}m²` : null,
-      data.AreaTotal ? `Lote ${data.AreaTotal}m²` : null,
+      type,
+      normalizedData.neighborhood,
+      normalizedData.city,
+      normalizedData.bedrooms ? `${normalizedData.bedrooms} dormitórios` : null,
+      normalizedData.suites ? `${normalizedData.suites} suítes` : null,
+      normalizedData.area_privativa ? `${normalizedData.area_privativa}m²` : null,
       ...features.slice(0, 10),
     ].filter(Boolean).join('. ')
 
-    // Só gera embedding se for novo ou se o texto descritivo mudou (simplificado: se for novo)
+    // Só gera embedding se for novo ou se a descrição mudou significativamente
     const embedding = existingProperty?.property_embedding || await generateEmbedding(embeddingText)
 
-    // Scraping Lite: Extração de tags via Regex (Orbit AI Governance)
-    let topics: string[] = []
-    const descricao = data.DescricaoWeb || ""
-    
-    // Regras de Scraping Lite (sem custo de token)
-    if (descricao.toLowerCase().includes("pé direito duplo")) topics.push("Pé Direito Duplo")
-    if (descricao.toLowerCase().includes("vista mar") || descricao.toLowerCase().includes("frente mar")) topics.push("Vista Mar")
-    if (descricao.toLowerCase().includes("piscina privativa")) topics.push("Piscina Privativa")
-    if (descricao.toLowerCase().includes("varanda gourmet")) topics.push("Varanda Gourmet")
-    if (descricao.toLowerCase().includes("totalmente mobiliado")) topics.push("Mobiliado")
-    if (descricao.toLowerCase().includes("climatizado") || descricao.toLowerCase().includes("ar condicionado")) topics.push("Climatizado")
-
-    // Só chama IA se não encontrou tags suficientes via Scraping Lite
-    if (topics.length < 2 && descricao.length > 50) {
+    // IA Fallback
+    let aiTopics: string[] = []
+    if (shouldUseAI(features, data.DescricaoWeb || '')) {
       try {
         const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
-        const prompt = `Analise a descrição deste imóvel e liste de 3 a 5 tags impressionantes. Retorne APENAS um JSON: {"topics": ["tag1", "tag2"]}.\n\nDescrição: ${descricao}`
+        const prompt = `Analise a descrição deste imóvel e liste de 3 a 5 tags impressionantes. Retorne APENAS um JSON: {"topics": ["tag1", "tag2"]}.\n\nDescrição: ${data.DescricaoWeb}`
         const start = Date.now()
         const aiResponse = await openai.chat.completions.create({
           model: "gpt-4o-mini",
@@ -146,44 +116,46 @@ export async function POST(req: NextRequest) {
             tokens_input: usage.prompt_tokens,
             tokens_output: usage.completion_tokens,
             duration_ms: Date.now() - start,
-            metadata: { action: 'extract_topics', property_code: data.Codigo }
+            metadata: { 
+              action: 'extract_topics', 
+              property_code: data.Codigo,
+              reason: 'low_feature_density'
+            }
           })
         }
         const parsed = JSON.parse(aiResponse.choices[0].message.content || '{"topics":[]}')
-        const aiTopics = Array.isArray(parsed) ? parsed : (parsed.topics || [])
-        topics = [...new Set([...topics, ...aiTopics])].slice(0, 5)
+        aiTopics = parsed.topics || []
       } catch (err) {
         console.warn("[VistaNet Import] Falha ao gerar tópicos via IA:", err)
       }
     }
 
-    // Se já existiam tópicos e não mudou a descrição, preserva os antigos se preferir
-    if (existingProperty?.topics && topics.length === 0) {
-      topics = existingProperty.topics as string[]
-    }
+    // Merge location tags and AI topics into the 'topics' column
+    const finalTopics = [...new Set([...location_tags, ...aiTopics])].slice(0, 8)
 
     // --- Step 5: Upsert into properties ---
-
     const payload = {
       source_link: url.trim(),
-      internal_name: data.Codigo ?? null,
-      title,
+      internal_name: normalizedData.id,
+      title: normalizedData.title || `${type} em ${normalizedData.neighborhood}`,
       cover_image: photos[0] ?? null,
-      value: parseBRL(data.ValorVenda) ?? null,
-      neighborhood: bairro,
-      city: data.Cidade ?? null,
-      area_privativa: data.AreaPrivativa ? parseFloat(data.AreaPrivativa) : null,
-      area_total: data.AreaTotal ? parseFloat(data.AreaTotal) : null,
-      bedrooms: data.Dormitorios ? parseInt(data.Dormitorios, 10) : null,
-      suites: data.Suites ? parseInt(data.Suites, 10) : null,
+      value: normalizedData.price,
+      neighborhood: normalizedData.neighborhood,
+      city: normalizedData.city,
+      area_privativa: normalizedData.area_privativa,
+      area_total: normalizedData.area_total,
+      bedrooms: normalizedData.bedrooms,
+      suites: normalizedData.suites,
+      description: cleanedDescription,
       features,
       photos,
+      ui_type: type,
+      topics: finalTopics,
+      semantic_summary,
+      score,
+      property_embedding: embedding,
       ingestion_type: 'vistanet',
       ingestion_status: 'confirmed',
-      property_embedding: embedding,
-      ui_type,
-      topics,
-      condo_name: data.Edificio ?? null,
       agent_data: {
         agent_name: data.Corretor?.Nome ?? null,
         agent_phone: data.Corretor?.Fone ?? null,
@@ -213,7 +185,7 @@ export async function POST(req: NextRequest) {
       property,
       photos_count: photos.length,
       agent: data.Corretor?.Nome ?? null,
-      title,
+      title: payload.title,
     })
   } catch (err: any) {
     console.error('[VistaNet Import] Unexpected error:', err)
