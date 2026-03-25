@@ -79,7 +79,8 @@ async function getSelectionData(slug: string) {
         bedrooms,
         suites,
         area_privativa,
-        area_total
+        area_total,
+        description
       )
     `)
     .eq('lead_id', leadId)
@@ -143,6 +144,7 @@ async function getSelectionData(slug: string) {
         coverImage: prop.cover_image || "",
         photos: photos.length > 0 ? photos : [{ url: prop.cover_image, alt: 'Capa' }],
         recommendedReason: ctx?.recommended_reason,
+        description: prop.description || "",
         _debugRow: item
       }
     })

@@ -12,6 +12,7 @@ import {
   Bed,
   Bath,
   Ruler,
+  Sparkles
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -34,6 +35,7 @@ interface Property {
   coverImage: string
   photos?: PropertyPhoto[]
   recommendedReason?: string
+  description?: string
   _debugRow?: any
 }
 
@@ -71,11 +73,9 @@ export default function ClientSelectionView({
     scrollDepth: initialInteractions.scrollDepth || 0,
   })
   const [expandedItem, setExpandedItem] = useState<string | null>(null)
-  const [chatProperty, setChatProperty] = useState<Property | null>(null)
   const [currentImageIndex, setCurrentImageIndex] = useState<
     Record<string, number>
   >({})
-  const [chatMessage, setChatMessage] = useState('')
   const mainRef = useRef<HTMLDivElement>(null)
   const observerRef = useRef<IntersectionObserver | null>(null)
   const scrollTrackerRef = useRef<{
@@ -222,18 +222,21 @@ export default function ClientSelectionView({
     }
   }
 
-  const handleChatSubmit = async (propertyId: string) => {
-    if (!chatMessage.trim()) return
 
+  const handleWhatsAppClick = (property: Property) => {
+    const propertyUrl = `${window.location.origin}/selection/${slug}#${property.id}`
+    const message = `Olá Jean! Estou no seu portal e tenho uma dúvida sobre este imóvel:\n\n*${property.title}*\n${formatPrice(property.price)}\n\nLink: ${propertyUrl}`
+    const encodedMessage = encodeURIComponent(message)
+    const whatsappUrl = `https://wa.me/5554991150004?text=${encodedMessage}`
+    
+    // Track interaction before redirecting
     if (lead.id) {
-      trackInteraction(propertyId, 'property_question', {
-        message: chatMessage,
+      trackInteraction(property.id, 'whatsapp_click', {
+        device: /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ? 'mobile' : 'desktop'
       })
     }
 
-    setChatMessage('')
-    setChatProperty(null)
-    toast.success('Mensagem enviada com sucesso!')
+    window.open(whatsappUrl, '_blank')
   }
 
   const getPropertyImages = (property: Property): string[] => {
@@ -291,17 +294,21 @@ export default function ClientSelectionView({
         style={{ paddingBottom: '80px' }}
       >
         {/* Greeting Block */}
-        <div className="px-4 py-6">
+        <div className="px-6 py-10 text-center space-y-3">
           <div className="space-y-1">
-            <div className="text-base">
-              <span className="text-gray-500">Olá, </span>
-              <span className="text-[#C9A84C] font-bold">{lead.firstName}</span>
-              <span className="text-[#C9A84C] ml-1">♦</span>
+            <h1 className="text-[32px] font-[family-name:var(--font-display)] text-[#1A1A1A] leading-tight">
+              <span className="text-gray-400 font-light italic mr-2">Olá,</span>
+              {lead.firstName}
+            </h1>
+            <div className="flex items-center justify-center gap-2 text-[#C9A84C]">
+              <div className="h-[1px] w-6 bg-current opacity-30" />
+              <Sparkles size={14} />
+              <div className="h-[1px] w-6 bg-current opacity-30" />
             </div>
-            <p className="text-[14px] text-gray-600">
-              Selecionamos estes imóveis especialmente para você.
-            </p>
           </div>
+          <p className="text-[15px] text-gray-500 max-w-[280px] mx-auto leading-relaxed font-light">
+            Selecionei estes imóveis com base no seu perfil e objetivos.
+          </p>
         </div>
 
         {/* Properties Feed */}
@@ -404,39 +411,42 @@ export default function ClientSelectionView({
                 </div>
 
                 {/* Card Body */}
-                <div className="p-5 space-y-4">
-                  {/* Title */}
-                  <h3 className="text-[22px] font-bold text-[#1A1A1A] leading-tight line-clamp-2 font-serif">
-                    {item.title}
-                  </h3>
+                <div className="p-6 space-y-5">
+                  <div className="space-y-1.5">
+                    {/* Title */}
+                    <h3 className="text-[26px] font-[family-name:var(--font-display)] text-[#1A1A1A] leading-[1.1] tracking-tight">
+                      {item.title}
+                    </h3>
 
-                  {/* Price */}
-                  <div className="text-[20px] font-bold text-[#C9A84C]">
-                    {formatPrice(item.price)}
+                    {/* Price */}
+                    <div className="text-[17px] font-medium text-[#C9A84C] tracking-wide">
+                      {formatPrice(item.price)}
+                    </div>
                   </div>
 
-                  {/* Stats */}
-                  <div className="flex gap-4 text-[13px] text-gray-500">
-                    <div className="flex items-center gap-2">
-                      <Bed size={16} />
-                      <span>{item.bedrooms} quartos</span>
+                  {/* Stats Line */}
+                  <div className="flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.1em] text-gray-400 border-y border-gray-50 py-3">
+                    <div className="flex items-center gap-1.5">
+                      <Bed size={14} className="text-gray-300" />
+                      <span>{item.bedrooms} Dorm</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Bath size={16} />
-                      <span>{item.bathrooms} suítes</span>
+                    <div className="w-1 h-1 rounded-full bg-gray-200" />
+                    <div className="flex items-center gap-1.5">
+                      <Bath size={14} className="text-gray-300" />
+                      <span>{item.bathrooms} Suítes</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Ruler size={16} />
+                    <div className="w-1 h-1 rounded-full bg-gray-200" />
+                    <div className="flex items-center gap-1.5">
+                      <Ruler size={14} className="text-gray-300" />
                       <span>{item.area} m²</span>
                     </div>
                   </div>
 
                   {/* Curator Quote */}
                   {item.recommendedReason && (
-                    <div className="bg-[#FFFBF0] border border-[#F0E6CC] rounded-[12px] p-3.5 space-y-1">
-                      <div className="text-[#C9A84C] text-xs">✦</div>
-                      <p className="text-[13px] text-gray-600 italic">
-                        {item.recommendedReason}
+                    <div className="relative pl-4 border-l-2 border-[#C9A84C]/30 py-1">
+                      <p className="text-[14px] text-gray-600 leading-relaxed font-light italic">
+                        "{item.recommendedReason}"
                       </p>
                     </div>
                   )}
@@ -507,10 +517,21 @@ export default function ClientSelectionView({
                           </div>
                         )}
 
+                        {item.description && (
+                          <div className="space-y-2">
+                            <h4 className="text-[12px] font-bold uppercase tracking-wider text-gray-400">Sobre o Imóvel</h4>
+                            <p className="text-[14px] text-gray-700 leading-relaxed font-light">
+                              {item.description}
+                            </p>
+                          </div>
+                        )}
+
                         {item.note && (
-                          <p className="text-[13px] text-gray-600 leading-relaxed">
-                            {item.note}
-                          </p>
+                          <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                            <p className="text-[13px] text-gray-600 leading-relaxed italic">
+                              "{item.note}"
+                            </p>
+                          </div>
                         )}
 
                         {item.videoUrl && (
@@ -525,11 +546,11 @@ export default function ClientSelectionView({
                         )}
 
                         <button
-                          onClick={() => setChatProperty(item)}
-                          className="inline-flex items-center gap-2 text-[13px] font-medium text-[#C9A84C] hover:underline"
+                          onClick={() => handleWhatsAppClick(item)}
+                          className="w-full flex items-center justify-center gap-2 py-3.5 bg-[#1A1A1A] text-white rounded-xl text-[14px] font-semibold active:scale-[0.98] transition-all shadow-lg shadow-black/5"
                         >
-                          <MessageCircle size={14} />
-                          Alguma dúvida sobre este imóvel?
+                          <MessageCircle size={18} />
+                          Tirar dúvidas no WhatsApp
                         </button>
                       </motion.div>
                     )}
@@ -541,81 +562,7 @@ export default function ClientSelectionView({
         </div>
       </main>
 
-      {/* Bottom Sheet Chat */}
-      <AnimatePresence>
-        {chatProperty && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setChatProperty(null)}
-              className="fixed inset-0 bg-black/30 z-40"
-            />
-            <motion.div
-              initial={{ y: '100%' }}
-              animate={{ y: 0 }}
-              exit={{ y: '100%' }}
-              transition={{ type: 'spring', stiffness: 300, damping: 32 }}
-              className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-[24px] max-w-md mx-auto"
-              style={{ height: '60vh' }}
-            >
-              {/* Header */}
-              <div className="flex items-center justify-between p-4 border-b border-gray-200">
-                <div className="flex items-center gap-3">
-                  <img
-                    src={chatProperty.coverImage}
-                    alt={chatProperty.title}
-                    className="w-10 h-10 rounded-full object-cover"
-                  />
-                  <div>
-                    <h4 className="text-sm font-semibold text-gray-900 truncate">
-                      {chatProperty.title}
-                    </h4>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setChatProperty(null)}
-                  className="p-1.5 hover:bg-gray-100 rounded-full transition-all"
-                >
-                  <X size={20} className="text-gray-500" />
-                </button>
-              </div>
-
-              {/* Chat Content */}
-              <div className="flex-1 overflow-y-auto p-4">
-                <p className="text-sm text-gray-500">
-                  Envie sua dúvida sobre este imóvel para o agente.
-                </p>
-              </div>
-
-              {/* Input */}
-              <div className="border-t border-gray-200 p-4">
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder="Sua dúvida sobre este imóvel..."
-                    value={chatMessage}
-                    onChange={(e) => setChatMessage(e.target.value)}
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter') {
-                        handleChatSubmit(chatProperty.id)
-                      }
-                    }}
-                    className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C9A84C]"
-                  />
-                  <button
-                    onClick={() => handleChatSubmit(chatProperty.id)}
-                    className="px-4 py-2 bg-[#C9A84C] text-white text-sm font-medium rounded-lg hover:bg-[#B89438] transition-all"
-                  >
-                    Enviar
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+      {/* WhatsApp Floating Action Button (Optional, but we already have it in the card) */}
 
     </div>
   )
