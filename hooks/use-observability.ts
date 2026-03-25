@@ -28,7 +28,7 @@ export interface OrbitEvent {
   }
 }
 
-export function useObservability() {
+export function useObservability(startDate?: Date, endDate?: Date) {
   const [events, setEvents] = useState<OrbitEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState({
@@ -42,11 +42,19 @@ export function useObservability() {
     setLoading(true)
     const supabase = getSupabase()
     
-    const { data, error } = await (supabase
-      .from('orbit_events') as any)
+    let query = supabase
+      .from('orbit_events')
       .select('*, leads(name)')
       .order('timestamp', { ascending: false })
-      .limit(200)
+
+    if (startDate) {
+      query = query.gte('timestamp', startDate.toISOString())
+    }
+    if (endDate) {
+      query = query.lte('timestamp', endDate.toISOString())
+    }
+
+    const { data, error } = await query.limit(200) as any
 
     if (!error && data) {
       setEvents(data)
@@ -95,7 +103,7 @@ export function useObservability() {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [fetchEvents])
+  }, [fetchEvents, startDate, endDate])
 
   return { events, loading, stats, refetch: fetchEvents }
 }

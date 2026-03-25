@@ -26,15 +26,48 @@ import {
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import Link from "next/link"
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import FlowGraph from "@/components/observability/FlowGraph"
 import TraceTimeline from "@/components/observability/TraceTimeline"
 
 export default function ObservabilityDashboard() {
-  const { events, loading, stats, refetch } = useObservability()
-  const [leadFilter, setLeadFilter] = useState("")
-  const [moduleFilter, setModuleFilter] = useState("all")
   const [activeTab, setActiveTab] = useState<'cost' | 'trace'>('cost')
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null)
+  const [period, setPeriod] = useState<string>("today")
+
+  const dateRange = React.useMemo(() => {
+    const end = new Date()
+    const start = new Date()
+    
+    switch (period) {
+      case '1h':
+        start.setHours(start.getHours() - 1)
+        break
+      case 'today':
+        start.setHours(0, 0, 0, 0)
+        break
+      case 'week':
+        start.setDate(start.getDate() - 7)
+        break
+      case 'month':
+        start.setMonth(start.getMonth() - 1)
+        break
+      default:
+        start.setHours(0, 0, 0, 0)
+    }
+    return { start, end }
+  }, [period])
+
+  const { events, loading, stats, refetch } = useObservability(dateRange.start, dateRange.end)
+
+  const [leadFilter, setLeadFilter] = useState("")
+  const [moduleFilter, setModuleFilter] = useState("all")
 
   const filteredEvents = events.filter(ev => {
     const matchesLead = !leadFilter || ev.lead_id?.includes(leadFilter) || ev.leads?.name?.toLowerCase().includes(leadFilter.toLowerCase())
@@ -69,6 +102,21 @@ export default function ObservabilityDashboard() {
         </div>
         
         <div className="flex items-center gap-3">
+          <Select value={period} onValueChange={setPeriod}>
+            <SelectTrigger className="w-[140px] bg-slate-900 border-slate-800 text-xs">
+              <div className="flex items-center gap-2 text-slate-300">
+                <Clock className="w-3.5 h-3.5 text-slate-500" />
+                <SelectValue placeholder="Período" />
+              </div>
+            </SelectTrigger>
+            <SelectContent className="bg-slate-900 border-slate-800 text-white">
+              <SelectItem value="1h">Última Hora</SelectItem>
+              <SelectItem value="today">Hoje</SelectItem>
+              <SelectItem value="week">Última Semana</SelectItem>
+              <SelectItem value="month">Último Mês</SelectItem>
+            </SelectContent>
+          </Select>
+
           <div className="flex bg-slate-900 p-1 rounded-xl border border-slate-800">
              <button 
                onClick={() => setActiveTab('cost')}
