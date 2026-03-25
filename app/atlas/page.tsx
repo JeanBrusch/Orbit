@@ -340,8 +340,16 @@ function AtlasManagerContent() {
         status: 'active'
       }
 
-      const { data, error } = await (supabase.from("properties") as any).insert([payload]).select().single()
-      if (error) throw error
+      const res = await fetch("/api/properties", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      })
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}))
+        throw new Error(errData.error || `Erro na API (${res.status})`)
+      }
 
       setIngestStatus("complete")
       toast.success("Imóvel cadastrado com sucesso!")
@@ -361,11 +369,12 @@ function AtlasManagerContent() {
 
   const handleUpdateProperty = async (updatedData: any) => {
     setIsSavingEdit(true)
-    const supabase = getSupabase()
 
     try {
-      const { error } = await (supabase.from("properties") as any)
-        .update({
+      const res = await fetch(`/api/properties/${updatedData.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           title: updatedData.title,
           value: parseFloat(updatedData.value) || null,
           location_text: updatedData.location_text,
@@ -387,9 +396,12 @@ function AtlasManagerContent() {
             ? updatedData.features.split(',').map((f: string) => f.trim()).filter(Boolean)
             : updatedData.features
         })
-        .eq("id", updatedData.id)
+      })
 
-      if (error) throw error
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}))
+        throw new Error(errData.error || `Erro na API (${res.status})`)
+      }
 
       toast.success("Imóvel atualizado com sucesso!")
       await refetch()
@@ -404,12 +416,16 @@ function AtlasManagerContent() {
 
   const handleMarkAsSoldProperty = async (propertyId: string) => {
     try {
-      const supabase = getSupabase()
-      const { error } = await (supabase.from("properties") as any)
-        .update({ status: 'sold' })
-        .eq("id", propertyId)
+      const res = await fetch(`/api/properties/${propertyId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: 'sold' })
+      })
 
-      if (error) throw error
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}))
+        throw new Error(errData.error || `Erro na API (${res.status})`)
+      }
 
       toast.success("Imóvel marcado como Vendido!")
       await refetch()

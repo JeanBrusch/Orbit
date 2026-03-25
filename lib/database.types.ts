@@ -269,6 +269,23 @@ export interface Database {
           created_at?: string | null;
           value?: number | null;
           location_text?: string | null;
+          neighborhood?: string | null;
+          city?: string | null;
+          area_privativa?: number | null;
+          area_total?: number | null;
+          bedrooms?: number | null;
+          suites?: number | null;
+          parking_spots?: number | null;
+          payment_conditions?: Json | null;
+          condo_fee?: number | null;
+          iptu?: number | null;
+          features?: string[] | null;
+          property_embedding?: number[] | null;
+          condo_name?: string | null;
+          ui_type?: string | null;
+          topics?: Json | null;
+          agent_data?: Json | null;
+          status?: string | null;
         };
         Update: {
           id?: string;
@@ -289,6 +306,7 @@ export interface Database {
           neighborhood?: string | null;
           city?: string | null;
           area_privativa?: number | null;
+          area_total?: number | null;
           bedrooms?: number | null;
           suites?: number | null;
           parking_spots?: number | null;
@@ -297,6 +315,11 @@ export interface Database {
           iptu?: number | null;
           features?: string[] | null;
           property_embedding?: number[] | null;
+          condo_name?: string | null;
+          ui_type?: string | null;
+          topics?: Json | null;
+          agent_data?: Json | null;
+          status?: string | null;
         };
       };
       reminders: {
