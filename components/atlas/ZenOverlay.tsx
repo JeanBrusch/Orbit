@@ -2,8 +2,8 @@
 
 import { useEffect } from "react"
 
-const SOURCE_ID = "zen-overlay-source"
-const LAYER_ID = "zen-overlay-layer"
+const SOURCE_ID = "zen-overlay-source-v3"
+const LAYER_ID = "zen-overlay-layer-v3"
 
 interface ZenOverlayProps {
   mapRef: React.RefObject<any>
@@ -25,10 +25,10 @@ export function ZenOverlay({ mapRef }: ZenOverlayProps) {
         type: 'image',
         url: '/overlays/zen-overlay.png',
         coordinates: [
-          [-50.06820908969696, -29.82331016434248], // Top-Left (Rotated)
-          [-50.05747950314367, -29.821166464595237], // Top-Right (Rotated)
-          [-50.05606569895528, -29.826492409923294], // Bottom-Right (Rotated)
-          [-50.06679528550857, -29.828636109670533]  // Bottom-Left (Rotated)
+          [-50.07120908969696, -29.82131016434248], // Top-Left (Manual Offset)
+          [-50.06047950314367, -29.819166464595237], // Top-Right (Manual Offset)
+          [-50.05906569895528, -29.824492409923294], // Bottom-Right (Manual Offset)
+          [-50.06979528550857, -29.826636109670533]  // Bottom-Left (Manual Offset)
         ]
       })
 
