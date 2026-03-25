@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef, useMemo, memo, useCallback, forwardRef, useImperativeHandle } from "react"
-import Map, { Marker, Popup, NavigationControl } from "react-map-gl/mapbox"
+import Map, { Marker, Popup, NavigationControl, Source, Layer } from "react-map-gl/mapbox"
 import 'mapbox-gl/dist/mapbox-gl.css'
 import type { ViewState } from "react-map-gl/mapbox"
 import { motion, AnimatePresence } from "framer-motion"
@@ -222,6 +222,28 @@ export const MapAtlas = forwardRef<any, MapAtlasProps>(function MapAtlasInner({
         }}
       >
         <NavigationControl position="top-right" showCompass={true} />
+ 
+         {/* Zen GroundOverlay (Empreendimento Zen) */}
+         <Source
+           id="zen-overlay-source"
+           type="image"
+           url="/overlays/zen-overlay.png"
+           coordinates={[
+             [-50.06764261422266, -29.82216860959286], // Top-Left (West, North)
+             [-50.05663217442957, -29.82216860959286], // Top-Right (East, North)
+             [-50.05663217442957, -29.82763396467291], // Bottom-Right (East, South)
+             [-50.06764261422266, -29.82763396467291]  // Bottom-Left (West, South)
+           ]}
+         >
+           <Layer
+             id="zen-overlay-layer"
+             type="raster"
+             paint={{ 
+               'raster-opacity': 0.85,
+               'raster-fade-duration': 500
+             }}
+           />
+         </Source>
 
         {/* Heatmap Layer (headless, gerenciado via mapbox-gl nativo) */}
         <HeatmapLayer
