@@ -126,6 +126,26 @@ function humanStage(raw: string | null | undefined): string {
   return STAGE_LABELS[raw.toLowerCase()] ?? raw.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
 }
 
+// ─── Animation Variants ────────────────────────────────────────────────────────
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.05,
+    }
+  }
+};
+
+const itemVariants = {
+  hidden: { y: 15, opacity: 0 },
+  visible: { 
+    y: 0, 
+    opacity: 1,
+    transition: { type: "spring" as const, stiffness: 400, damping: 30 }
+  }
+};
+
 const COG_STATE_LABELS: Record<string, string> = {
   latent:     "Latente",
   curious:    "Curioso",
@@ -247,7 +267,11 @@ const MessageBubble = memo(function MessageBubble({ msg, leadPhoto, leadName }: 
   const isOperator = msg.source === "operator";
   if (msg.source === "internal") {
     return (
-      <div className="flex justify-center my-3 w-full">
+      <motion.div 
+        variants={itemVariants}
+        layout
+        className="flex justify-center my-3 w-full"
+      >
         <div className={`border rounded-2xl px-5 py-4 max-w-[85%] relative overflow-hidden group ${
           isDark ? 'bg-[var(--orbit-glow)]/5 border-[var(--orbit-glow)]/10' : 'bg-[var(--orbit-glow)]/5 border-[var(--orbit-line)] shadow-sm'
         }`}>
@@ -265,7 +289,7 @@ const MessageBubble = memo(function MessageBubble({ msg, leadPhoto, leadName }: 
             {msg.content}
           </p>
         </div>
-      </div>
+      </motion.div>
     );
   }
 
@@ -291,7 +315,11 @@ const MessageBubble = memo(function MessageBubble({ msg, leadPhoto, leadName }: 
       const urgencyWidth = `${Math.min(ana.urgency || 0, 100)}%`;
 
       return (
-        <div className="flex flex-col items-end gap-1 self-end max-w-[90%] w-full">
+        <motion.div 
+          variants={itemVariants}
+          layout
+          className="flex flex-col items-end gap-1 self-end max-w-[90%] w-full"
+        >
           <div className={`w-full border rounded-2xl rounded-tr-none overflow-hidden shadow-[var(--orbit-shadow)] ${
             isDark ? 'bg-[var(--orbit-bg)] border-[var(--orbit-glow)]/20' : 'bg-white border-[var(--orbit-line)]'
           }`}>
@@ -374,14 +402,18 @@ const MessageBubble = memo(function MessageBubble({ msg, leadPhoto, leadName }: 
               </div>
             )}
           </div>
-        </div>
+        </motion.div>
       );
     }
     if (p.type && p.url) { mediaType = p.type; mediaUrl = p.url; text = p.caption || ""; }
     else if (p.type && p.summary) { manualKind = p.type; text = p.summary; manualNextContact = p.next_contact_at; }
     if (p.type === "property") {
       return (
-        <div className="flex flex-col items-end gap-1 self-end max-w-[80%]">
+        <motion.div 
+          variants={itemVariants}
+          layout
+          className="flex flex-col items-end gap-1 self-end max-w-[80%]"
+        >
           <div className={`flex border shadow-[var(--orbit-shadow)] rounded-2xl rounded-tr-none overflow-hidden max-w-[280px] ${
             isDark ? 'bg-[var(--orbit-bg)] border-[var(--orbit-line)]' : 'bg-white border-[var(--orbit-line)]'
           }`}>
@@ -397,12 +429,16 @@ const MessageBubble = memo(function MessageBubble({ msg, leadPhoto, leadName }: 
             </div>
           </div>
           <span className="text-[10px] text-[var(--orbit-text-muted)] mr-1">{formatTime(msg.timestamp)}</span>
-        </div>
+        </motion.div>
       );
     }
     else if (p.type === "property_question") {
       return (
-        <div className="flex gap-3 max-w-[90%]">
+        <motion.div 
+          variants={itemVariants}
+          layout
+          className="flex gap-3 max-w-[90%]"
+        >
           <div className={`w-8 h-8 rounded-full border shrink-0 overflow-hidden flex items-center justify-center text-[10px] font-bold ${
             isDark ? 'border-[var(--orbit-line)] bg-[var(--orbit-glow)]/10 text-[var(--orbit-glow)]' : 'border-[var(--orbit-line)] bg-[var(--orbit-glow)]/10 text-[var(--orbit-glow)]'
           }`}>
@@ -437,7 +473,7 @@ const MessageBubble = memo(function MessageBubble({ msg, leadPhoto, leadName }: 
             </div>
             <span className="text-[10px] text-[var(--orbit-text-muted)] ml-1">{formatTime(msg.timestamp)}</span>
           </div>
-        </div>
+        </motion.div>
       );
     }
   } catch { /* not JSON */ }
@@ -449,7 +485,11 @@ const MessageBubble = memo(function MessageBubble({ msg, leadPhoto, leadName }: 
   if (mediaType === "audio" || mediaType === "image" || (mediaType === "video" && mediaUrl)) {
     const isOwner = msg.source === "operator";
     return (
-      <div className={`flex gap-3 max-w-[85%] ${isOwner ? 'self-end flex-row-reverse' : ''}`}>
+      <motion.div 
+        variants={itemVariants}
+        layout
+        className={`flex gap-3 max-w-[85%] ${isOwner ? 'self-end flex-row-reverse' : ''}`}
+      >
         {!isOwner && (
           <div className="w-8 h-8 rounded-full border border-[var(--orbit-line)] shrink-0 overflow-hidden bg-[var(--orbit-glow)]/10 flex items-center justify-center text-[10px] font-bold text-[var(--orbit-glow)]">
             {leadPhoto ? <img src={leadPhoto} className="w-full h-full object-cover" alt="" /> : getInitials(leadName)}
@@ -484,7 +524,7 @@ const MessageBubble = memo(function MessageBubble({ msg, leadPhoto, leadName }: 
           </div>
           <span className="text-[10px] text-[var(--orbit-text-muted)] mx-1">{formatTime(msg.timestamp)}</span>
         </div>
-      </div>
+      </motion.div>
     );
   }
 
@@ -499,7 +539,11 @@ const MessageBubble = memo(function MessageBubble({ msg, leadPhoto, leadName }: 
   if (manualKind) {
     const meta = MANUAL_ICONS[manualKind] || MANUAL_ICONS.note;
     return (
-      <div className="flex justify-center my-1 w-full">
+      <motion.div 
+        variants={itemVariants}
+        layout
+        className="flex justify-center my-1 w-full"
+      >
         <div className={`flex items-start gap-3 rounded-xl px-4 py-3 max-w-[80%] border ${
           isDark ? 'bg-[#d4af35]/5 border-[#d4af35]/20' : 'bg-[var(--orbit-glow)]/5 border-[var(--orbit-glow)]/20 shadow-sm'
         }`}>
@@ -516,13 +560,17 @@ const MessageBubble = memo(function MessageBubble({ msg, leadPhoto, leadName }: 
             )}
           </div>
         </div>
-      </div>
+      </motion.div>
     );
   }
 
   if (msg.source === "whatsapp") {
     return (
-      <div className="flex gap-3 max-w-[80%]">
+      <motion.div 
+        variants={itemVariants}
+        layout
+        className="flex gap-3 max-w-[80%]"
+      >
         <div className="w-8 h-8 rounded-full border border-[var(--orbit-line)] shrink-0 overflow-hidden bg-[var(--orbit-glow)]/10 flex items-center justify-center text-[10px] font-bold text-[var(--orbit-glow)]">
           {leadPhoto ? <img src={leadPhoto} className="w-full h-full object-cover" alt="" /> : getInitials(leadName)}
         </div>
@@ -550,19 +598,23 @@ const MessageBubble = memo(function MessageBubble({ msg, leadPhoto, leadName }: 
           </div>
           <span className="text-[10px] text-[var(--orbit-text-muted)] ml-1">{formatTime(msg.timestamp)}</span>
         </div>
-      </div>
+      </motion.div>
     );
   }
 
   return (
-    <div className="flex flex-col items-end gap-1 self-end max-w-[80%]">
+    <motion.div 
+      variants={itemVariants}
+      layout
+      className="flex flex-col items-end gap-1 self-end max-w-[80%]"
+    >
       <div className={`border rounded-2xl rounded-tr-none px-4 py-3 text-sm leading-relaxed shadow-[var(--orbit-shadow)] ${
         isDark ? 'bg-[var(--orbit-glow)]/10 border-[var(--orbit-glow)]/20 text-[var(--orbit-text)]' : 'bg-[var(--orbit-glow)]/5 border-[var(--orbit-glow)]/20 text-[var(--orbit-text)] font-medium shadow-sm'
       }`}>
         {text}
       </div>
       <span className="text-[10px] text-[var(--orbit-text-muted)] mr-1">{formatTime(msg.timestamp)}</span>
-    </div>
+    </motion.div>
   );
 });
 
@@ -623,7 +675,7 @@ const PropertyCard = memo(function PropertyCard({ interaction }: { interaction: 
 });
 
 // ─── GLASS PANEL STYLE (reused) ────────────────────────────────────────────────
-const glass = "bg-[var(--orbit-glass)] backdrop-blur-[16px] border border-[var(--orbit-glass-border)] shadow-[var(--orbit-shadow)]";
+const glass = "bg-[var(--orbit-glass)] backdrop-blur-[24px] border border-[var(--orbit-glass-border)] shadow-[var(--orbit-shadow)] transition-all duration-500";
 
 // ─── Main Component ────────────────────────────────────────────────────────────
 export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveConsoleProps) {
@@ -1622,9 +1674,14 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
                   {profileMems.length === 0 ? (
                     <p className={`text-xs italic ${isDark ? 'text-slate-600' : 'text-[var(--orbit-text-muted)]'}`}>Nenhuma memória registrada ainda.</p>
                   ) : (
-                    <div className="space-y-2">
-                      {profileMems.map(m => (
-                        <div key={m.id} className={`rounded-lg p-3 border ${isDark ? 'bg-white/4 border-white/5' : 'bg-[var(--orbit-bg-secondary)] border-[var(--orbit-line)]'}`}>
+                    <motion.div 
+                  variants={containerVariants}
+                  initial="hidden"
+                  animate="visible"
+                  className="space-y-4 px-2"
+                >
+                  {profileMems.map((m) => (
+                        <motion.div key={m.id} variants={itemVariants} className={`rounded-lg p-3 border ${isDark ? 'bg-white/4 border-white/5' : 'bg-[var(--orbit-bg-secondary)] border-[var(--orbit-line)]'}`}>
                           <p className={`text-[9px] uppercase font-bold mb-1 tracking-wider ${isDark ? 'text-slate-500' : 'text-[var(--orbit-text-muted)]'}`}>
                             {m.type.replace(/_/g, " ")}
                           </p>
@@ -1637,9 +1694,9 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
                               />
                             </div>
                           )}
-                        </div>
+                        </motion.div>
                       ))}
-                    </div>
+                    </motion.div>
                   )}
                 </div>
 
@@ -1721,30 +1778,30 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
                       )}
                     </button>
                   )}
-                  {messages.length === 0 ? (
-                    <div className="flex-1 flex flex-col items-center justify-center gap-3 opacity-30">
-                      <Brain className={`w-10 h-10 ${isDark ? 'text-[#d4af35]/40' : 'text-[var(--orbit-glow)]/40'}`} />
-                      <p className={`text-sm font-mono ${isDark ? 'text-slate-500' : 'text-[var(--orbit-text-muted)]'}`}>Nenhuma interação registrada</p>
-                    </div>
-                  ) : (
-                    groupedItems.map((item, idx) => {
+                  <motion.div 
+                    variants={containerVariants}
+                    initial="hidden"
+                    animate="visible"
+                    className="flex flex-col-reverse gap-4"
+                  >
+                    {groupedItems.map((item, idx) => {
                       if ("isDateSeparator" in item && item.isDateSeparator) {
                         return (
-                          <div key={item.id} className="flex items-center gap-4 my-4">
+                          <motion.div variants={itemVariants} key={item.id} className="flex items-center gap-4 my-4">
                             <div className={`h-px flex-1 ${isDark ? 'bg-white/5' : 'bg-gray-100'}`} />
                             <span className={`text-[10px] font-bold uppercase tracking-[0.2em] ${isDark ? 'text-slate-600' : 'text-slate-400'}`}>
                               {item.dateLabel}
                             </span>
                             <div className={`h-px flex-1 ${isDark ? 'bg-white/5' : 'bg-gray-100'}`} />
-                          </div>
+                          </motion.div>
                         );
                       }
                       if ("isImageGroup" in item && item.isImageGroup) {
                         return <ImageGroupBubble key={item.id} group={item} leadPhoto={lead?.photo_url || null} leadName={lead?.name || null} />;
                       }
                       return <MessageBubble key={item.id + idx} msg={item as Message} leadPhoto={lead?.photo_url || null} leadName={lead?.name || null} />;
-                    })
-                  )}
+                    })}
+                  </motion.div>
                   <div ref={bottomRef} style={{ overflowAnchor: "none" }} />
                 </div>
 

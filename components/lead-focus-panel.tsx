@@ -37,6 +37,7 @@ import {
   Users,
   Globe,
 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 
 import type { Property } from "./atlas-map";
@@ -924,149 +925,168 @@ export function LeadFocusPanel({
 
   if (!isOpen || !lead) return null;
 
+  const panelVariants = {
+    hidden: { x: "100%", opacity: 0 },
+    visible: { 
+      x: 0, 
+      opacity: 1,
+      transition: { 
+        type: "spring" as const, 
+        stiffness: 300, 
+        damping: 30,
+        staggerChildren: 0.08,
+        delayChildren: 0.1
+      }
+    },
+    exit: { 
+      x: "100%", 
+      opacity: 0, 
+      transition: { duration: 0.2, ease: "easeIn" as const } 
+    }
+  };
+
+  const itemVariants = {
+    hidden: { y: 20, opacity: 0 },
+    visible: { y: 0, opacity: 1 }
+  };
+
   return (
-    <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 z-40 bg-black/60 backdrop-blur-[3px] animate-backdrop-fade"
-        onClick={onClose}
-        aria-hidden="true"
-      />
+    <AnimatePresence>
+      {isOpen && (
+        <>
+          {/* Backdrop */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-40 bg-black/60 backdrop-blur-[4px]"
+            onClick={onClose}
+            aria-hidden="true"
+          />
 
-      {/* Panel */}
-      <div
-        className="fixed right-0 top-0 z-50 flex h-full w-full max-w-md flex-col animate-panel-slide-in"
-        style={{
-          background: "#0a0a0f",
-          borderLeft: "1px solid oklch(0.72 0.12 195 / 0.1)",
-          boxShadow: "-8px 0 40px rgba(0,0,0,0.8)",
-        }}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="lead-focus-title"
-      >
-        {/* Cognitive Intelligence Header */}
-        <div
-          className="flex flex-col gap-3 px-4 py-4 flex-shrink-0"
-          style={{
-            borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
-            background: "linear-gradient(180deg, rgba(16, 16, 24, 0.95) 0%, rgba(10, 10, 15, 0.95) 100%)",
-            backdropFilter: "blur(20px)",
-          }}
-        >
-          {/* SEARCH BAR */}
-          <div className="mb-4 mt-2">
-            <form onSubmit={handleSemanticSearch} className="relative cursor-pointer transition-all hover:brightness-110">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                {isSearching ? <Loader2 className="w-4 h-4 text-[var(--orbit-glow)] animate-spin" /> : <Search className="w-4 h-4 text-[var(--orbit-glow)]/70" />}
-              </div>
-              <input
-                type="text"
-                placeholder="Busca Semântica no Acervo Geral..."
-                value={semanticQuery}
-                onChange={(e) => setSemanticQuery(e.target.value)}
-                className="w-full bg-[var(--orbit-glow)]/5 border border-[var(--orbit-glow)]/20 focus:border-[var(--orbit-glow)]/50 rounded-lg pl-9 pr-4 py-2 text-xs text-slate-200 placeholder:text-slate-500 font-medium tracking-wide outline-none transition-all shadow-inner focus:shadow-[0_0_12px_rgba(46,197,255,0.15)] focus:bg-[var(--orbit-glow)]/10"
-              />
-            </form>
-          </div>
-
-          <div className="flex items-start justify-between">
-            <div className="flex gap-3 items-center">
-              {/* Sci-Fi Avatar Ring */}
-              <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-full">
-                <div className="absolute inset-0 rounded-full border border-[var(--orbit-glow)]/30 animate-[spin_4s_linear_infinite]" />
-                <div className="absolute inset-1 rounded-full border border-dashed border-[var(--orbit-glow)]/20 animate-[spin_3s_linear_infinite_reverse]" />
-                <div
-                  className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full overflow-hidden text-xs font-mono font-bold"
-                  style={{
-                    background: "rgba(20, 20, 30, 0.9)",
-                    border: "1px solid rgba(255, 255, 255, 0.1)",
-                    color: "var(--orbit-glow)",
-                    boxShadow: "0 0 20px var(--orbit-glow-dim)",
-                  }}
-                >
-                  {lead.photoUrl && lead.photoUrl !== "null" ? (
-                    <img
-                      src={lead.photoUrl}
-                      alt={lead.name}
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    lead.avatar
-                  )}
-                </div>
-                {lead.status === "online" && (
-                  <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)] border border-[#0a0a0f]" />
-                )}
+          {/* Panel */}
+          <motion.div
+            variants={panelVariants}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            className="fixed right-0 top-0 z-50 flex h-full w-full max-w-sm flex-col shadow-2xl"
+            style={{
+              background: "rgba(10, 10, 15, 0.95)",
+              borderLeft: "1px solid rgba(255, 255, 255, 0.08)",
+              backdropFilter: "blur(30px)",
+            }}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="lead-focus-title"
+          >
+            <motion.div
+              variants={itemVariants}
+              className="flex flex-col gap-3 px-4 py-4 flex-shrink-0 sticky top-0 z-30"
+              style={{
+                borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
+                background: "rgba(10, 10, 15, 0.8)",
+                backdropFilter: "blur(20px)",
+              }}
+            >
+              {/* SEARCH BAR */}
+              <div className="mb-2 mt-2">
+                <form onSubmit={handleSemanticSearch} className="relative cursor-pointer transition-all hover:brightness-110">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    {isSearching ? <Loader2 className="w-4 h-4 text-[var(--orbit-glow)] animate-spin" /> : <Search className="w-4 h-4 text-[var(--orbit-glow)]/70" />}
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Busca Semântica..."
+                    value={semanticQuery}
+                    onChange={(e) => setSemanticQuery(e.target.value)}
+                    className="w-full bg-white/5 border border-white/10 focus:border-[var(--orbit-glow)]/40 rounded-xl pl-9 pr-4 py-2 text-xs text-slate-200 placeholder:text-slate-500 font-medium tracking-wide outline-none transition-all focus:bg-white/10"
+                  />
+                </form>
               </div>
 
-              {/* Cognitive Info */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <h2
-                    id="lead-focus-title"
-                    className="truncate text-base font-semibold tracking-tight text-white/90"
-                  >
-                    {lead.name}
-                  </h2>
-                  <div className="px-1.5 py-0.5 rounded text-[8px] font-mono tracking-widest uppercase bg-[var(--orbit-glow)]/10 text-[var(--orbit-glow)] border border-[var(--orbit-glow)]/30">
-                    ID: {lead.id.substring(0,6)}
+              <div className="flex items-start justify-between">
+                <div className="flex gap-3 items-center">
+                  {/* Sci-Fi Avatar Ring */}
+                  <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-full">
+                    <div className="absolute inset-0 rounded-full border border-[var(--orbit-glow)]/30 animate-[spin_8s_linear_infinite]" />
+                    <div className="absolute inset-1 rounded-full border border-dashed border-[var(--orbit-glow)]/20 animate-[spin_6s_linear_infinite_reverse]" />
+                    <motion.div
+                      whileHover={{ scale: 1.1 }}
+                      className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full overflow-hidden text-xs font-mono font-bold"
+                      style={{
+                        background: "rgba(20, 20, 30, 0.9)",
+                        border: "1px solid rgba(255, 255, 255, 0.1)",
+                        color: "var(--orbit-glow)",
+                        boxShadow: "0 0 20px var(--orbit-glow-dim)",
+                      }}
+                    >
+                      {lead.photoUrl && lead.photoUrl !== "null" ? (
+                        <img
+                          src={lead.photoUrl}
+                          alt={lead.name}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        lead.avatar
+                      )}
+                    </motion.div>
+                    {lead.status === "online" && (
+                      <span className="absolute bottom-0.5 right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)] border-2 border-[#0a0a0f]" />
+                    )}
+                  </div>
+
+                  {/* Cognitive Info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h2
+                        id="lead-focus-title"
+                        className="truncate text-base font-semibold tracking-tight text-white/95"
+                      >
+                        {lead.name}
+                      </h2>
+                    </div>
+                    
+                    <div className="flex items-center gap-2 mt-0.5 text-[10px] font-mono">
+                      <span className={lead.status === "typing" ? "text-emerald-400 animate-pulse" : "text-white/40"}>
+                        {lead.statusLabel}
+                      </span>
+                    </div>
                   </div>
                 </div>
-                
-                <div className="flex items-center gap-2 mt-0.5 text-[10px] font-mono">
-                  <span className={lead.status === "typing" ? "text-emerald-400 animate-pulse" : "text-white/40"}>
-                    {lead.statusLabel}
-                  </span>
-                  <span className="text-white/20">•</span>
-                  <span className="text-white/40 flex items-center gap-1">
-                    <Clock className="h-2.5 w-2.5" />
-                    {lead.lastSeen}
-                  </span>
+
+                {/* Top Right Controls */}
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  <button onClick={onClose} className="flex h-10 w-10 items-center justify-center rounded-xl transition-all text-white/40 hover:bg-white/5 hover:text-white">
+                    <X className="h-5 w-5" />
+                  </button>
                 </div>
               </div>
-            </div>
 
-            {/* Top Right Controls */}
-            <div className="flex items-center gap-1 flex-shrink-0">
-              {lead.phone && (
-                <button onClick={handleRefreshProfile} disabled={isRefreshingProfile} className={`flex h-10 w-10 items-center justify-center rounded-full transition-all text-white/40 hover:text-white/80 hover:bg-white/5 ${isRefreshingProfile ? "animate-spin text-[var(--orbit-glow)]" : ""}`}>
-                  <RefreshCw className="h-4 w-4" />
-                </button>
-              )}
-              <Link href={`/leads/${lead.id}/intelligence`} className="flex h-10 w-10 items-center justify-center rounded-full transition-all text-white/40 hover:text-white/80 hover:bg-white/5">
-                <Brain className="h-4 w-4" />
-              </Link>
-              <button onClick={() => setShowBlockConfirm(true)} className="flex h-10 w-10 items-center justify-center rounded-full transition-all text-white/40 hover:text-white/80 hover:bg-white/5">
-                <Ban className="h-4 w-4 hover:text-red-400" />
-              </button>
-              <button onClick={onClose} className="flex h-12 w-12 items-center justify-center rounded-xl transition-all text-white/40 hover:bg-red-500/20 hover:text-red-400 border border-transparent hover:border-red-500/20">
-                <X className="h-6 w-6" />
-              </button>
-            </div>
-          </div>
-
-          {/* AI Momentum Bar */}
-          <div className="mt-1 bg-white/5 rounded-lg p-2.5 border border-white/5">
-            <div className="flex justify-between items-center mb-1">
-              <span className="text-[9px] font-mono text-white/50 uppercase tracking-wider flex items-center gap-1">
-                <Brain className="h-2.5 w-2.5 text-[var(--orbit-glow)]" />
-                Engajamento Cognitivo
-              </span>
-              <span className="text-[10px] font-mono text-[var(--orbit-glow)]">Escorre %</span>
-            </div>
-            {/* Dynamic visual indicator based on state */}
-            <div className="h-1 w-full bg-black/40 rounded-full overflow-hidden flex">
-              <div 
-                className="h-full rounded-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-[var(--orbit-glow)] to-transparent"
-                style={{ 
-                  width: lead.internalState === 'priority' ? '85%' : lead.internalState === 'focus' ? '45%' : '15%',
-                  backgroundSize: '200% 100%',
-                }}
-              />
-            </div>
-          </div>
-        </div>
+              {/* AI Momentum Bar */}
+              <motion.div 
+                variants={itemVariants}
+                className="mt-1 bg-white/5 rounded-xl p-3 border border-white/5 backdrop-blur-md"
+              >
+                <div className="flex justify-between items-center mb-1.5">
+                  <span className="text-[9px] font-mono text-white/40 uppercase tracking-widest flex items-center gap-1.5">
+                    <Brain className="h-3 w-3 text-[var(--orbit-glow)]" />
+                    Momentum Cognitivo
+                  </span>
+                  <span className="text-[10px] font-mono text-[var(--orbit-glow)] font-bold">
+                    {lead.internalState === 'priority' ? 'HIGH' : lead.internalState === 'focus' ? 'MID' : 'LOW'}
+                  </span>
+                </div>
+                <div className="h-1.5 w-full bg-black/40 rounded-full overflow-hidden">
+                  <motion.div 
+                    initial={{ width: 0 }}
+                    animate={{ width: lead.internalState === 'priority' ? '85%' : lead.internalState === 'focus' ? '45%' : '15%' }}
+                    className="h-full rounded-full bg-gradient-to-r from-[var(--orbit-glow)]/40 via-[var(--orbit-glow)] to-[var(--orbit-glow)]/40"
+                    style={{ backgroundSize: '200% 100%' }}
+                  />
+                </div>
+              </motion.div>
+            </motion.div>
 
         {/* Block Confirmation */}
         {showBlockConfirm && (
@@ -1588,9 +1608,11 @@ export function LeadFocusPanel({
             if (event.type === "message") {
               const message = event.data;
               return (
-                <div
+                <motion.div
                   key={event.id}
-                  className={`flex ${message.type === "sent" ? "justify-end" : "justify-start"} animate-in slide-in-from-bottom-2 fade-in duration-300`}
+                  variants={itemVariants}
+                  layout
+                  className={`flex ${message.type === "sent" ? "justify-end" : "justify-start"}`}
                 >
                   <div
                     className={`relative max-w-[85%] px-3 py-2.5 ${message.type === "sent" ? "rounded-2xl rounded-br-sm" : "rounded-2xl rounded-bl-sm"}`}
@@ -1738,7 +1760,7 @@ export function LeadFocusPanel({
                       )}
                     </div>
                   </div>
-                </div>
+                </motion.div>
               );
             }
 
@@ -1749,7 +1771,12 @@ export function LeadFocusPanel({
               const sp = event.data;
               const stateConfig = getPropertyStateConfig(sp.state);
               return (
-                <div key={event.id} className="flex justify-center my-6 relative animate-in zoom-in-95 duration-500">
+                <motion.div 
+                  key={event.id} 
+                  variants={itemVariants}
+                  layout
+                  className="flex justify-center my-6 relative"
+                >
                   <div className="absolute left-1/2 -ml-[1px] top-0 bottom-0 w-[2px] bg-gradient-to-b from-transparent via-[var(--orbit-glow)]/20 to-transparent -z-10" />
                   
                   <div className="w-[85%] rounded-xl overflow-hidden shadow-2xl transition-all hover:scale-[1.02]" style={{
@@ -1797,7 +1824,7 @@ export function LeadFocusPanel({
                       </div>
                     </div>
                   </div>
-                </div>
+                </motion.div>
               );
             }
 
@@ -1807,7 +1834,12 @@ export function LeadFocusPanel({
             if (event.type === "ai_insight") {
               const insight = event.data;
               return (
-                <div key={event.id} className="flex justify-center my-4 animate-in fade-in duration-700">
+                <motion.div 
+                  key={event.id} 
+                  variants={itemVariants}
+                  layout
+                  className="flex justify-center my-4"
+                >
                   <div className="max-w-[90%] rounded-lg px-4 py-3 flex gap-3 shadow-[0_0_30px_rgba(var(--orbit-glow-rgb),0.1)] relative overflow-hidden" style={{
                     background: "linear-gradient(90deg, rgba(20,20,30,0.9), rgba(15,15,25,0.8))",
                     border: "1px solid rgba(255,255,255,0.05)",
@@ -1834,7 +1866,7 @@ export function LeadFocusPanel({
                       )}
                     </div>
                   </div>
-                </div>
+                </motion.div>
               );
             }
 
@@ -1906,11 +1938,11 @@ export function LeadFocusPanel({
 
          {/* Futurist Input Bar */}
         <div
-          className="p-3 flex-shrink-0 relative z-20"
+          className="p-4 flex-shrink-0 relative z-20 sticky bottom-0"
           style={{
-            borderTop: "1px solid rgba(255,255,255,0.05)",
-            background: "rgba(10, 10, 15, 0.95)",
-            backdropFilter: "blur(20px)"
+            borderTop: "1px solid rgba(255,255,255,0.08)",
+            background: "rgba(10, 10, 15, 0.85)",
+            backdropFilter: "blur(24px)"
           }}
         >
           {/* Selected Property Context Glow */}
@@ -2135,7 +2167,9 @@ export function LeadFocusPanel({
             </button>
           </div>
         </div>
-      </div>
-    </>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
   );
 }
