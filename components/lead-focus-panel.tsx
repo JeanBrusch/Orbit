@@ -158,7 +158,7 @@ interface LeadsCenterRow {
   lead_id: string | null;
   name: string | null;
   phone: string | null;
-  lid: string | null;
+  lid?: string | null;
   photo_url: string | null;
   origin: string | null;
   estado_atual: string | null;
@@ -350,7 +350,7 @@ export function LeadFocusPanel({
             avatar: getInitials(row.name),
             photoUrl: row.photo_url,
             phone: row.phone,
-            lid: lid,
+            lid: lid ?? null,
             status: "offline",
             statusLabel: formatRelativeTime(row.ultima_interacao_at),
             lastSeen: formatRelativeTime(row.ultima_interacao_at),
@@ -523,7 +523,7 @@ export function LeadFocusPanel({
       if (!leadId) return;
 
       try {
-        const res = await fetch("/api/property-interactions", {
+        const res = await fetch(`/api/property-interactions?t=${Date.now()}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -559,7 +559,7 @@ export function LeadFocusPanel({
     if (!confirm("Remover este imóvel da seleção do cliente?")) return;
 
     try {
-      const res = await fetch(`/api/property-interactions?leadId=${leadId}&propertyId=${propertyId}`, {
+      const res = await fetch(`/api/property-interactions?leadId=${leadId}&propertyId=${propertyId}&t=${Date.now()}`, {
         method: "DELETE",
       });
 

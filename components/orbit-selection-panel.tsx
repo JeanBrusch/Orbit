@@ -151,7 +151,7 @@ function PropertyRow({ prop, isTop, onRefresh }: PropertyRowProps) {
       return;
     }
     if (confirm("Remover da seleção?")) {
-      const res = await fetch(`/api/property-interactions?leadId=${prop.leadId}&propertyId=${prop.id}`, {
+      const res = await fetch(`/api/property-interactions?leadId=${prop.leadId}&propertyId=${prop.id}&t=${Date.now()}`, {
         method: 'DELETE'
       });
       if (res.ok) onRefresh?.();
@@ -285,7 +285,7 @@ export function OrbitSelectionPanel({ leadId }: OrbitSelectionPanelProps) {
 
     try {
       console.log("[OrbitSelectionPanel] Fetching dashboard data for leadId:", leadId);
-      const res = await fetch(`/api/selection-dashboard?leadId=${leadId}`);
+      const res = await fetch(`/api/selection-dashboard?leadId=${leadId}&t=${Date.now()}`);
       if (!res.ok) throw new Error("Erro ao buscar dados do dashboard");
       
       const { space: spaceData, items, interactions } = await res.json();

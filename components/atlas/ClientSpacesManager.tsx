@@ -92,7 +92,7 @@ export default function ClientSpacesManager({ leadId, onClose }: ClientSpacesMan
     if (!leadId) return
     setLoadingMetrics(true)
     try {
-      const res = await fetch(`/api/selection-dashboard?leadId=${leadId}`)
+      const res = await fetch(`/api/selection-dashboard?leadId=${leadId}&t=${Date.now()}`);
       if (res.ok) {
         const data = await res.json()
         setMetrics(data)
@@ -150,9 +150,9 @@ export default function ClientSpacesManager({ leadId, onClose }: ClientSpacesMan
     if (!confirm("Remover este imóvel da seleção do cliente?")) return
     
     try {
-      const res = await fetch(`/api/property-interactions?leadId=${leadId}&propertyId=${propertyId}`, {
+      const res = await fetch(`/api/property-interactions?leadId=${leadId}&propertyId=${propertyId}&t=${Date.now()}`, {
         method: 'DELETE'
-      })
+      });
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
