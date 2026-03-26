@@ -16,8 +16,10 @@ import { generateWhatsAppLink } from "@/lib/cold-lead-logic"
 import { TopBar } from "@/components/top-bar"
 import { useAuth } from "@/hooks/use-auth"
 import { useTheme } from "next-themes"
+import { OrbitProvider } from "@/components/orbit-context"
+import { Suspense } from "react"
 
-export default function ReengagementPage() {
+function ReengagementPageContent() {
   const { resolvedTheme, setTheme } = useTheme()
   const isDark = resolvedTheme === 'dark'
   const { logout } = useAuth()
@@ -312,5 +314,19 @@ export default function ReengagementPage() {
         </main>
       </div>
     </div>
+  )
+}
+
+export default function ReengagementPage() {
+  return (
+    <OrbitProvider>
+      <Suspense fallback={
+        <div className="min-h-screen bg-[#05060a] flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-[#2ec5ff]" />
+        </div>
+      }>
+        <ReengagementPageContent />
+      </Suspense>
+    </OrbitProvider>
   )
 }
