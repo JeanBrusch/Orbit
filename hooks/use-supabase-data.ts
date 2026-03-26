@@ -293,6 +293,7 @@ interface PropertyRow {
   neighborhood?: string
   suites?: string
   condo_fee?: string
+  photos?: string[]
 }
 
 export function useSupabaseProperties() {
@@ -367,6 +368,7 @@ export interface PropertyInteractionRow {
     source_domain: string | null
     value: number | null
     location_text: string | null
+    photos?: string[]
   } | null
 }
 

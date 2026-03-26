@@ -9,6 +9,7 @@ import { Building2, Globe, Map as MapIcon } from "lucide-react"
 import { HeatmapLayer } from "./HeatmapLayer"
 import { ZenOverlay } from "./ZenOverlay"
 
+import { PropertyCarousel } from "./PropertyCarousel"
 import { useTheme } from "next-themes"
 
 export interface MapProperty {
@@ -19,6 +20,7 @@ export interface MapProperty {
   value: number | null
   locationText?: string | null
   coverImage?: string | null
+  photos?: string[]
   url?: string | null
   features?: string[]
   payment_conditions?: Record<string, any>
@@ -266,29 +268,29 @@ export const MapAtlas = forwardRef<any, MapAtlasProps>(function MapAtlasInner({
                 isDark ? 'bg-[#0a0907]/95 border-[#d4af35]/30' : 'bg-white/95 border-[var(--orbit-line)]'
               }`}
             >
-              {/* Cover Image Area */}
-              <div className="h-20 w-full bg-zinc-800 bg-cover bg-center relative shrink-0" style={{ backgroundImage: hoveredProperty.coverImage ? `url(${hoveredProperty.coverImage})` : 'none' }}>
-                {!hoveredProperty.coverImage && <div className={`absolute inset-0 flex items-center justify-center ${isDark ? 'text-[#d4af35]/20' : 'text-[var(--orbit-glow)]/20'}`}><Building2 className="w-5 h-5"/></div>}
-                <div className={`absolute inset-0 bg-gradient-to-t via-transparent to-transparent ${isDark ? 'from-[#0a0907]' : 'from-white'}`} />
+              {/* Carousel Area */}
+              <div className="h-28 w-full bg-zinc-800 relative shrink-0 group/carousel pointer-events-auto">
+                <PropertyCarousel photos={hoveredProperty.photos || []} isDark={isDark} />
+                <div className={`absolute inset-0 bg-gradient-to-t via-transparent to-transparent pointer-events-none ${isDark ? 'from-[#0a0907]' : 'from-white'}`} />
               </div>
 
               {/* Details */}
-              <div className="p-2.5 flex flex-col gap-1.5 relative z-10 -mt-2">
-                <p className={`text-[10px] font-bold line-clamp-2 leading-tight drop-shadow-md ${isDark ? 'text-white' : 'text-[var(--orbit-text)]'}`}>
+              <div className="p-3 flex flex-col gap-1.5 relative z-10 -mt-2">
+                <p className={`text-xs font-bold line-clamp-2 leading-tight drop-shadow-md ${isDark ? 'text-white' : 'text-[var(--orbit-text)]'}`}>
                   {hoveredProperty.name || "Imóvel N/A"}
                 </p>
                 <div className="flex justify-between items-center">
-                  <p className={`text-[10px] font-bold uppercase tracking-wider ${isDark ? 'text-[#d4af35]' : 'text-[var(--orbit-glow)]'}`}>
+                  <p className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-[#d4af35]' : 'text-[var(--orbit-glow)]'}`}>
                     {formatValue(hoveredProperty.value)}
                   </p>
                   <div className="flex items-center gap-2">
                     {hoveredProperty.bedrooms && (
-                      <span className={`text-[9px] font-mono font-bold ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
+                      <span className={`text-[10px] font-mono font-bold ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
                         {hoveredProperty.bedrooms}Q
                       </span>
                     )}
                     {hoveredProperty.area_privativa && (
-                      <span className={`text-[9px] font-mono font-bold ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
+                      <span className={`text-[10px] font-mono font-bold ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
                         {Math.round(hoveredProperty.area_privativa)}m²
                       </span>
                     )}

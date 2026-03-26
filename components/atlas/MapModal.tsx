@@ -13,6 +13,7 @@ import { useTheme } from "next-themes"
 import type { MapProperty } from "@/components/atlas/MapAtlas"
 import { HeatmapLayer } from "@/components/atlas/HeatmapLayer"
 import { AdvancedFilters } from "@/components/atlas/AdvancedFilters"
+import { PropertyCarousel } from "@/components/atlas/PropertyCarousel"
 
 // ── Dynamic Mapbox ───────────────────────────────────────────────────────────
 const MapAtlas = dynamic(
@@ -124,6 +125,7 @@ export default function MapModal({ isOpen, onClose, selectedIds, onToggleSelect 
         value: p.value,
         locationText: p.location_text,
         coverImage: p.cover_image,
+        photos: p.photos || [],
         bedrooms: p.bedrooms,
         area_privativa: p.area_privativa,
       }))
@@ -214,30 +216,32 @@ export default function MapModal({ isOpen, onClose, selectedIds, onToggleSelect 
             initialZoom={13}
           />
           
-          {/* Search Bar & Filters (Moved to top-left, ALWAYS VISIBLE now) */}
-          <div className="absolute top-6 left-6 z-[110] hidden md:flex items-center gap-2">
-            <div className={`flex items-center gap-2 px-4 py-2 rounded-full ${glass} shadow-2xl w-64`}>
-              <Search className={`h-4 w-4 ${isDark ? 'text-[#d4af35]' : 'text-[var(--orbit-glow)]'}`} />
+          {/* Redesigned Search Bar: Centered & Imposing */}
+          <div className="absolute top-8 left-1/2 -translate-x-1/2 z-[110] hidden md:flex flex-col items-center gap-4 w-full max-w-2xl px-6">
+            <div className={`flex items-center gap-4 px-6 py-4 rounded-2xl ${glassDarker} shadow-[0_20px_50px_rgba(0,0,0,0.5)] w-full border-[#d4af35]/20 group transition-all hover:border-[#d4af35]/40`}>
+              <Search className={`h-6 w-6 ${isDark ? 'text-[#d4af35]' : 'text-[var(--orbit-glow)]'} transition-transform group-hover:scale-110`} />
               <input 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Explorar mapa..."
-                className="bg-transparent border-none text-xs focus:ring-0 placeholder:text-white/30 w-full outline-none"
+                placeholder="O que você está procurando hoje?"
+                className={`bg-transparent border-none text-base focus:ring-0 placeholder:text-white/20 w-full outline-none font-serif ${isDark ? 'text-white' : 'text-zinc-900'}`}
+              />
+              <div className="h-6 w-[1px] bg-white/10 mx-2" />
+              <AdvancedFilters 
+                minPrice={minPrice} 
+                maxPrice={maxPrice} 
+                bedrooms={bedrooms} 
+                neighborhoods={neighborhoods} 
+                onChange={({ minPrice, maxPrice, bedrooms, neighborhoods }) => {
+                  setMinPrice(minPrice)
+                  setMaxPrice(maxPrice)
+                  setBedrooms(bedrooms)
+                  setNeighborhoods(neighborhoods)
+                }} 
               />
             </div>
-
-            <AdvancedFilters 
-              minPrice={minPrice} 
-              maxPrice={maxPrice} 
-              bedrooms={bedrooms} 
-              neighborhoods={neighborhoods} 
-              onChange={({ minPrice, maxPrice, bedrooms, neighborhoods }) => {
-                setMinPrice(minPrice)
-                setMaxPrice(maxPrice)
-                setBedrooms(bedrooms)
-                setNeighborhoods(neighborhoods)
-              }} 
-            />
+            
+            {/* Quick Badges or Suggestions could go here */}
           </div>
 
           {/* Metric Switcher — flutua abaixo do botão toggle agora no header da sidebar */}
@@ -435,20 +439,16 @@ export default function MapModal({ isOpen, onClose, selectedIds, onToggleSelect 
               /* NORMAL MODE: Imóvel selecionado ou placeholder */
               selectedProperty ? (
                 <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
-                  <div className="aspect-video rounded-2xl overflow-hidden relative border border-white/10 group">
-                    <img
-                      src={selectedProperty.cover_image || "/placeholder.jpg"}
-                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                      alt={selectedProperty.title}
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                  <div className="aspect-video rounded-2xl overflow-hidden relative border border-white/10 group overflow-hidden">
+                    <PropertyCarousel photos={selectedProperty.photos || []} isDark={isDark} />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
                     <button
                       onClick={() => setSelectedProperty(null)}
-                      className="absolute top-3 left-3 p-1.5 rounded-full bg-black/40 text-white/50 hover:text-white"
+                      className="absolute top-3 left-3 p-1.5 rounded-full bg-black/40 text-white/50 hover:text-white z-20"
                     >
                       <X className="h-4 w-4" />
                     </button>
-                    <div className="absolute bottom-4 left-4">
+                    <div className="absolute bottom-4 left-4 z-20 pointer-events-none">
                       <p className="text-xl font-serif text-white">{selectedProperty.title || selectedProperty.internal_name}</p>
                     </div>
                   </div>
