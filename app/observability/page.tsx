@@ -442,6 +442,7 @@ function getModuleColor(module: string) {
     case 'classifier': return 'bg-purple-500/10 text-purple-400'
     case 'vistanet_ingest': return 'bg-emerald-500/10 text-emerald-400'
     case 'silence_analyzer': return 'bg-orange-500/10 text-orange-400'
+    case 'reengagement': return 'bg-amber-500/10 text-amber-400'
     default: return 'bg-slate-500/10 text-slate-400'
   }
 }

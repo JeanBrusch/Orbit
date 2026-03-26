@@ -42,7 +42,7 @@ Gere APENAS a mensagem final, sem aspas ou comentários.`;
     const elapsed = Date.now() - start;
 
     if (response.usage) {
-      await (trackAICall as any)({
+      await trackAICall({
         module: 'reengagement',
         model: 'gpt-4o-mini',
         tokens_input: response.usage.prompt_tokens,

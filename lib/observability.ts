@@ -7,6 +7,7 @@ export type OrbitModule =
   | 'orbit_core' 
   | 'vistanet_ingest' 
   | 'property_analysis'
+  | 'reengagement'
   | 'system';
 
 export type OrbitEventType = 
