@@ -530,12 +530,22 @@
 }
 
 .scrollbar-thin::-webkit-scrollbar-thumb {
-  background: rgba(46, 197, 255, 0.2);
+  background: rgba(var(--orbit-glow-rgb), 0.2);
   border-radius: 2px;
 }
 
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-  background: rgba(46, 197, 255, 0.4);
+  background: rgba(var(--orbit-glow-rgb), 0.4);
+}
+
+/* Accessibility: Reduce Motion */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* Duration utility for 240ms transitions */

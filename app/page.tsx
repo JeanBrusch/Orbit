@@ -13,8 +13,6 @@ import { useAuth } from "@/hooks/use-auth";
 import { TopBar } from "@/components/top-bar";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
-import * as d3 from "d3-zoom";
-import { select } from "d3-selection";
 
 export interface Lead {
   id: string;
@@ -74,43 +72,55 @@ function OrbitInterfaceContent() {
     }
   }, [supabaseLeads, loading, initializeLeadStates]);
 
-  // ── D3 zoom applied ONLY to the nodesLayer ───────────────────────────────
+  // ── D3 zoom applied ONLY to the nodesLayer (Loaded Asynchronously) ─────
   useEffect(() => {
     if (!nodesContainerRef.current || !nodesLayerRef.current) return;
 
     const isMobile = window.innerWidth < 768;
+    let cleanup: (() => void) | undefined;
 
-    const zoom = d3.zoom<HTMLDivElement, unknown>()
-      .scaleExtent(isMobile ? [0.5, 1.2] : [0.8, 1.6])
-      .filter((event) => {
-        // Allow wheel zoom, allow drag only if not a button/interactive element
-        if (event.type === "wheel") return !isMobile; // Disable trackpad zooming on mobile to prevent accidental scrolls
-        if (event.type === "mousedown" || event.type === "touchstart") {
-          const target = event.target as HTMLElement;
-          // Se for scroll container do Lead Console, não previne o default
-          if (target.closest('.overflow-y-auto')) return false;
-          return !target.closest("button, a, input, [role='button']");
+    // Dynamically import d3 to prevent blocking the main JS thread LCP
+    Promise.all([
+      import("d3-zoom"),
+      import("d3-selection")
+    ]).then(([{ zoom: d3Zoom, zoomIdentity }, { select }]) => {
+      if (!nodesContainerRef.current || !nodesLayerRef.current) return;
+
+      const zoom = d3Zoom<HTMLDivElement, unknown>()
+        .scaleExtent(isMobile ? [0.5, 1.2] : [0.8, 1.6])
+        .filter((event) => {
+          if (event.type === "wheel") return !isMobile;
+          if (event.type === "mousedown" || event.type === "touchstart") {
+            const target = event.target as HTMLElement;
+            if (target.closest('.overflow-y-auto')) return false;
+            return !target.closest("button, a, input, [role='button']");
+          }
+          return true;
+        })
+        .on("zoom", (event) => {
+          if (nodesLayerRef.current) {
+            const { x, y, k } = event.transform;
+            nodesLayerRef.current.style.transform = `translate(${x}px, ${y}px) scale(${k})`;
+          }
+        });
+
+      select(nodesContainerRef.current).call(zoom);
+
+      const initialScale = isMobile ? 0.65 : 1;
+      select(nodesContainerRef.current).call(
+        zoom.transform,
+        zoomIdentity.scale(initialScale)
+      );
+
+      cleanup = () => {
+        if (nodesContainerRef.current) {
+          select(nodesContainerRef.current).on(".zoom", null);
         }
-        return true;
-      })
-      .on("zoom", (event) => {
-        if (nodesLayerRef.current) {
-          const { x, y, k } = event.transform;
-          nodesLayerRef.current.style.transform = `translate(${x}px, ${y}px) scale(${k})`;
-        }
-      });
-
-    select(nodesContainerRef.current).call(zoom);
-
-    // On mobile, start zoomed out so all nodes fit on screen immediately
-    const initialScale = isMobile ? 0.65 : 1;
-    select(nodesContainerRef.current).call(
-      zoom.transform,
-      d3.zoomIdentity.scale(initialScale)
-    );
+      };
+    });
 
     return () => {
-      select(nodesContainerRef.current!).on(".zoom", null);
+      if (cleanup) cleanup();
     };
   }, []);
 
@@ -173,8 +183,8 @@ function OrbitInterfaceContent() {
 
   if (authLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-        <Loader2 className="h-8 w-8 animate-spin text-cyan-400" />
+      <div className="flex min-h-screen items-center justify-center bg-[var(--orbit-bg)]">
+        <Loader2 className="h-8 w-8 animate-spin text-[var(--orbit-glow)]" />
       </div>
     );
   }

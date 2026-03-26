@@ -1,0 +1,95 @@
+   ▲ Next.js 16.0.10 (Turbopack)
+   - Environments: .env.local
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully in 7.5s
+   Skipping validation of types
+   Collecting page data using 7 workers ...
+   Generating static pages using 7 workers (0/57) ...
+   Generating static pages using 7 workers (14/57) 
+   Generating static pages using 7 workers (28/57) 
+   Generating static pages using 7 workers (42/57) 
+ ✓ Generating static pages using 7 workers (57/57) in 695.7ms
+   Finalizing page optimization ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ƒ /api/admin/cleanup-duplicates
+├ ƒ /api/admin/diagnose-duplicates
+├ ƒ /api/admin/manual-merge
+├ ƒ /api/admin/merge-duplicates
+├ ƒ /api/admin/search-leads
+├ ƒ /api/atlas/generate-offer
+├ ƒ /api/atlas/heatmap
+├ ƒ /api/atlas/heatmap/leads
+├ ƒ /api/atlas/ingest-voice
+├ ƒ /api/atlas/property-history
+├ ƒ /api/atlas/search
+├ ƒ /api/atlas/send-selection
+├ ƒ /api/auth/login
+├ ƒ /api/auth/logout
+├ ƒ /api/auth/register
+├ ƒ /api/auth/user
+├ ƒ /api/block
+├ ƒ /api/client-space/[spaceId]/context
+├ ƒ /api/client-spaces
+├ ƒ /api/cron/process-batch
+├ ƒ /api/interaction
+├ ƒ /api/lead
+├ ƒ /api/lead/[id]
+├ ƒ /api/lead/[id]/capsule-link
+├ ƒ /api/lead/[id]/note
+├ ƒ /api/lead/[id]/read
+├ ƒ /api/lead/[id]/reengagement
+├ ƒ /api/lead/[id]/silence-analysis
+├ ƒ /api/lead/[id]/suggest
+├ ƒ /api/lead/[id]/update-name
+├ ƒ /api/lead/[id]/update-state
+├ ƒ /api/lead/clear-attention
+├ ƒ /api/lead/find
+├ ƒ /api/lead/visual-state
+├ ƒ /api/leads/backfill-photos
+├ ƒ /api/leads/pending-count
+├ ƒ /api/leads/silent
+├ ƒ /api/link-preview
+├ ƒ /api/match/property
+├ ƒ /api/messages
+├ ƒ /api/note
+├ ƒ /api/objects/atlas/[hash]
+├ ƒ /api/objects/atlas/upload
+├ ƒ /api/properties
+├ ƒ /api/properties/[id]
+├ ƒ /api/properties/[id]/location
+├ ƒ /api/property
+├ ƒ /api/property-interactions
+├ ƒ /api/property/import-vistanet
+├ ƒ /api/public/lead/[token]
+├ ƒ /api/search/notes
+├ ƒ /api/search/orbit
+├ ƒ /api/selection-chat
+├ ƒ /api/selection-dashboard
+├ ƒ /api/transcribe
+├ ƒ /api/upload
+├ ƒ /api/whatsapp/disconnect
+├ ƒ /api/whatsapp/qr
+├ ƒ /api/whatsapp/send
+├ ƒ /api/whatsapp/send-carousel
+├ ƒ /api/whatsapp/status
+├ ƒ /api/zapi/status
+├ ƒ /api/zapi/webhook
+├ ○ /atlas
+├ ƒ /l/[token]
+├ ƒ /lead/[id]
+├ ƒ /leads/[id]/intelligence
+├ ○ /login
+├ ○ /observability
+├ ○ /pipeline
+├ ƒ /selection/[slug]
+├ ○ /silence
+└ ○ /telemetry
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

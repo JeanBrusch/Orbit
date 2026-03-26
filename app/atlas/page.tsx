@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation"
 import { useSupabaseProperties, useSupabaseLeads, useLeadDetails } from "@/hooks/use-supabase-data"
 import { useAuth } from "@/hooks/use-auth"
 import { useTheme } from "next-themes"
-import ClientSpacesManager from "@/components/atlas/ClientSpacesManager"
+// ClientSpacesManager imported dynamically below
 import { motion, AnimatePresence } from "framer-motion"
 import {
   Search, Filter, Plus, Map as MapIcon,
@@ -23,11 +23,12 @@ import dynamic from "next/dynamic"
 import { TopBar } from "@/components/top-bar"
 import { useRouter } from "next/navigation"
 import { OrbitProvider } from "@/components/orbit-context"
-import MapModal from "@/components/atlas/MapModal"
-import VoiceIngestion from "@/components/atlas/VoiceIngestion"
 import { AdvancedFilters } from "@/components/atlas/AdvancedFilters"
 
 const EditPropertyModal = dynamic(() => import("@/components/atlas/EditPropertyModal"), { ssr: false })
+const ClientSpacesManager = dynamic(() => import("@/components/atlas/ClientSpacesManager"), { ssr: false })
+const MapModal = dynamic(() => import("@/components/atlas/MapModal"), { ssr: false })
+const VoiceIngestion = dynamic(() => import("@/components/atlas/VoiceIngestion"), { ssr: false })
 
 // ── Aesthetics & Tokens ──────────────────────────────────────────────────────
 const theme = {
@@ -176,6 +177,8 @@ function PropertyCard({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.3 }}
+            loading="lazy"
+            decoding="async"
             className="w-full h-full object-cover opacity-95 group-hover:opacity-100"
           />
         </AnimatePresence>
@@ -196,7 +199,7 @@ function PropertyCard({
               <ChevronRight size={16} />
             </button>
             <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1">
-              {allPhotos.slice(0, 5).map((_, i) => (
+              {allPhotos.slice(0, 5).map((imgUrl: string, i: number) => (
                 <div 
                   key={i} 
                   className={`w-1 h-1 rounded-full transition-all ${i === currentPhotoIndex ? 'bg-white w-2' : 'bg-white/40'}`} 
@@ -899,7 +902,7 @@ function AtlasManagerContent() {
                         maxPrice={maxPrice}
                         bedrooms={bedrooms}
                         neighborhoods={neighborhoods}
-                        onChange={({ minPrice, maxPrice, bedrooms, neighborhoods }) => {
+                        onChange={({ minPrice, maxPrice, bedrooms, neighborhoods }: any) => {
                           setMinPrice(minPrice)
                           setMaxPrice(maxPrice)
                           setBedrooms(bedrooms)

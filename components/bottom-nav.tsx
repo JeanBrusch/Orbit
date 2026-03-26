@@ -16,7 +16,7 @@ export function BottomNav() {
   ];
 
   return (
-    <div className="md:hidden fixed bottom-0 left-0 right-0 z-[100] h-16 bg-[var(--orbit-bg)]/90 backdrop-blur-xl border-t border-[var(--orbit-line)] flex items-center justify-around px-2 pb-safe shadow-[0_-10px_30px_rgba(0,0,0,0.1)]">
+    <div className="md:hidden fixed bottom-0 left-0 right-0 z-[100] h-16 bg-[var(--orbit-bg)]/90 backdrop-blur-xl border-t border-[var(--orbit-line)] flex items-center justify-around px-2 shadow-[0_-10px_30px_rgba(0,0,0,0.1)]" style={{ paddingBottom: 'env(safe-area-inset-bottom, 8px)' }}>
       {navItems.map((item) => {
         const isActive = pathname?.startsWith(item.href);
         const Icon = item.icon;
@@ -25,7 +25,7 @@ export function BottomNav() {
           <Link
             key={item.name}
             href={item.href}
-            className={`flex flex-col items-center justify-center w-full h-full gap-1 transition-all relative ${
+            className={`flex flex-col items-center justify-center w-full h-full gap-1 transition-all relative cursor-pointer ${
               isActive 
                 ? "text-[var(--orbit-glow)]" 
                 : "text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)]"

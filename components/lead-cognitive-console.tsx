@@ -3,7 +3,7 @@
 import { useRef, useState, useEffect, useCallback, memo, useMemo } from "react";
 import { useTheme } from "next-themes";
 import {
-  X, ArrowUp, Play, Loader2, Check, Brain,
+  X, ArrowUp, Play, Loader2, Check, Brain, Pencil,
   Mic, Zap, Star, Building2, ExternalLink, Copy, CheckCheck,
   Square, Paperclip, Search, StopCircle, FileText, User, HelpCircle,
   Trash2, AlertTriangle, MessageSquare, Ban
@@ -652,6 +652,43 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
   const [showStageDropdown, setShowStageDropdown] = useState(false);
   const [showBlockConfirm, setShowBlockConfirm] = useState(false);
   const [isBlocking, setIsBlocking] = useState(false);
+
+  // Edit Name
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [draftName, setDraftName] = useState("");
+  const [isSavingName, setIsSavingName] = useState(false);
+  const nameInputRef = useRef<HTMLInputElement>(null);
+
+  const handleSaveName = async () => {
+    if (!leadId) return;
+    const finalName = draftName.trim();
+    if (!finalName || finalName === lead?.name) {
+      setIsEditingName(false);
+      return;
+    }
+    setIsSavingName(true);
+    try {
+      const res = await fetch(`/api/lead/${leadId}/update-name`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: finalName }),
+      });
+      if (res.ok) {
+        setLead(prev => prev ? { ...prev, name: finalName } : prev);
+      }
+    } catch (err) {
+      console.error("[COG] Error updating name", err);
+    } finally {
+      setIsSavingName(false);
+      setIsEditingName(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isEditingName && nameInputRef.current) {
+      nameInputRef.current.focus();
+    }
+  }, [isEditingName]);
 
   // Composer
   const [composerText, setComposerText] = useState("");
@@ -1384,7 +1421,35 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
                       <div className={`absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 ${isDark ? 'border-[#050505]' : 'border-white'}`} />
                     </div>
                     <div className="min-w-0">
-                      <p className="text-sm font-semibold truncate">{lead?.name || "—"}</p>
+                      {isEditingName ? (
+                        <div className="flex items-center gap-1">
+                          <input
+                            ref={nameInputRef}
+                            value={draftName}
+                            onChange={e => setDraftName(e.target.value)}
+                            onKeyDown={e => {
+                              if (e.key === "Enter") handleSaveName();
+                              if (e.key === "Escape") setIsEditingName(false);
+                            }}
+                            onBlur={() => handleSaveName()}
+                            disabled={isSavingName}
+                            className={`w-36 text-sm font-semibold px-1 py-0.5 rounded outline-none border transition-colors ${
+                              isDark 
+                                ? 'bg-white/10 text-white border-white/20 focus:border-[#d4af35]' 
+                                : 'bg-[var(--orbit-bg-secondary)] text-[var(--orbit-text)] border-[var(--orbit-line)] focus:border-[var(--orbit-glow)]'
+                            }`}
+                          />
+                        </div>
+                      ) : (
+                        <div 
+                          className="flex items-center gap-1.5 group cursor-pointer" 
+                          onClick={() => { setDraftName(lead?.name || ""); setIsEditingName(true); }}
+                        >
+                          <p className="text-sm font-semibold truncate" title="Editar nome">{lead?.name || "—"}</p>
+                          <Pencil className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400" />
+                        </div>
+                      )}
+                      
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => setShowStageDropdown(prev => !prev)}
@@ -1456,7 +1521,35 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
                         <div className={`absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 ${isDark ? 'border-[#050505]' : 'border-white'}`} />
                       </div>
                       <div>
-                        <p className="text-sm font-semibold">{lead?.name || "—"}</p>
+                        {isEditingName ? (
+                          <div className="flex items-center gap-1 mb-0.5">
+                            <input
+                              ref={nameInputRef}
+                              value={draftName}
+                              onChange={e => setDraftName(e.target.value)}
+                              onKeyDown={e => {
+                                if (e.key === "Enter") handleSaveName();
+                                if (e.key === "Escape") setIsEditingName(false);
+                              }}
+                              onBlur={() => handleSaveName()}
+                              disabled={isSavingName}
+                              className={`w-48 text-sm font-semibold px-1.5 py-0.5 rounded outline-none border transition-colors ${
+                                isDark 
+                                  ? 'bg-white/10 text-white border-white/20 focus:border-[#d4af35]' 
+                                  : 'bg-[var(--orbit-bg-secondary)] text-[var(--orbit-text)] border-[var(--orbit-line)] focus:border-[var(--orbit-glow)]'
+                              }`}
+                            />
+                          </div>
+                        ) : (
+                          <div 
+                            className="flex items-center gap-2 group cursor-pointer" 
+                            onClick={() => { setDraftName(lead?.name || ""); setIsEditingName(true); }}
+                          >
+                            <p className="text-sm font-semibold" title="Editar nome">{lead?.name || "—"}</p>
+                            <Pencil className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400" />
+                          </div>
+                        )}
+                        
                         <div className="relative">
                           <button onClick={() => setShowStageDropdown(prev => !prev)} className={`text-[10px] font-medium uppercase tracking-wider transition-colors cursor-pointer ${isDark ? 'text-[#d4af35]/70 hover:text-[#d4af35]' : 'text-[var(--orbit-glow)]/70 hover:text-[var(--orbit-glow)]'}`}>
                             {humanStage(lead?.orbit_stage)}
