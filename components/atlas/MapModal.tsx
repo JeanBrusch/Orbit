@@ -321,14 +321,14 @@ export default function MapModal({ isOpen, onClose, selectedIds, onToggleSelect 
                 className={`px-4 py-2 rounded-full ${glass} flex items-center gap-3 backdrop-blur-xl shadow-2xl`}
               >
                 <div className="w-2 h-2 rounded-full bg-orange-400 animate-pulse" />
-                <span className="text-[9px] md:text-[10px] font-mono uppercase tracking-[0.2em] text-orange-400 whitespace-nowrap">
+                <span className="text-[9px] md:text-[10px] font-mono uppercase tracking-[0.2em] text-orange-400 text-center">
                   Filtro de Demanda — {METRIC_LABELS[heatmapMetric]}
                 </span>
               </motion.div>
             ) : (
               <div className={`px-4 py-2 rounded-full ${glass} flex items-center gap-3 animate-pulse shadow-2xl`}>
                 <div className={`w-2 h-2 rounded-full ${isDark ? 'bg-[#d4af35]' : 'bg-[var(--orbit-glow)]'}`} />
-                <span className={`text-[9px] md:text-[10px] font-mono uppercase tracking-[0.2em] ${isDark ? 'text-[#d4af35]' : 'text-[var(--orbit-glow)]'} whitespace-nowrap`}>
+                <span className={`text-[9px] md:text-[10px] font-mono uppercase tracking-[0.2em] ${isDark ? 'text-[#d4af35]' : 'text-[var(--orbit-glow)]'} text-center`}>
                   Exploração de Ativos
                 </span>
               </div>

@@ -159,12 +159,12 @@ export default function EditPropertyModal({ isOpen, onClose, property, onSave, o
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+      <div className="fixed inset-0 z-[110] flex items-center justify-center md:p-4 bg-black/70 backdrop-blur-sm">
         <motion.div 
           initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.95, opacity: 0 }}
-          className={`border rounded-2xl shadow-2xl w-full max-w-5xl overflow-hidden flex flex-col max-h-[90vh] ${
+          className={`border md:rounded-2xl shadow-2xl w-full max-w-5xl overflow-hidden flex flex-col h-full max-h-screen md:h-auto md:max-h-[90vh] ${
             isDark 
               ? "bg-[var(--orbit-bg-secondary)] border-[var(--orbit-line)] text-white" 
               : "bg-white border-gray-200 text-slate-900"
@@ -212,13 +212,13 @@ export default function EditPropertyModal({ isOpen, onClose, property, onSave, o
               <button 
                 type="button"
                 onClick={onClose} 
-                className={`p-2.5 rounded-xl transition-colors border border-transparent ${
+                className={`p-3.5 rounded-xl transition-colors border border-transparent flex items-center justify-center ${
                   isDark 
                     ? "hover:bg-white/5 text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)] hover:border-[var(--orbit-line)]" 
                     : "hover:bg-gray-200 text-slate-500 hover:text-slate-900 hover:border-gray-300"
                 }`}
               >
-                 <X size={20} />
+                 <X size={24} />
               </button>
             </div>
           </div>

@@ -113,7 +113,7 @@ export function NeighborhoodInsightPanel({
           animate={{ x: 0, opacity: 1 }}
           exit={{ x: 420, opacity: 0 }}
           transition={{ type: "spring", stiffness: 320, damping: 32 }}
-          className={`fixed right-0 top-0 h-full w-[380px] z-[40] flex flex-col overflow-hidden shadow-2xl border-l ${
+          className={`fixed right-0 top-0 h-full w-full md:w-[380px] z-[40] flex flex-col overflow-hidden shadow-2xl border-l ${
             isDark
               ? "bg-[#09090b]/95 border-white/8 backdrop-blur-2xl"
               : "bg-white/95 border-[var(--orbit-line)] backdrop-blur-2xl"
@@ -159,9 +159,9 @@ export function NeighborhoodInsightPanel({
               </div>
               <button
                 onClick={onClose}
-                className={`p-2 rounded-lg transition-colors ${isDark ? "text-white/40 hover:text-white hover:bg-white/10" : "text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)] hover:bg-black/5"}`}
+                className={`p-3.5 rounded-lg transition-colors flex items-center justify-center ${isDark ? "text-white/40 hover:text-white hover:bg-white/10" : "text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)] hover:bg-black/5"}`}
               >
-                <X className="w-4 h-4" />
+                <X className="w-5 h-5" />
               </button>
             </div>
 

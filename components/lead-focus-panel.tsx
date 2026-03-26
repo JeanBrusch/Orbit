@@ -1028,20 +1028,20 @@ export function LeadFocusPanel({
             </div>
 
             {/* Top Right Controls */}
-            <div className="flex items-center gap-1.5 *:flex *:h-7 *:w-7 *:items-center *:justify-center *:rounded-full *:transition-all *:text-white/40 hover:*:text-white/80 hover:*:bg-white/5">
+            <div className="flex items-center gap-1 flex-shrink-0">
               {lead.phone && (
-                <button onClick={handleRefreshProfile} disabled={isRefreshingProfile} className={isRefreshingProfile ? "animate-spin text-[var(--orbit-glow)]" : ""}>
-                  <RefreshCw className="h-3.5 w-3.5" />
+                <button onClick={handleRefreshProfile} disabled={isRefreshingProfile} className={`flex h-10 w-10 items-center justify-center rounded-full transition-all text-white/40 hover:text-white/80 hover:bg-white/5 ${isRefreshingProfile ? "animate-spin text-[var(--orbit-glow)]" : ""}`}>
+                  <RefreshCw className="h-4 w-4" />
                 </button>
               )}
-              <Link href={`/leads/${lead.id}/intelligence`}>
-                <Brain className="h-3.5 w-3.5" />
+              <Link href={`/leads/${lead.id}/intelligence`} className="flex h-10 w-10 items-center justify-center rounded-full transition-all text-white/40 hover:text-white/80 hover:bg-white/5">
+                <Brain className="h-4 w-4" />
               </Link>
-              <button onClick={() => setShowBlockConfirm(true)}>
-                <Ban className="h-3 w-3 hover:text-red-400" />
+              <button onClick={() => setShowBlockConfirm(true)} className="flex h-10 w-10 items-center justify-center rounded-full transition-all text-white/40 hover:text-white/80 hover:bg-white/5">
+                <Ban className="h-4 w-4 hover:text-red-400" />
               </button>
-              <button onClick={onClose} className="hover:bg-red-500/20 hover:text-red-400">
-                <X className="h-4 w-4" />
+              <button onClick={onClose} className="flex h-12 w-12 items-center justify-center rounded-xl transition-all text-white/40 hover:bg-red-500/20 hover:text-red-400 border border-transparent hover:border-red-500/20">
+                <X className="h-6 w-6" />
               </button>
             </div>
           </div>

@@ -237,7 +237,7 @@ export default function ClientSpacesManager({ leadId, onClose }: ClientSpacesMan
   return (
     <div className="flex flex-col h-full bg-[var(--orbit-bg)] text-[var(--orbit-text)] overflow-hidden">
       {/* Premium Integrated Header */}
-      <div className="px-8 py-8 border-b border-[var(--orbit-line)] bg-[var(--orbit-bg-secondary)]/40 backdrop-blur-2xl shrink-0 relative overflow-hidden">
+      <div className="px-6 py-6 md:px-8 md:py-8 border-b border-[var(--orbit-line)] bg-[var(--orbit-bg-secondary)]/40 backdrop-blur-2xl shrink-0 relative overflow-hidden">
         {/* Abstract Background Glow */}
         <div className="absolute -top-24 -right-24 w-64 h-64 bg-[var(--orbit-glow)]/5 rounded-full blur-[100px] pointer-events-none" />
         
@@ -245,7 +245,7 @@ export default function ClientSpacesManager({ leadId, onClose }: ClientSpacesMan
           <div className="flex items-start gap-6">
             <button 
               onClick={onClose}
-              className="w-12 h-12 flex items-center justify-center rounded-2xl bg-[var(--orbit-glow)]/5 border border-[var(--orbit-glow)]/10 text-[var(--orbit-text-muted)] hover:text-[var(--orbit-glow)] hover:border-[var(--orbit-glow)]/30 transition-all group"
+              className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center rounded-2xl bg-[var(--orbit-glow)]/5 border border-[var(--orbit-glow)]/10 text-[var(--orbit-text-muted)] hover:text-[var(--orbit-glow)] hover:border-[var(--orbit-glow)]/30 transition-all group shrink-0"
               title="Voltar ao Atlas"
             >
               <ChevronLeft size={24} className="group-hover:-translate-x-0.5 transition-transform" />
@@ -645,7 +645,7 @@ export default function ClientSpacesManager({ leadId, onClose }: ClientSpacesMan
               initial={{ scale: 0.95, y: 20 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.95, y: 10 }}
-              className="w-full max-w-lg bg-[var(--orbit-bg-secondary)] border border-[var(--orbit-line)] rounded-[2.5rem] p-10 shadow-3xl"
+              className="w-full max-w-lg bg-[var(--orbit-bg-secondary)] border border-[var(--orbit-line)] rounded-[2rem] md:rounded-[2.5rem] p-6 md:p-10 shadow-3xl overflow-y-auto max-h-[90vh]"
             >
               <div className="flex items-center gap-4 mb-8">
                 <div className="w-12 h-12 rounded-2xl bg-[var(--orbit-glow)]/10 border border-[var(--orbit-glow)]/20 flex items-center justify-center text-[var(--orbit-glow)]">
