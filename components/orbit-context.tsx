@@ -264,6 +264,7 @@ interface OrbitContextValue {
   }
   activateOrbitView: (query: string, sourceLeadId?: string) => Promise<number>
   deactivateOrbitView: () => void
+  setOrbitViewResults: (query: string, leads: any[]) => void
 }
 
 const OrbitContext = createContext<OrbitContextValue | null>(null)
@@ -617,6 +618,18 @@ export function OrbitProvider({ children }: { children: ReactNode }) {
         intentions: [],
       },
       sourceLeadId: undefined,
+    })
+  }, [])
+
+  const setOrbitViewResults = useCallback((query: string, leads: any[]) => {
+    setOrbitViewState({
+      active: true,
+      query,
+      results: {
+        leads,
+        properties: [],
+        intentions: [],
+      },
     })
   }, [])
 
@@ -1302,6 +1315,7 @@ export function OrbitProvider({ children }: { children: ReactNode }) {
     orbitView,
     activateOrbitView,
     deactivateOrbitView,
+    setOrbitViewResults,
 
     // Pending leads
     pendingLeadsCount,
@@ -1344,6 +1358,7 @@ export function OrbitProvider({ children }: { children: ReactNode }) {
     orbitView,
     activateOrbitView,
     deactivateOrbitView,
+    setOrbitViewResults,
     pendingLeadsCount,
     fetchPendingCount,
   ])

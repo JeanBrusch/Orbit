@@ -78,7 +78,7 @@ function PipelineContent() {
   const [activeTab, setActiveTab] = useState<StageKey>("latent");
   const [isMobile, setIsMobile] = useState(false);
 
-  const { orbitView, activateOrbitView, deactivateOrbitView } = useOrbitContext();
+  const { orbitView, activateOrbitView, deactivateOrbitView, setOrbitViewResults } = useOrbitContext();
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
@@ -195,11 +195,64 @@ function PipelineContent() {
 
   const handleSearchSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (searchText.trim()) {
-      setLoading(true);
-      await activateOrbitView(searchText.trim());
+    const query = searchText.trim();
+    if (!query) return;
+
+    setLoading(true);
+    const normalizedQuery = query.toLowerCase();
+
+    // ── LAYER 1: Local Search Bypass ─────────────────────────────────────────
+    // Check if the name exists in the already loaded leads list
+    const localMatches = leads.filter(l => 
+      l.name.toLowerCase().includes(normalizedQuery) || 
+      l.phone?.includes(query)
+    );
+
+    if (localMatches.length > 0 && query.length > 2) {
+      console.log("[PIPELINE] Local match found. Bypassing AI.");
+      const mapped = localMatches.map(l => ({
+        id: l.id,
+        name: l.name,
+        stage: l.orbit_stage,
+        lastInteraction: l.last_interaction_at || "",
+        matchReason: "Busca local (Nome/Telefone)",
+        relevanceScore: 1.0
+      }));
+      setOrbitViewResults(query, mapped);
       setLoading(false);
+      return;
     }
+
+    // ── LAYER 2: Direct Database Name Search ─────────────────────────────────
+    // If not found locally, try a quick direct query before hitting the AI
+    if (query.length > 2 && !query.includes(" ")) {
+       const supabase = getSupabase();
+       const { data: dbMatches } = await supabase
+         .from('leads')
+         .select('id, name, orbit_stage, last_interaction_at')
+         .ilike('name', `%${query}%`)
+         .limit(5);
+
+       if (dbMatches && dbMatches.length > 0) {
+         console.log("[PIPELINE] DB match found. Bypassing AI.");
+         const mapped = dbMatches.map((l: any) => ({
+           id: l.id,
+           name: l.name,
+           stage: l.orbit_stage,
+           lastInteraction: l.last_interaction_at || "",
+           matchReason: "Busca direta (Banco de Dados)",
+           relevanceScore: 0.95
+         }));
+         setOrbitViewResults(query, mapped);
+         setLoading(false);
+         return;
+       }
+    }
+
+    // ── LAYER 3: Cognitive AI Search (Fallback) ──────────────────────────────
+    console.log("[PIPELINE] Triggering Cognitive AI Search.");
+    await activateOrbitView(query);
+    setLoading(false);
   };
 
   return (
