@@ -67,6 +67,7 @@ export default function ClientSelectionView({
   slug,
 }: ClientSelectionViewProps) {
   const { lead, items, initialInteractions = {} } = data
+  const [propertiesList, setPropertiesList] = useState<Property[]>(items)
   const [interactions, setInteractions] = useState<Interaction>({
     favorited: new Set(initialInteractions.favorited || []),
     discarded: new Set(initialInteractions.discarded || []),
@@ -208,7 +209,28 @@ export default function ClientSelectionView({
     }
   }
 
+  const handleDeleteProperty = async (propertyId: string) => {
+    if (!lead.id) return
+
+    // Otimista: remove da lista local
+    setPropertiesList(prev => prev.filter(p => p.id !== propertyId))
+    toast.success('Imóvel removido da seleção')
+
+    try {
+      const res = await fetch(`/api/property-interactions?leadId=${lead.id}&propertyId=${propertyId}`, {
+        method: 'DELETE'
+      })
+      if (!res.ok) throw new Error('Falha ao remover do servidor')
+    } catch (error) {
+      console.error('Error deleting property:', error)
+      toast.error('Erro ao sincronizar remoção')
+      // Reverter se falhar? Geralmente melhor apenas logar se a UI já atualizou
+    }
+  }
+
   const toggleDiscarded = (propertyId: string) => {
+    // Mantemos o toggle para o estado esmaecido se desejado,
+    // mas a ação principal agora será a deleção.
     setInteractions((prev) => {
       const newDiscarded = new Set(prev.discarded)
       if (newDiscarded.has(propertyId)) {
@@ -314,7 +336,7 @@ export default function ClientSelectionView({
 
         {/* Properties Feed */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 px-6 pb-20 max-w-7xl mx-auto">
-          {items.map((item, index) => {
+          {propertiesList.map((item, index) => {
             const images = getPropertyImages(item)
             const currentIndex = getInitialImageIndex(item.id)
             const isFavorited = interactions.favorited?.has(item.id)
@@ -409,18 +431,19 @@ export default function ClientSelectionView({
                       Removido
                     </div>
                   )}
+
+                  {item.internalCode && (
+                    <div className="absolute top-3 left-3 px-2 py-0.5 rounded-full bg-white/80 backdrop-blur-sm border border-black/5 text-[#C9A84C] text-[10px] font-mono font-bold tracking-widest uppercase shadow-sm z-10">
+                      Ref: {item.internalCode}
+                    </div>
+                  )}
                 </div>
 
                 {/* Card Body */}
                 <div className="p-6 space-y-5">
                   <div className="space-y-1.5">
-                    {/* Title & Internal Code */}
+                    {/* Title */}
                     <div className="flex flex-col gap-2">
-                      {item.internalCode && (
-                        <div className="self-start px-2 py-0.5 rounded-full bg-gray-100 border border-gray-200 text-[#C9A84C] text-[10px] font-mono font-semibold tracking-widest uppercase">
-                          Ref: {item.internalCode}
-                        </div>
-                      )}
                       <h3 className="text-[26px] font-[family-name:var(--font-display)] text-[#1A1A1A] leading-[1.1] tracking-tight">
                         {item.title}
                       </h3>
@@ -496,13 +519,9 @@ export default function ClientSelectionView({
 
                     <motion.button
                       whileTap={{ scale: 0.9 }}
-                      onClick={() => toggleDiscarded(item.id)}
-                      className={`p-2.5 rounded-full transition-all ${
-                        isDiscarded
-                          ? 'text-red-400'
-                          : 'text-gray-400 hover:text-gray-600'
-                      }`}
-                      aria-label="Descartar"
+                      onClick={() => handleDeleteProperty(item.id)}
+                      className="p-2.5 rounded-full transition-all text-gray-400 hover:text-red-500 hover:bg-red-50"
+                      aria-label="Excluir"
                     >
                       <X size={22} />
                     </motion.button>

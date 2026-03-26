@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
       try {
         const { data: properties } = await (supabase
           .from('properties') as any)
-          .select('id, title, internal_name, cover_image, value, location_text, source_link')
+          .select('id, title, internal_name, cover_image, value, location_text, source_link, bedrooms, suites, parking_spots, area_privativa, ui_type, internal_code')
           .in('id', propertyIds)
 
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || ''

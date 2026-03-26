@@ -138,7 +138,7 @@ export default function ClientSpacesManager({ leadId, onClose }: ClientSpacesMan
         return {
           ...props,
           property_id: item.property_id,
-          title: (props.internal_code ? `[${props.internal_code}] ` : '') + (props.title || props.internal_name || 'Imóvel sem título'),
+          title: props.title || props.internal_name || 'Imóvel sem título',
           context: contextMap.get(item.property_id) || { note: '', video_url: '' }
         };
       });

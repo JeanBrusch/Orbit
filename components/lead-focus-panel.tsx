@@ -2102,11 +2102,16 @@ export function LeadFocusPanel({
                           }}
                           className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/10 cursor-pointer transition-all border border-transparent hover:border-white/10 group"
                         >
-                          <div className="h-10 w-12 rounded bg-black/40 overflow-hidden flex-shrink-0">
+                          <div className="relative h-10 w-12 rounded bg-black/40 overflow-hidden flex-shrink-0">
                             {p.cover_image && <img src={p.cover_image} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />}
+                            {p.internal_code && (
+                              <div className="absolute top-0.5 left-0.5 px-1 py-0.5 rounded-sm bg-black/60 backdrop-blur-sm text-[var(--orbit-glow)] text-[8px] font-mono font-bold uppercase z-10">
+                                {p.internal_code}
+                              </div>
+                            )}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <h5 className="text-[11px] font-medium text-white/90 truncate">{p.internal_code && <span className="text-[var(--orbit-glow)] mr-1">[{p.internal_code}]</span>}{p.title || p.internal_name}</h5>
+                            <h5 className="text-[11px] font-medium text-white/90 truncate">{p.title || p.internal_name}</h5>
                             <p className="text-[9px] text-white/40 truncate">{p.location_text}</p>
                             {p.value && <p className="text-[10px] font-mono text-emerald-400/80 mt-0.5">{formatValue(p.value)}</p>}
                           </div>
