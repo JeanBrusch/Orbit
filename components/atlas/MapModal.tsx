@@ -5,7 +5,8 @@ import dynamic from "next/dynamic"
 import { motion, AnimatePresence } from "framer-motion"
 import { 
   X, Search, MapPin, Loader2, Flame, BarChart3,
-  Users, TrendingUp, ArrowRight, Building2, Sparkles, Check
+  Users, TrendingUp, ArrowRight, Building2, Sparkles, Check,
+  Map as MapIcon
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useSupabaseProperties } from "@/hooks/use-supabase-data"
@@ -89,6 +90,7 @@ export default function MapModal({ isOpen, onClose, selectedIds, onToggleSelect 
   const [heatmapNeighborhoods, setHeatmapNeighborhoods] = useState<any[]>([])
   const [isLoadingHeatmap, setIsLoadingHeatmap] = useState(false)
   const [selectedNeighborhood, setSelectedNeighborhood] = useState<any>(null)
+  const [showSidebarMobile, setShowSidebarMobile] = useState(false)
 
   const filtered = useMemo(() => {
     let base = properties || []
@@ -127,6 +129,8 @@ export default function MapModal({ isOpen, onClose, selectedIds, onToggleSelect 
         coverImage: p.cover_image,
         photos: p.photos || [],
         bedrooms: p.bedrooms,
+        suites: p.suites,
+        internalCode: p.internal_code,
         area_privativa: p.area_privativa,
       }))
   }, [filtered])
@@ -206,6 +210,7 @@ export default function MapModal({ isOpen, onClose, selectedIds, onToggleSelect 
               if (heatmapActive) return
               const full = properties.find(prop => prop.id === p.id)
               setSelectedProperty(full)
+              setShowSidebarMobile(true) // Auto-open details on mobile 
             }}
             onMapClick={heatmapActive ? handleHeatmapMapClick : undefined}
             heatmapVisible={heatmapActive}
@@ -215,19 +220,51 @@ export default function MapModal({ isOpen, onClose, selectedIds, onToggleSelect 
             initialCenter={[-50.0333, -29.8]}
             initialZoom={13}
           />
+
+          {/* Mobile View Toggle: Map vs Info */}
+          <div className="absolute bottom-24 right-6 z-[110] md:hidden">
+            <button
+              onClick={() => setShowSidebarMobile(!showSidebarMobile)}
+              className={`p-4 rounded-2xl backdrop-blur-xl border shadow-2xl transition-all ${
+                showSidebarMobile 
+                  ? 'bg-[#d4af35] border-[#d4af35] text-black' 
+                  : isDark ? 'bg-black/80 border-[#d4af35]/30 text-[#d4af35]' : 'bg-white border-[var(--orbit-line)] text-[var(--orbit-glow)]'
+              }`}
+            >
+              {showSidebarMobile ? <MapIcon className="w-6 h-6" /> : <Building2 className="w-6 h-6" />}
+            </button>
+          </div>
           
-          {/* Redesigned Search Bar: Centered & Imposing */}
-          <div className="absolute top-8 left-1/2 -translate-x-1/2 z-[110] hidden md:flex flex-col items-center gap-4 w-full max-w-2xl px-6">
-            <div className={`flex items-center gap-4 px-6 py-4 rounded-2xl ${glassDarker} shadow-[0_20px_50px_rgba(0,0,0,0.5)] w-full border-[#d4af35]/20 group transition-all hover:border-[#d4af35]/40`}>
-              <Search className={`h-6 w-6 ${isDark ? 'text-[#d4af35]' : 'text-[var(--orbit-glow)]'} transition-transform group-hover:scale-110`} />
+          {/* Refined Search Bar: Elegant & Responsive */}
+          <div className="absolute top-6 left-1/2 -translate-x-1/2 z-[110] flex flex-col items-center gap-3 w-full max-w-lg px-4 md:max-w-xl">
+            <div className={`flex items-center gap-3 px-5 py-3 rounded-2xl ${glass} shadow-[0_15px_40px_rgba(0,0,0,0.3)] w-full border-[#d4af35]/10 group transition-all hover:border-[#d4af35]/30`}>
+              <Search className={`h-5 w-5 ${isDark ? 'text-[#d4af35]/60' : 'text-[var(--orbit-glow)]/60'} transition-transform group-hover:scale-110`} />
               <input 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="O que você está procurando hoje?"
-                className={`bg-transparent border-none text-base focus:ring-0 placeholder:text-white/20 w-full outline-none font-serif ${isDark ? 'text-white' : 'text-zinc-900'}`}
+                placeholder="Buscar imóveis ou bairros..."
+                className={`bg-transparent border-none text-sm focus:ring-0 placeholder:text-white/10 w-full outline-none font-serif ${isDark ? 'text-white' : 'text-zinc-900'}`}
               />
-              <div className="h-6 w-[1px] bg-white/10 mx-2" />
-              <AdvancedFilters 
+              <div className="h-5 w-[1px] bg-white/10 mx-1 hidden md:block" />
+              <div className="hidden md:block">
+                <AdvancedFilters 
+                  minPrice={minPrice} 
+                  maxPrice={maxPrice} 
+                  bedrooms={bedrooms} 
+                  neighborhoods={neighborhoods} 
+                  onChange={({ minPrice, maxPrice, bedrooms, neighborhoods }) => {
+                    setMinPrice(minPrice)
+                    setMaxPrice(maxPrice)
+                    setBedrooms(bedrooms)
+                    setNeighborhoods(neighborhoods)
+                  }} 
+                />
+              </div>
+            </div>
+            
+            {/* Mobile Filter Trigger (Small devices only) */}
+            <div className="md:hidden">
+               <AdvancedFilters 
                 minPrice={minPrice} 
                 maxPrice={maxPrice} 
                 bedrooms={bedrooms} 
@@ -240,8 +277,6 @@ export default function MapModal({ isOpen, onClose, selectedIds, onToggleSelect 
                 }} 
               />
             </div>
-            
-            {/* Quick Badges or Suggestions could go here */}
           </div>
 
           {/* Metric Switcher — flutua abaixo do botão toggle agora no header da sidebar */}
@@ -276,23 +311,23 @@ export default function MapModal({ isOpen, onClose, selectedIds, onToggleSelect 
           </AnimatePresence>
 
           {/* Status badge no rodapé */}
-          <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-[110] hidden md:block">
+          <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-[110]">
             {heatmapActive ? (
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className={`px-6 py-2 rounded-full ${glass} flex items-center gap-3`}
+                className={`px-4 py-2 rounded-full ${glass} flex items-center gap-3 backdrop-blur-xl shadow-2xl`}
               >
                 <div className="w-2 h-2 rounded-full bg-orange-400 animate-pulse" />
-                <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-orange-400">
-                  Modo Heatmap — {METRIC_LABELS[heatmapMetric]}
+                <span className="text-[9px] md:text-[10px] font-mono uppercase tracking-[0.2em] text-orange-400 whitespace-nowrap">
+                  Filtro de Demanda — {METRIC_LABELS[heatmapMetric]}
                 </span>
               </motion.div>
             ) : (
-              <div className={`px-6 py-2 rounded-full ${glass} flex items-center gap-3 animate-pulse`}>
+              <div className={`px-4 py-2 rounded-full ${glass} flex items-center gap-3 animate-pulse shadow-2xl`}>
                 <div className={`w-2 h-2 rounded-full ${isDark ? 'bg-[#d4af35]' : 'bg-[var(--orbit-glow)]'}`} />
-                <span className={`text-[10px] font-mono uppercase tracking-[0.2em] ${isDark ? 'text-[#d4af35]' : 'text-[var(--orbit-glow)]'}`}>
-                  Modo Visualização Ativo
+                <span className={`text-[9px] md:text-[10px] font-mono uppercase tracking-[0.2em] ${isDark ? 'text-[#d4af35]' : 'text-[var(--orbit-glow)]'} whitespace-nowrap`}>
+                  Exploração de Ativos
                 </span>
               </div>
             )}
@@ -300,7 +335,7 @@ export default function MapModal({ isOpen, onClose, selectedIds, onToggleSelect 
         </div>
 
         {/* Sidebar */}
-        <aside className={`w-full md:w-[420px] ${isDark ? 'bg-[#0a0907]' : 'bg-[var(--orbit-bg)]'} border-l ${isDark ? 'border-[#d4af35]/20' : 'border-[var(--orbit-line)]'} flex flex-col order-1 md:order-2 shadow-[-20px_0_40px_rgba(0,0,0,0.5)] z-[105]`}>
+        <aside className={`${showSidebarMobile ? 'flex' : 'hidden md:flex'} w-full md:w-[420px] ${isDark ? 'bg-[#0a0907]' : 'bg-[var(--orbit-bg)]'} border-l ${isDark ? 'border-[#d4af35]/20' : 'border-[var(--orbit-line)]'} flex-col order-1 md:order-2 shadow-[-20px_0_40px_rgba(0,0,0,0.5)] z-[105] h-full`}>
           
           {/* Header */}
           <div className={`p-8 border-b relative ${isDark ? 'border-[#d4af35]/10 bg-gradient-to-br from-[#14120c] to-black' : 'border-[var(--orbit-line)] bg-[var(--orbit-bg-secondary)]'}`}
@@ -439,34 +474,53 @@ export default function MapModal({ isOpen, onClose, selectedIds, onToggleSelect 
               /* NORMAL MODE: Imóvel selecionado ou placeholder */
               selectedProperty ? (
                 <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
-                  <div className="aspect-video rounded-2xl overflow-hidden relative border border-white/10 group overflow-hidden">
+                  <div className="aspect-video rounded-2xl overflow-hidden relative border border-white/10 group shadow-2xl">
                     <PropertyCarousel photos={selectedProperty.photos || []} isDark={isDark} />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
                     <button
                       onClick={() => setSelectedProperty(null)}
-                      className="absolute top-3 left-3 p-1.5 rounded-full bg-black/40 text-white/50 hover:text-white z-20"
+                      className="absolute top-4 left-4 p-2 rounded-full bg-black/40 text-white backdrop-blur-md border border-white/10 hover:bg-black/60 transition-all z-20"
                     >
                       <X className="h-4 w-4" />
                     </button>
-                    <div className="absolute bottom-4 left-4 z-20 pointer-events-none">
-                      <p className="text-xl font-serif text-white">{selectedProperty.title || selectedProperty.internal_name}</p>
+                    <div className="absolute bottom-6 left-6 z-20 pointer-events-none">
+                      <p className="text-2xl font-serif text-white drop-shadow-lg">{selectedProperty.title || selectedProperty.internal_name}</p>
+                      {selectedProperty.internal_code && (
+                        <p className="text-[10px] font-mono text-white/60 tracking-widest uppercase mt-1">Ref: {selectedProperty.internal_code}</p>
+                      )}
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className={`p-4 rounded-xl ${glassDarker}`}>
-                      <span className={`text-[9px] font-mono uppercase ${isDark ? 'text-[#d4af35]' : 'text-[var(--orbit-glow)]'}`}>Valor</span>
-                      <p className={`text-lg font-serif ${isDark ? 'text-white' : 'text-[var(--orbit-text)]'}`}>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className={`p-4 rounded-2xl ${glassDarker} border-white/5`}>
+                      <span className={`text-[9px] font-mono uppercase tracking-widest ${isDark ? 'text-[#d4af35]' : 'text-[var(--orbit-glow)]'}`}>Valor de Venda</span>
+                      <p className={`text-xl font-serif mt-1 ${isDark ? 'text-white' : 'text-[var(--orbit-text)]'}`}>
                         {selectedProperty.value ? `R$ ${(selectedProperty.value / 1000000).toFixed(1)}M` : 'Sob consulta'}
                       </p>
                     </div>
-                    <div className={`p-4 rounded-xl ${glassDarker}`}>
-                      <span className={`text-[9px] font-mono uppercase ${isDark ? 'text-[#d4af35]' : 'text-[var(--orbit-glow)]'}`}>Status</span>
-                      <p className="text-sm font-medium text-emerald-400">Disponível</p>
+                    <div className={`p-4 rounded-2xl ${glassDarker} border-white/5`}>
+                      <span className={`text-[9px] font-mono uppercase tracking-widest ${isDark ? 'text-[#d4af35]' : 'text-[var(--orbit-glow)]'}`}>Área Privativa</span>
+                      <p className={`text-xl font-serif mt-1 ${isDark ? 'text-white' : 'text-[var(--orbit-text)]'}`}>
+                        {selectedProperty.area_privativa ? `${Math.round(selectedProperty.area_privativa)}m²` : 'N/A'}
+                      </p>
                     </div>
                   </div>
 
-                  <div className={`p-4 rounded-xl ${glassDarker} space-y-3`}>
+                  <div className={`p-5 rounded-2xl ${glassDarker} border-white/5 space-y-4`}>
+                    <div className="flex items-center justify-between pb-2 border-b border-white/5">
+                      <span className="text-[11px] font-mono uppercase tracking-widest opacity-50">Configuração</span>
+                      <div className="flex gap-4">
+                        <div className="text-center">
+                          <p className="text-sm font-bold">{selectedProperty.bedrooms || 0}</p>
+                          <p className="text-[7px] uppercase tracking-tighter opacity-40">Dorm</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-sm font-bold">{selectedProperty.suites || 0}</p>
+                          <p className="text-[7px] uppercase tracking-tighter opacity-40">Suítes</p>
+                        </div>
+                      </div>
+                    </div>
+
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-medium">Linkar ao Orbit Selection</span>
                       <Button
@@ -484,11 +538,19 @@ export default function MapModal({ isOpen, onClose, selectedIds, onToggleSelect 
                         </span>
                       </Button>
                     </div>
+
                     {selectedProperty.features?.length > 0 && (
-                      <div className="flex flex-wrap gap-2 pt-2">
-                        {selectedProperty.features.slice(0, 4).map((f: string) => (
-                          <span key={f} className={`px-2 py-1 rounded border text-[10px] uppercase ${isDark ? 'bg-white/5 border-white/10 text-white/60' : 'bg-[var(--orbit-bg-secondary)] border-[var(--orbit-line)] text-[var(--orbit-text-muted)]'}`}>{f}</span>
-                        ))}
+                      <div className="pt-2">
+                        <p className="text-[9px] font-mono uppercase tracking-widest opacity-30 mb-3">Comodidades & Diferenciais</p>
+                        <div className="flex flex-wrap gap-2">
+                          {selectedProperty.features.map((f: string) => (
+                            <span key={f} className={`px-2.5 py-1.5 rounded-lg border text-[10px] font-medium transition-colors ${
+                              isDark ? 'bg-white/5 border-white/10 text-white/50 hover:text-white/80' : 'bg-[var(--orbit-bg-secondary)] border-[var(--orbit-line)] text-[var(--orbit-text-muted)]'
+                            }`}>
+                              {f}
+                            </span>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>

@@ -26,6 +26,8 @@ export interface MapProperty {
   payment_conditions?: Record<string, any>
   area_privativa?: number
   bedrooms?: number
+  suites?: string | number
+  internalCode?: string | null
 }
 
 interface MapAtlasProps {
@@ -258,42 +260,64 @@ export const MapAtlas = forwardRef<any, MapAtlasProps>(function MapAtlasInner({
             latitude={hoveredProperty.lat}
             closeButton={false}
             anchor="bottom"
-            offset={20}
+            offset={25}
             className="atlas-premium-popup z-[60]"
           >
             <motion.div 
-              initial={{ opacity: 0, y: 5, scale: 0.95 }}
+              initial={{ opacity: 0, y: 10, scale: 0.9 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              className={`w-44 rounded-xl backdrop-blur-xl border shadow-2xl pointer-events-none overflow-hidden flex flex-col ${
+              className={`w-56 md:w-64 rounded-2xl backdrop-blur-2xl border shadow-[0_30px_60px_rgba(0,0,0,0.5)] pointer-events-none overflow-hidden flex flex-col ${
                 isDark ? 'bg-[#0a0907]/95 border-[#d4af35]/30' : 'bg-white/95 border-[var(--orbit-line)]'
               }`}
             >
               {/* Carousel Area */}
-              <div className="h-28 w-full bg-zinc-800 relative shrink-0 group/carousel pointer-events-auto">
+              <div className="h-32 md:h-36 w-full bg-zinc-800 relative shrink-0 group/carousel pointer-events-auto">
                 <PropertyCarousel photos={hoveredProperty.photos || []} isDark={isDark} />
                 <div className={`absolute inset-0 bg-gradient-to-t via-transparent to-transparent pointer-events-none ${isDark ? 'from-[#0a0907]' : 'from-white'}`} />
+                
+                {/* Internal Code Badge */}
+                {hoveredProperty.internalCode && (
+                  <div className="absolute top-3 right-3 px-2 py-1 rounded bg-black/40 backdrop-blur-md border border-white/10 text-[8px] font-mono text-white/70 tracking-widest uppercase">
+                    {hoveredProperty.internalCode}
+                  </div>
+                )}
               </div>
 
               {/* Details */}
-              <div className="p-3 flex flex-col gap-1.5 relative z-10 -mt-2">
-                <p className={`text-xs font-bold line-clamp-2 leading-tight drop-shadow-md ${isDark ? 'text-white' : 'text-[var(--orbit-text)]'}`}>
+              <div className="p-4 flex flex-col gap-2 relative z-10 -mt-2">
+                <p className={`text-[13px] font-bold line-clamp-2 leading-tight drop-shadow-md ${isDark ? 'text-white' : 'text-[var(--orbit-text)]'}`}>
                   {hoveredProperty.name || "Imóvel N/A"}
                 </p>
-                <div className="flex justify-between items-center">
-                  <p className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-[#d4af35]' : 'text-[var(--orbit-glow)]'}`}>
-                    {formatValue(hoveredProperty.value)}
-                  </p>
-                  <div className="flex items-center gap-2">
-                    {hoveredProperty.bedrooms && (
-                      <span className={`text-[10px] font-mono font-bold ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
-                        {hoveredProperty.bedrooms}Q
+                <div className="flex justify-between items-end">
+                  <div className="flex flex-col">
+                    <p className={`text-[13px] font-bold uppercase tracking-wider ${isDark ? 'text-[#d4af35]' : 'text-[var(--orbit-glow)]'}`}>
+                      {formatValue(hoveredProperty.value)}
+                    </p>
+                    <span className={`text-[9px] font-medium ${isDark ? 'text-white/40' : 'text-slate-400'}`}>
+                      Valor de Investimento
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="flex flex-col items-center">
+                      <span className={`text-[11px] font-mono font-bold ${isDark ? 'text-white/80' : 'text-slate-700'}`}>
+                        {hoveredProperty.bedrooms ?? 0}
                       </span>
+                      <span className="text-[7px] uppercase tracking-tighter opacity-50">Dorm</span>
+                    </div>
+                    {hoveredProperty.suites && (
+                      <div className="flex flex-col items-center">
+                        <span className={`text-[11px] font-mono font-bold ${isDark ? 'text-[#d4af35]' : 'text-[var(--orbit-glow)]'}`}>
+                          {hoveredProperty.suites}
+                        </span>
+                        <span className="text-[7px] uppercase tracking-tighter opacity-50">Suítes</span>
+                      </div>
                     )}
-                    {hoveredProperty.area_privativa && (
-                      <span className={`text-[10px] font-mono font-bold ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
-                        {Math.round(hoveredProperty.area_privativa)}m²
+                    <div className="flex flex-col items-center">
+                      <span className={`text-[10px] font-mono font-bold ${isDark ? 'text-white/80' : 'text-slate-700'}`}>
+                        {Math.round(hoveredProperty.area_privativa || 0)}m²
                       </span>
-                    )}
+                      <span className="text-[7px] uppercase tracking-tighter opacity-50">Área</span>
+                    </div>
                   </div>
                 </div>
               </div>
