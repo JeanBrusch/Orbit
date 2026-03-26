@@ -1336,6 +1336,9 @@ function SelectionsHistory({
 }) {
   const [capsules, setCapsules] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
+
   const supabase = getSupabase()
 
   async function fetchCapsules() {
@@ -1437,6 +1440,33 @@ function SelectionsHistory({
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <div className="relative group min-w-[200px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[var(--orbit-text-muted)] group-focus-within:text-[var(--orbit-glow)] transition-colors" />
+            <Input 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Buscar lead..."
+              className="pl-9 h-9 text-xs bg-[var(--orbit-bg-secondary)] border border-[var(--orbit-line)] rounded-xl focus:border-[var(--orbit-glow)]/40 text-[var(--orbit-text)]"
+            />
+          </div>
+
+          <div className="flex items-center bg-[var(--orbit-bg-secondary)] border border-[var(--orbit-line)] rounded-xl p-1">
+            <button 
+              onClick={() => setViewMode('grid')}
+              className={`p-1.5 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-[var(--orbit-glow)]/10 text-[var(--orbit-glow)]' : 'text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)]'}`}
+              title="Visualização em Grade"
+            >
+              <LayoutGrid size={16} />
+            </button>
+            <button 
+              onClick={() => setViewMode('list')}
+              className={`p-1.5 rounded-lg transition-all ${viewMode === 'list' ? 'bg-[var(--orbit-glow)]/10 text-[var(--orbit-glow)]' : 'text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)]'}`}
+              title="Visualização em Lista"
+            >
+              <List size={16} />
+            </button>
+          </div>
+
           <div className="px-4 py-2 bg-[var(--orbit-glow)]/5 rounded-full border border-[var(--orbit-glow)]/15 flex items-center gap-2">
             <div className="w-1.5 h-1.5 rounded-full bg-[var(--orbit-glow)] animate-pulse" />
             <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--orbit-glow)] font-bold">
@@ -1447,22 +1477,103 @@ function SelectionsHistory({
             <Loader2 className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
           </Button>
         </div>
+
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {capsules.length === 0 ? (
+      <div className={viewMode === 'grid' ? "grid grid-cols-1 lg:grid-cols-2 gap-6" : "flex flex-col gap-3"}>
+        {capsules
+          .filter(cap => !searchTerm || cap.leads?.name?.toLowerCase().includes(searchTerm.toLowerCase()))
+          .length === 0 ? (
+
           <div className="col-span-full text-center py-32 border-2 border-dashed border-[var(--orbit-glow)]/5 rounded-3xl bg-[var(--orbit-bg-secondary)]/30 backdrop-blur-sm">
             <div className="w-16 h-16 bg-[var(--orbit-glow)]/10 rounded-2xl flex items-center justify-center mx-auto mb-6 text-[var(--orbit-glow)]/40">
               <Link2 size={32} />
             </div>
-            <h3 className="text-[var(--orbit-text)] font-semibold text-lg">Pronto para começar?</h3>
-            <p className="text-[var(--orbit-text-muted)] text-sm mt-1">Crie sua primeira curadoria no painel ao lado.</p>
+            <h3 className="text-[var(--orbit-text)] font-semibold text-lg">Nenhum portal encontrado</h3>
+            <p className="text-[var(--orbit-text-muted)] text-sm mt-1">{searchTerm ? `Nenhum lead correspondente a "${searchTerm}"` : 'Crie sua primeira curadoria no painel ao lado.'}</p>
           </div>
-        ) : capsules.map(cap => {
+        ) : capsules
+            .filter(cap => !searchTerm || cap.leads?.name?.toLowerCase().includes(searchTerm.toLowerCase()))
+            .map(cap => {
           const totalInteractions = (cap.stats?.views || 0) + (cap.stats?.likes || 0) * 2 + (cap.stats?.visits || 0) * 5;
           const heatLevel = totalInteractions > 20 ? 'high' : totalInteractions > 5 ? 'medium' : 'low';
           
+          if (viewMode === 'list') {
+            return (
+              <motion.div 
+                key={cap.id} 
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="group relative"
+              >
+                <div className="p-4 bg-[var(--orbit-bg-secondary)]/50 backdrop-blur-md rounded-2xl border border-[var(--orbit-line)] hover:border-[var(--orbit-glow)]/30 transition-all flex items-center justify-between gap-6">
+                  <div className="flex items-center gap-4 flex-1 min-w-0">
+                    <div className="relative shrink-0">
+                      <div className="w-10 h-10 rounded-xl bg-[var(--orbit-bg)] border border-[var(--orbit-line)] flex items-center justify-center text-sm font-display font-bold text-[var(--orbit-text)]">
+                        {cap.leads?.name ? cap.leads.name[0] : 'L'}
+                      </div>
+                      <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-[var(--orbit-bg)] ${
+                        heatLevel === 'high' ? 'bg-rose-500' : heatLevel === 'medium' ? 'bg-orange-500' : 'bg-[var(--orbit-glow)]'
+                      }`} />
+                    </div>
+                    <div className="min-w-0">
+                      <h4 className="font-display font-bold text-sm text-[var(--orbit-text)] truncate group-hover:text-[var(--orbit-glow)] transition-colors">
+                        {cap.leads?.name || 'Lead s/ nome'}
+                      </h4>
+                      <p className="text-[9px] font-mono text-[var(--orbit-text-muted)] uppercase tracking-wider">
+                        #{cap.slug.slice(0, 4)} • {new Date(cap.created_at).toLocaleDateString('pt-BR')}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-8 shrink-0">
+                    {[
+                      { label: 'Views', value: cap.stats?.views || 0, icon: Eye, color: 'text-[var(--orbit-text-muted)]' },
+                      { label: 'Likes', value: cap.stats?.likes || 0, icon: Heart, color: 'text-rose-500' },
+                      { label: 'Visitas', value: cap.stats?.visits || 0, icon: Calendar, color: 'text-emerald-500' },
+                      { label: 'Imóveis', value: cap.itemsCount || 0, icon: Building2, color: 'text-[var(--orbit-glow)]' },
+                    ].map((stat, i) => (
+                      <div key={i} className="flex flex-col items-center min-w-[40px]">
+                        <span className="text-[9px] font-mono uppercase tracking-tighter text-[var(--orbit-text-muted)] mb-0.5">{stat.label}</span>
+                        <div className="flex items-center gap-1.5">
+                          <stat.icon size={10} className={stat.color} />
+                          <span className="text-sm font-display font-bold text-[var(--orbit-text)]">{stat.value}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setManagingLeadId(cap.lead_id)}
+                      className="h-9 px-4 bg-[var(--orbit-glow)]/10 hover:bg-[var(--orbit-glow)] text-[var(--orbit-glow)] hover:text-[var(--orbit-bg)] font-mono text-[9px] uppercase tracking-wider font-bold rounded-xl transition-all"
+                    >
+                      Control
+                    </Button>
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => handleCopyLink(cap.slug)}
+                        className="w-9 h-9 flex items-center justify-center rounded-xl bg-[var(--orbit-bg)] border border-[var(--orbit-line)] text-[var(--orbit-text-muted)] hover:text-[var(--orbit-glow)] transition-all"
+                      >
+                        <Link2 size={14} />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteSpace(cap.id)}
+                        className="w-9 h-9 flex items-center justify-center rounded-xl bg-rose-500/5 border border-rose-500/10 text-rose-500/40 hover:text-rose-500 transition-all"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            )
+          }
+
           return (
+
             <motion.div 
               key={cap.id} 
               initial={{ opacity: 0, y: 10 }}
