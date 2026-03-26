@@ -1382,8 +1382,9 @@ function SelectionsHistory({
       }, {})
 
       setCapsules(capsulesData.map((c: any) => {
-        // Manually filter non-discarded items for count
-        const activeItems = c.leads?.property_interactions?.filter((item: any) => item.interaction_type !== 'discarded') || [];
+        // Manually filter only SENT items for count (matching curated portal)
+        const activeItems = c.leads?.property_interactions?.filter((item: any) => item.interaction_type === 'sent') || [];
+
         return { 
           ...c, 
           stats: statsByLead[c.lead_id],
