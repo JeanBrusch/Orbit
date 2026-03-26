@@ -90,6 +90,7 @@ export async function POST(req: NextRequest) {
       normalizedData.suites ? `${normalizedData.suites} suítes` : null,
       normalizedData.area_privativa ? `${normalizedData.area_privativa}m²` : null,
       ...features.slice(0, 10),
+      existingProperty?.internal_notes ? `Notas Internas: ${existingProperty.internal_notes}` : null,
     ].filter(Boolean).join('. ')
 
     // Só gera embedding se for novo ou se a descrição mudou significativamente

@@ -147,7 +147,7 @@ export async function PUT(
     let newEmbedding = undefined
     const triggersEmbeddingRegen = [
       'title', 'neighborhood', 'city', 'area_privativa', 'bedrooms', 
-      'suites', 'features', 'description', 'value', 'payment_conditions'
+      'suites', 'features', 'description', 'value', 'payment_conditions', 'internal_notes'
     ].some(key => Object.keys(otherUpdates).includes(key))
 
     if (triggersEmbeddingRegen) {
@@ -182,6 +182,7 @@ export async function PUT(
         ${structuralContext}
         Amenidades: ${cleanFeatures}
         Descrição: ${merged.description || ""}
+        Notas Internas: ${merged.internal_notes || ""}
         ${financialContext}
       `.replace(/\s+/g, ' ').trim()
 

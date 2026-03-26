@@ -65,6 +65,7 @@ export async function POST(request: Request) {
       ${structuralContext}
       Amenidades: ${cleanFeatures}
       Descrição: ${newProperty.description || ""}
+      Notas Internas: ${newProperty.internal_notes || ""}
       ${financialContext}
     `.replace(/\s+/g, ' ').trim()
 

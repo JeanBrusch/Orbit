@@ -92,8 +92,8 @@ export default function ObservabilityDashboard() {
       {/* Header */}
       <div className="max-w-7xl mx-auto mb-8 flex justify-between items-center">
         <div>
-          <Link href="/atlas" className="flex items-center text-slate-400 hover:text-white mb-2 text-sm transition-colors">
-            <ArrowLeft className="w-4 h-4 mr-1" /> Voltar ao Atlas
+          <Link href="/" className="flex items-center text-slate-400 hover:text-white mb-2 text-sm transition-colors">
+            <ArrowLeft className="w-4 h-4 mr-1" /> Voltar ao Dashboard
           </Link>
           <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">
             Observabilidade Orbit

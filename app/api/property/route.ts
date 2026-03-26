@@ -20,7 +20,8 @@ export async function POST(request: NextRequest) {
       condo_fee,
       iptu,
       features,
-      value
+      value,
+      internal_notes
     } = body
     
     if (!sourceLink) {
@@ -49,6 +50,7 @@ export async function POST(request: NextRequest) {
       ${locationContext}
       ${structuralContext}
       Amenidades: ${cleanFeatures}
+      Notas Internas: ${internal_notes || ""}
       ${financialContext}
     `.replace(/\s+/g, ' ').trim()
 
@@ -57,8 +59,7 @@ export async function POST(request: NextRequest) {
 
     const supabase = getSupabaseServer()
     
-    const { data, error } = await supabase
-      .from('properties')
+    const { data, error } = await (supabase.from('properties') as any)
       .insert({
         source_link: sourceLink,
         internal_name: title || sourceDomain || 'Imóvel sem título',
@@ -78,6 +79,7 @@ export async function POST(request: NextRequest) {
         iptu: iptu || null,
         features: features || [],
         value: value || null,
+        internal_notes: internal_notes || null,
         property_embedding: property_embedding || null
       })
       .select()

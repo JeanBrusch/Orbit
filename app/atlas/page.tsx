@@ -488,6 +488,7 @@ function AtlasManagerContent() {
         photos: scrapedData.photos || [],
         description: scrapedData.description || null,
         payment_conditions: scrapedData.payment ? { custom: scrapedData.payment } : null,
+        internal_notes: scrapedData.payment || null,
         source_link: scrapedData.source_link,
         source_domain: scrapedData.source_domain,
         status: 'active'
@@ -542,6 +543,7 @@ function AtlasManagerContent() {
           area_total: parseFloat(updatedData.area_total) || null,
           ui_type: updatedData.ui_type || null,
           condo_name: updatedData.condo_name || null,
+          internal_notes: updatedData.internal_notes || null,
           topics: typeof updatedData.topics === 'string'
             ? updatedData.topics.split(',').map((t: string) => t.trim()).filter(Boolean)
             : updatedData.topics,
@@ -777,7 +779,7 @@ function AtlasManagerContent() {
               <header className="h-14 border-b border-[var(--orbit-line)] bg-[var(--orbit-glass)]/90 backdrop-blur-xl flex items-center px-6 gap-4 sticky top-0 z-30 shrink-0">
           {/* Brand */}
           <div className="flex items-center gap-3 pr-4 border-r border-[var(--orbit-line)]">
-            <button onClick={() => window.history.back()} className="p-1.5 rounded-lg hover:bg-[var(--orbit-glow)]/5 text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)] transition-colors" title="Voltar">
+            <button onClick={() => router.push("/")} className="p-1.5 rounded-lg hover:bg-[var(--orbit-glow)]/5 text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)] transition-colors" title="Voltar">
               <ChevronLeft className="h-4 w-4" />
             </button>
             <div className="w-6 h-6 rounded-lg bg-[var(--orbit-glow)]/10 border border-[var(--orbit-glow)]/20 flex items-center justify-center text-[var(--orbit-glow)]">
