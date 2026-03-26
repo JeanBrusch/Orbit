@@ -27,6 +27,11 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const metric = (searchParams.get("metric") || "all") as HeatmapMetric
   const days = parseInt(searchParams.get("days") || "30", 10)
+  
+  const minPrice = searchParams.get("minPrice") ? parseInt(searchParams.get("minPrice")!) : null
+  const maxPrice = searchParams.get("maxPrice") ? parseInt(searchParams.get("maxPrice")!) : null
+  const bedrooms = searchParams.get("bedrooms") ? parseInt(searchParams.get("bedrooms")!) : null
+  const neighborhoodsFilter = searchParams.get("neighborhoods") ? searchParams.get("neighborhoods")!.split(",") : []
 
   try {
     const supabase = getSupabaseServer()
@@ -50,7 +55,9 @@ export async function GET(req: NextRequest) {
           lng,
           neighborhood,
           city,
-          title
+          title,
+          value,
+          bedrooms
         )
       `)
       .gte("timestamp", sinceIso)
@@ -65,6 +72,35 @@ export async function GET(req: NextRequest) {
     if (intError) {
       console.error("[HEATMAP API] Erro ao buscar interações:", intError)
       return NextResponse.json({ error: intError.message }, { status: 500 })
+    }
+
+    // ── 1b. Buscar propriedades enviadas via Curadoria (capsule_items) ──────
+    // Este dado é complementar ao property_interactions pois representa o "envio"
+    let capsuleSent: any[] = []
+    if (metric === "all" || metric === "sent") {
+      const { data: caps } = await (supabase as any)
+        .from("capsule_items")
+        .select(`
+          id,
+          lead_id,
+          property_id,
+          state,
+          created_at,
+          properties (
+            id,
+            lat,
+            lng,
+            neighborhood,
+            city,
+            title,
+            value,
+            bedrooms
+          )
+        `)
+        .eq("state", "sent")
+        .gte("created_at", sinceIso)
+      
+      capsuleSent = caps || []
     }
 
     // ── 2. Buscar leads em estágio avançado (para métrica "deciding") ────────
@@ -91,23 +127,62 @@ export async function GET(req: NextRequest) {
     }>()
 
     const safeInteractions = interactions || []
+    
+    // Normaliza os dados de ambas as fontes
+    const allDataPoints = [
+      ...safeInteractions.map((i: any) => ({
+        lead_id: i.lead_id,
+        property_id: i.property_id,
+        type: i.interaction_type,
+        properties: i.properties
+      })),
+      ...capsuleSent.map((c: any) => ({
+        lead_id: c.lead_id,
+        property_id: c.property_id,
+        type: 'sent', // Normalizado para sent se vem de capsule_items
+        properties: c.properties
+      }))
+    ]
 
-    for (const interaction of safeInteractions) {
-      const prop = (interaction as any).properties
+    // De-duplicação por lead/imóvel/tipo de interação para não inflar artificialmente o heatmap
+    const uniquePoints = new Map<string, any>()
+    for (const p of allDataPoints) {
+      const key = `${p.lead_id}-${p.property_id}-${p.type}`
+      if (!uniquePoints.has(key)) {
+        uniquePoints.set(key, p)
+      }
+    }
+
+    const processedPoints = Array.from(uniquePoints.values())
+
+    for (const datapoint of processedPoints) {
+      const prop = datapoint.properties
       if (!prop || !prop.lat || !prop.lng) continue
 
+      // Aplica filtros de propriedade na agregação do heatmap
+      if (minPrice !== null && (prop.value || 0) < minPrice) continue
+      if (maxPrice !== null && (prop.value || 0) > maxPrice) continue
+      if (bedrooms !== null) {
+          const b = prop.bedrooms || 0
+          if (bedrooms === 4) { if (b < 4) continue }
+          else if (b !== bedrooms) continue
+      }
+      if (neighborhoodsFilter.length > 0 && prop.neighborhood && !neighborhoodsFilter.includes(prop.neighborhood)) {
+          continue
+      }
+
       const key = `${prop.lat.toFixed(4)},${prop.lng.toFixed(4)}`
-      const interactionType = interaction.interaction_type as keyof typeof WEIGHTS
+      const interactionType = datapoint.type as keyof typeof WEIGHTS
       
       let weight = WEIGHTS[interactionType] ?? 1
 
       // Boost para leads em decisão
-      if (decidingLeadIds.has(interaction.lead_id)) {
+      if (decidingLeadIds.has(datapoint.lead_id)) {
         weight += 3
       }
 
       // Para métrica "deciding", só contar se for lead em estágio avançado
-      if (metric === "deciding" && !decidingLeadIds.has(interaction.lead_id)) {
+      if (metric === "deciding" && !decidingLeadIds.has(datapoint.lead_id)) {
         continue
       }
 

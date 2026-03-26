@@ -1,17 +1,19 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { getSupabase } from "@/lib/supabase";
 import { TopBar } from "@/components/top-bar";
 import { OrbitProvider, useOrbitContext } from "@/components/orbit-context";
 import { useTheme } from "next-themes";
 import {
   RefreshCw, ArrowLeft, ArrowRight, ArrowUp, ArrowDown,
-  Zap, Clock, TrendingUp
+  Zap, Clock, TrendingUp, Sparkles
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { LeadCognitiveConsole } from "@/components/lead-cognitive-console";
+import { OrbitCore } from "@/components/orbit-core";
+import type { CoreState } from "@/app/page";
 
 // ─── Interfaces ──────────────────────────────────────────────────────────────
 interface PipelineLead {
@@ -76,6 +78,11 @@ function PipelineContent() {
   const [filterUrgent, setFilterUrgent] = useState(false);
   const [activeTab, setActiveTab] = useState<StageKey>("latent");
   const [isMobile, setIsMobile] = useState(false);
+
+  // Orbit Core State
+  const [coreState, setCoreState] = useState<CoreState>("idle");
+  const [coreMessage, setCoreMessage] = useState<string>("Campo Cognitivo Ativo");
+  const { orbitView, activateOrbitView, deactivateOrbitView } = useOrbitContext();
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
@@ -154,10 +161,17 @@ function PipelineContent() {
     return () => { supabase.removeChannel(ch); };
   }, []);
 
-  const displayedLeads = useMemo(() =>
-    filterUrgent ? leads.filter(l => l.urgency >= 4) : leads,
-    [leads, filterUrgent]
-  );
+  const displayedLeads = useMemo(() => {
+    let base = filterUrgent ? leads.filter(l => l.urgency >= 4) : leads;
+    
+    // Filtro Cognitivo
+    if (orbitView.active && orbitView.results.leads.length > 0) {
+      const matchIds = new Set(orbitView.results.leads.map(l => l.id));
+      base = base.filter(l => matchIds.has(l.id));
+    }
+    
+    return base;
+  }, [leads, filterUrgent, orbitView.active, orbitView.results.leads]);
 
   const leadsByStage = useMemo(() => {
     const acc = STAGES.reduce((map, s) => { map[s.key] = []; return map; }, {} as Record<string, PipelineLead[]>);
@@ -170,7 +184,26 @@ function PipelineContent() {
     active: leads.filter(l => l.orbit_stage !== "resolved").length,
     deciding: leads.filter(l => l.orbit_stage === "deciding").length,
     urgent: leads.filter(l => l.urgency >= 4).length,
+    filtered: displayedLeads.length
   };
+
+  const handleCoreActivate = useCallback(() => {
+    setCoreState("listening");
+    setCoreMessage("O que você busca no pipeline?");
+  }, []);
+
+  const handleQuerySubmit = useCallback(async (query: string) => {
+    setCoreState("processing");
+    setCoreMessage("Analisando pipeline...");
+    try {
+      const count = await activateOrbitView(query);
+      setCoreState("responding");
+      setCoreMessage(`${count} leads encontrados`);
+      setTimeout(() => setCoreState("idle"), 3000);
+    } catch (err) {
+      setCoreState("idle");
+    }
+  }, [activateOrbitView]);
 
   return (
     <div className="min-h-screen flex flex-col bg-[var(--orbit-bg)] text-[var(--orbit-text)]">
@@ -230,6 +263,25 @@ function PipelineContent() {
               <Zap className="w-3 h-3" />
               Urgentes
             </button>
+            <button
+              onClick={handleCoreActivate}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[10px] font-bold uppercase tracking-wider transition-all ${
+                orbitView.active
+                  ? "bg-amber-500/10 text-amber-500 border-amber-500/25"
+                  : "bg-[var(--orbit-glass)] border-[var(--orbit-glass-border)] text-amber-500/80 hover:text-amber-500 hover:border-amber-500/30"
+              }`}
+            >
+              <Sparkles className="w-3 h-3" />
+              Busca IA
+            </button>
+            {orbitView.active && (
+              <button
+                onClick={deactivateOrbitView}
+                className="px-2.5 py-1.5 rounded-lg border border-red-500/20 text-red-500 bg-red-500/5 text-[9px] font-bold uppercase"
+              >
+                Limpar
+              </button>
+            )}
             <button
               onClick={fetchPipeline}
               className="w-8 h-8 rounded-lg border flex items-center justify-center transition-all bg-[var(--orbit-glass)] border-[var(--orbit-glass-border)] text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)]"
@@ -337,6 +389,25 @@ function PipelineContent() {
           onClose={closeLeadPanel}
         />
       )}
+
+      {/* Campo Cognitivo Orbit Core */}
+      <div className="fixed inset-x-0 bottom-12 pointer-events-none z-[200]">
+        <div className="flex justify-center">
+          <div className="pointer-events-auto">
+            <OrbitCore
+              state={coreState}
+              message={coreMessage}
+              activeCount={stats.active}
+              onActivate={handleCoreActivate}
+              onQuerySubmit={handleQuerySubmit}
+              onCancel={() => {
+                setCoreState("idle");
+                deactivateOrbitView();
+              }}
+            />
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

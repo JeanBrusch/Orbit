@@ -23,6 +23,7 @@ export interface MapProperty {
   features?: string[]
   payment_conditions?: Record<string, any>
   area_privativa?: number
+  bedrooms?: number
 }
 
 interface MapAtlasProps {
@@ -276,9 +277,23 @@ export const MapAtlas = forwardRef<any, MapAtlasProps>(function MapAtlasInner({
                 <p className={`text-[10px] font-bold line-clamp-2 leading-tight drop-shadow-md ${isDark ? 'text-white' : 'text-[var(--orbit-text)]'}`}>
                   {hoveredProperty.name || "Imóvel N/A"}
                 </p>
-                <p className={`text-[10px] font-bold uppercase tracking-wider ${isDark ? 'text-[#d4af35]' : 'text-[var(--orbit-glow)]'}`}>
-                  {formatValue(hoveredProperty.value)}
-                </p>
+                <div className="flex justify-between items-center">
+                  <p className={`text-[10px] font-bold uppercase tracking-wider ${isDark ? 'text-[#d4af35]' : 'text-[var(--orbit-glow)]'}`}>
+                    {formatValue(hoveredProperty.value)}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    {hoveredProperty.bedrooms && (
+                      <span className={`text-[9px] font-mono font-bold ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
+                        {hoveredProperty.bedrooms}Q
+                      </span>
+                    )}
+                    {hoveredProperty.area_privativa && (
+                      <span className={`text-[9px] font-mono font-bold ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
+                        {Math.round(hoveredProperty.area_privativa)}m²
+                      </span>
+                    )}
+                  </div>
+                </div>
               </div>
             </motion.div>
           </Popup>

@@ -124,6 +124,8 @@ export default function MapModal({ isOpen, onClose, selectedIds, onToggleSelect 
         value: p.value,
         locationText: p.location_text,
         coverImage: p.cover_image,
+        bedrooms: p.bedrooms,
+        area_privativa: p.area_privativa,
       }))
   }, [filtered])
 
@@ -131,7 +133,15 @@ export default function MapModal({ isOpen, onClose, selectedIds, onToggleSelect 
   const fetchHeatmap = useCallback(async (metric: string) => {
     setIsLoadingHeatmap(true)
     try {
-      const res = await fetch(`/api/atlas/heatmap?metric=${metric}&days=30`)
+      const params = new URLSearchParams({
+        metric,
+        days: "30",
+        minPrice: minPrice?.toString() || "",
+        maxPrice: maxPrice?.toString() || "",
+        bedrooms: bedrooms?.toString() || "",
+        neighborhoods: neighborhoods.join(",")
+      })
+      const res = await fetch(`/api/atlas/heatmap?${params.toString()}`)
       const data = await res.json()
       setHeatmapGeoJSON(data.geojson || null)
       setHeatmapNeighborhoods(data.neighborhoods || [])
@@ -140,11 +150,11 @@ export default function MapModal({ isOpen, onClose, selectedIds, onToggleSelect 
     } finally {
       setIsLoadingHeatmap(false)
     }
-  }, [])
+  }, [minPrice, maxPrice, bedrooms, neighborhoods])
 
   useEffect(() => {
     if (heatmapActive) fetchHeatmap(heatmapMetric)
-  }, [heatmapActive, heatmapMetric, fetchHeatmap])
+  }, [heatmapActive, heatmapMetric, fetchHeatmap, minPrice, maxPrice, bedrooms, neighborhoods])
 
   const toggleHeatmap = useCallback(() => {
     setHeatmapActive(prev => !prev)
@@ -204,39 +214,37 @@ export default function MapModal({ isOpen, onClose, selectedIds, onToggleSelect 
             initialZoom={13}
           />
           
-          {/* Search Bar & Filters */}
-          {!heatmapActive && (
-            <div className="absolute top-6 left-6 z-[110] hidden md:flex items-center gap-2">
-              <div className={`flex items-center gap-2 px-4 py-2 rounded-full ${glass} shadow-2xl w-64`}>
-                <Search className={`h-4 w-4 ${isDark ? 'text-[#d4af35]' : 'text-[var(--orbit-glow)]'}`} />
-                <input 
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Explorar mapa..."
-                  className="bg-transparent border-none text-xs focus:ring-0 placeholder:text-white/30 w-full outline-none"
-                />
-              </div>
-
-              <AdvancedFilters 
-                minPrice={minPrice} 
-                maxPrice={maxPrice} 
-                bedrooms={bedrooms} 
-                neighborhoods={neighborhoods} 
-                onChange={({ minPrice, maxPrice, bedrooms, neighborhoods }) => {
-                  setMinPrice(minPrice)
-                  setMaxPrice(maxPrice)
-                  setBedrooms(bedrooms)
-                  setNeighborhoods(neighborhoods)
-                }} 
+          {/* Search Bar & Filters (Moved to top-left, ALWAYS VISIBLE now) */}
+          <div className="absolute top-6 left-6 z-[110] hidden md:flex items-center gap-2">
+            <div className={`flex items-center gap-2 px-4 py-2 rounded-full ${glass} shadow-2xl w-64`}>
+              <Search className={`h-4 w-4 ${isDark ? 'text-[#d4af35]' : 'text-[var(--orbit-glow)]'}`} />
+              <input 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Explorar mapa..."
+                className="bg-transparent border-none text-xs focus:ring-0 placeholder:text-white/30 w-full outline-none"
               />
             </div>
-          )}
 
-          {/* Heatmap Toggle Button — flutuante no topo centro */}
+            <AdvancedFilters 
+              minPrice={minPrice} 
+              maxPrice={maxPrice} 
+              bedrooms={bedrooms} 
+              neighborhoods={neighborhoods} 
+              onChange={({ minPrice, maxPrice, bedrooms, neighborhoods }) => {
+                setMinPrice(minPrice)
+                setMaxPrice(maxPrice)
+                setBedrooms(bedrooms)
+                setNeighborhoods(neighborhoods)
+              }} 
+            />
+          </div>
+
+          {/* Heatmap Toggle Button — Repositioned to avoid overlap with search bar (top-center but offset if needed) */}
           <div className="absolute top-6 left-1/2 -translate-x-1/2 z-[110] hidden md:flex items-center gap-2">
             <button
               onClick={toggleHeatmap}
-              className={`flex items-center gap-2 h-9 px-4 rounded-full border text-[11px] font-mono uppercase tracking-wider transition-all shadow-2xl ${
+              className={`flex items-center gap-2 h-9 px-6 rounded-full border text-[11px] font-mono uppercase tracking-wider transition-all shadow-2xl ${
                 heatmapActive
                   ? 'bg-orange-500/25 border-orange-500/60 text-orange-400 shadow-[0_0_20px_rgba(249,115,22,0.4)]'
                   : isDark
