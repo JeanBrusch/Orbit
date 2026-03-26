@@ -111,6 +111,19 @@ export function TopBar({ totalLeads, isDark, onThemeToggle, onLogout }: TopBarPr
           </Link>
 
           <Link
+            href="/reengagement"
+            className={`hidden md:flex items-center gap-1.5 px-2 md:px-3 py-1 h-7 rounded-md transition-all duration-300 text-[9px] font-medium ${
+              pathname === '/reengagement' 
+                ? 'bg-amber-500 text-white shadow-sm' 
+                : 'hover:bg-amber-500/10 text-[var(--orbit-text-muted)] hover:text-amber-400'
+            }`}
+            title="Reengajamento de Leads Frios"
+          >
+            <Users className="h-3 w-3" />
+            <span className="hidden sm:inline">Reengajamento</span>
+          </Link>
+
+          <Link
             href="/atlas"
             className={`hidden md:flex items-center gap-1.5 px-2 md:px-3 py-1 h-7 rounded-md transition-all duration-300 text-[9px] font-medium ${
               pathname === '/atlas' 

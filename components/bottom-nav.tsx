@@ -2,14 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Columns, MapPin, Activity, Zap, GitBranch } from "lucide-react";
+import { Columns, MapPin, Activity, Zap, GitBranch, Users } from "lucide-react";
 
 export function BottomNav() {
   const pathname = usePathname();
 
-  const navItems = [
+    const navItems = [
     { name: "Pipeline", href: "/pipeline", icon: Columns },
     { name: "Atlas", href: "/atlas", icon: MapPin },
+    { name: "Fila", href: "/reengagement", icon: Users },
     { name: "Trace", href: "/observability", icon: GitBranch },
     { name: "Telemetria", href: "/telemetry", icon: Activity },
     { name: "Silêncio", href: "/silence", icon: Zap },
