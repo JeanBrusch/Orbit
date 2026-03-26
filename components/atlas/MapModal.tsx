@@ -235,18 +235,19 @@ export default function MapModal({ isOpen, onClose, selectedIds, onToggleSelect 
             </button>
           </div>
           
-          {/* Refined Search Bar: Elegant & Responsive */}
-          <div className="absolute top-6 left-1/2 -translate-x-1/2 z-[110] flex flex-col items-center gap-3 w-full max-w-lg px-4 md:max-w-xl">
-            <div className={`flex items-center gap-3 px-5 py-3 rounded-2xl ${glass} shadow-[0_15px_40px_rgba(0,0,0,0.3)] w-full border-[#d4af35]/10 group transition-all hover:border-[#d4af35]/30`}>
-              <Search className={`h-5 w-5 ${isDark ? 'text-[#d4af35]/60' : 'text-[var(--orbit-glow)]/60'} transition-transform group-hover:scale-110`} />
+          {/* Absolute Minimalist Search Bar */}
+          <div className="absolute top-6 left-1/2 -translate-x-1/2 z-[110] flex flex-col items-center gap-2 w-full max-w-[280px] px-4 md:max-w-sm">
+            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg ${glass} shadow-[0_4px_20px_rgba(0,0,0,0.15)] w-full border-white/5 group transition-all hover:border-[#d4af35]/20`}>
+              <Search className={`h-3.5 w-3.5 ${isDark ? 'text-white/20' : 'text-zinc-400'} transition-transform group-hover:scale-110`} />
               <input 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Buscar imóveis ou bairros..."
-                className={`bg-transparent border-none text-sm focus:ring-0 placeholder:text-white/10 w-full outline-none font-serif ${isDark ? 'text-white' : 'text-zinc-900'}`}
+                placeholder="Buscar..."
+                className={`bg-transparent border-none text-[12px] focus:ring-0 placeholder:text-white/10 w-full outline-none font-serif ${isDark ? 'text-white' : 'text-zinc-900'}`}
               />
-              <div className="h-5 w-[1px] bg-white/10 mx-1 hidden md:block" />
-              <div className="hidden md:block">
+              
+              {/* Desktop Filters Inline (Compact) */}
+              <div className="hidden md:flex items-center gap-2 border-l border-white/10 pl-2">
                 <AdvancedFilters 
                   minPrice={minPrice} 
                   maxPrice={maxPrice} 
@@ -262,13 +263,14 @@ export default function MapModal({ isOpen, onClose, selectedIds, onToggleSelect 
               </div>
             </div>
             
-            {/* Mobile Filter Trigger (Small devices only) */}
+            {/* Mobile Filter Button (Single stable button to avoid 'correndo' scroll) */}
             <div className="md:hidden">
                <AdvancedFilters 
                 minPrice={minPrice} 
                 maxPrice={maxPrice} 
                 bedrooms={bedrooms} 
                 neighborhoods={neighborhoods} 
+                isMobileCompact={true}
                 onChange={({ minPrice, maxPrice, bedrooms, neighborhoods }) => {
                   setMinPrice(minPrice)
                   setMaxPrice(maxPrice)
