@@ -19,6 +19,7 @@ import {
   Timer,
   Send,
   Loader2,
+  Trash2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -44,6 +45,7 @@ interface SelectionProperty {
   viewCount?: number;
   interestScore?: number;
   metadata?: any;
+  leadId?: string; // Added leadId to SelectionProperty
 }
 
 interface TopInterest {
@@ -132,10 +134,29 @@ function StatBadge({ icon: Icon, value, label, color }: {
 
 // ─── Property Row ──────────────────────────────────────────────────────────────
 
-function PropertyRow({ prop, isTop }: { prop: SelectionProperty; isTop?: boolean }) {
+interface PropertyRowProps {
+  prop: SelectionProperty;
+  isTop?: boolean;
+  onRefresh?: () => void;
+}
+
+function PropertyRow({ prop, isTop, onRefresh }: PropertyRowProps) {
   const cfg = prop.interactionType
     ? (stateConfig[prop.interactionType] || stateConfig.sent)
     : stateConfig.sent;
+
+  const handleDelete = async () => {
+    if (!prop.leadId) {
+      console.error("Lead ID is missing for property deletion.");
+      return;
+    }
+    if (confirm("Remover da seleção?")) {
+      const res = await fetch(`/api/property-interactions?leadId=${prop.leadId}&propertyId=${prop.id}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) onRefresh?.();
+    }
+  };
 
   return (
     <div className={`flex flex-col gap-2 py-3 border-b border-white/[0.04] last:border-0 group ${isTop ? "rounded-lg px-2 bg-blue-500/[0.06] border border-blue-500/[0.15] mb-2" : ""}`}>
@@ -186,12 +207,22 @@ function PropertyRow({ prop, isTop }: { prop: SelectionProperty; isTop?: boolean
           <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border shadow-sm ${cfg.bg} ${cfg.color}`}>
             {cfg.label}
           </span>
+        <div className="flex items-center gap-1">
           <button 
             onClick={() => (window as any).openPropertyChat?.(prop)}
             className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 transition-colors"
+            title="Abrir Chat"
           >
             <MessageSquare className="w-3.5 h-3.5" />
           </button>
+          <button 
+            onClick={handleDelete}
+            className="p-1.5 rounded-lg bg-rose-500/5 hover:bg-rose-500/20 text-rose-500/60 hover:text-rose-500 transition-all"
+            title="Remover da Seleção"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
         </div>
       </div>
 
@@ -336,7 +367,8 @@ export function OrbitSelectionPanel({ leadId }: OrbitSelectionPanelProps) {
             interactionType: latestInt?.type || item.state,
             viewCount: viewsByProperty[p.id] || 0,
             interestScore: item.metadata?.interest_score || 0,
-            metadata: item.metadata
+            metadata: item.metadata,
+            leadId: leadId, // Pass leadId to property for deletion
           };
         });
 
@@ -535,6 +567,7 @@ export function OrbitSelectionPanel({ leadId }: OrbitSelectionPanelProps) {
                 key={p.id}
                 prop={p}
                 isTop={topInterest?.property.id === p.id}
+                onRefresh={fetchData}
               />
             ))}
           </div>

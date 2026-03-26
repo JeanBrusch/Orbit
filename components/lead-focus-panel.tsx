@@ -36,6 +36,7 @@ import {
   Phone,
   Users,
   Globe,
+  Zap,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -517,6 +518,63 @@ export function LeadFocusPanel({
     }
   }, [leadId, onClose, onLeadRemoved]);
 
+  const handleTogglePropertyState = useCallback(
+    async (propertyId: string, newState: PropertyState) => {
+      if (!leadId) return;
+
+      try {
+        const res = await fetch("/api/property-interactions", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            leadId: leadId,
+            propertyId,
+            state: newState,
+            metadata: { updatedBy: "broker" },
+          }),
+        });
+
+        if (res.ok) {
+          setSentProperties((prev) =>
+            prev.map((sp) =>
+              sp.property.id === propertyId
+                ? { ...sp, state: newState, stateChangedAt: new Date() }
+                : sp,
+            ),
+          );
+          refetchDetails(); // Refresh lead details to reflect changes
+        } else {
+          const errorData = await res.json().catch(() => ({}));
+          console.error("Failed to update property state:", errorData);
+        }
+      } catch (err) {
+        console.error("Error updating property state:", err);
+      }
+    },
+    [leadId, refetchDetails],
+  );
+
+  const handleDeleteProperty = useCallback(async (propertyId: string) => {
+    if (!leadId) return;
+    if (!confirm("Remover este imóvel da seleção do cliente?")) return;
+
+    try {
+      const res = await fetch(`/api/property-interactions?leadId=${leadId}&propertyId=${propertyId}`, {
+        method: "DELETE",
+      });
+
+      if (res.ok) {
+        setSentProperties((prev) => prev.filter((sp) => sp.property.id !== propertyId));
+        refetchDetails(); // Refresh lead details to reflect changes
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        console.error("Failed to remove property:", errorData);
+      }
+    } catch (err) {
+      console.error("Error removing property:", err);
+    }
+  }, [leadId, refetchDetails]);
+
   const handleSaveName = useCallback(async () => {
     if (!leadId || !editedName.trim()) return;
 
@@ -769,40 +827,6 @@ export function LeadFocusPanel({
       setSendError("Erro na integração de envio");
     }
   }, [linkedProperty, lead, leadId, refetchDetails]);
-
-
-  // Toggle property state in the Property Interactions
-  const handleTogglePropertyState = useCallback(
-    async (propertyId: string, newState: PropertyState) => {
-      // Find the interaction ID for this property
-      const interaction = sentProperties.find(sp => sp.property.id === propertyId);
-      if (!interaction) return;
-
-      try {
-        const res = await fetch("/api/property-interactions", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            id: interaction.id,
-            state: newState,
-          }),
-        });
-
-        if (res.ok) {
-          setSentProperties((prev) =>
-            prev.map((sp) =>
-              sp.property.id === propertyId
-                ? { ...sp, state: newState, stateChangedAt: new Date() }
-                : sp,
-            ),
-          );
-        }
-      } catch (err) {
-        console.error("Error updating property state:", err);
-      }
-    },
-    [sentProperties],
-  );
 
 
   // Get the appropriate icon and color for property state
@@ -1407,7 +1431,7 @@ export function LeadFocusPanel({
                       </div>
 
                       {Boolean(sp.property.ingestedData?.rawExtractedData?.payment_conditions) && (
-                         <p className="mt-2 text-[10px] italic text-[var(--orbit-glow)] opacity-80 border-l border-[var(--orbit-glow)]/30 pl-2">
+                         <p className="mt-2 text-[10px] italic text-[var(--orbit-glow)] opacity-80 border-l-2 border-[var(--orbit-glow)]/30 pl-2">
                             {String(sp.property.ingestedData?.rawExtractedData?.payment_conditions)}
                          </p>
                       )}
@@ -1477,12 +1501,19 @@ export function LeadFocusPanel({
                                       color: inactiveText,
                                     }
                               }
-                            >
-                              <Icon className="h-3 w-3" />
+                                      >
+                              <Icon className="w-3 h-3" />
                               {label}
                             </button>
-                          ),
+                          )
                         )}
+                        <button
+                          onClick={() => handleDeleteProperty(sp.property.id)}
+                          className="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white transition-all"
+                          title="Remover da Seleção"
+                        >
+                          <Trash2 size={14} />
+                        </button>
                       </div>
                       <div
                         className="mt-2 flex items-center gap-1.5 text-[10px]"

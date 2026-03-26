@@ -21,7 +21,7 @@ export async function POST(request: Request) {
       .single()
 
     if (insertError || !insertData) {
-      console.error('Error creating property:', insertError)
+      console.error('[POST /api/properties] Error creating property:', insertError)
       return NextResponse.json(
         { error: insertError?.message || 'Failed to create property' },
         { status: 500 }

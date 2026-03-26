@@ -407,12 +407,99 @@ export async function POST(request: NextRequest) {
           console.error('[PROP_INT] Error triggering Orbit Core:', err)
         })
       }
-      // ─────────────────────────────────────────────────────────────────────────
     }
 
     return NextResponse.json(interaction, { status: 201 })
   } catch (err) {
     console.error('Error in POST /api/property-interactions:', err)
+    return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 })
+  }
+}
+
+// ── PUT ─────────────────────────────────────────────────────────────────────
+export async function PUT(request: NextRequest) {
+  try {
+    const body = await request.json()
+    const { leadId, propertyId, state, metadata } = body
+
+    if (!leadId || !propertyId || !state) {
+      return NextResponse.json({ error: 'leadId, propertyId e state são obrigatórios' }, { status: 400 })
+    }
+
+    const supabase = getSupabaseServer()
+
+    // 1. Atualiza ou cria o capsule_item
+    const { data: currentCapsule } = await (supabase.from('capsule_items') as any)
+      .select('metadata')
+      .eq('lead_id', leadId)
+      .eq('property_id', propertyId)
+      .maybeSingle()
+
+    const currentMetadata = currentCapsule?.metadata || {}
+    const upsertPayload: any = {
+      lead_id: leadId,
+      property_id: propertyId,
+      state: state,
+      metadata: { ...currentMetadata, ...metadata, last_interaction: state }
+    }
+
+    const { error: upsertError } = await (supabase.from('capsule_items') as any)
+      .upsert(upsertPayload, { onConflict: 'lead_id,property_id' })
+
+    if (upsertError) {
+      console.error('[PROP_INT] PUT Upsert error:', upsertError)
+      return NextResponse.json({ error: upsertError.message }, { status: 500 })
+    }
+
+    // 2. Registra a interação como log (opcional, mas bom para o histórico)
+    await (supabase.from('property_interactions') as any).insert({
+      lead_id: leadId,
+      property_id: propertyId,
+      interaction_type: state,
+      source: 'broker_action'
+    })
+
+    return NextResponse.json({ success: true, state })
+  } catch (err) {
+    console.error('Error in PUT /api/property-interactions:', err)
+    return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 })
+  }
+}
+
+// ── DELETE ──────────────────────────────────────────────────────────────────
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const leadId = searchParams.get('leadId')
+    const propertyId = searchParams.get('propertyId')
+
+    if (!leadId || !propertyId) {
+      return NextResponse.json({ error: 'leadId e propertyId são obrigatórios' }, { status: 400 })
+    }
+
+    const supabase = getSupabaseServer()
+
+    // 1. Remove de capsule_items (isso faz o imóvel sumir do portal)
+    const { error: capsuleError } = await (supabase.from('capsule_items') as any)
+      .delete()
+      .eq('lead_id', leadId)
+      .eq('property_id', propertyId)
+
+    if (capsuleError) {
+      console.error('[PROP_INT] DELETE Capsule error:', capsuleError)
+      return NextResponse.json({ error: capsuleError.message }, { status: 500 })
+    }
+
+    // 2. Remove todas as interações relacionadas para limpar o histórico (opcional, dependendo da regra de negócio)
+    // Aqui removemos para garantir que o "sent" anterior não traga o imóvel de volta se a lógica de fetch for baseada em interações
+    await (supabase.from('property_interactions') as any)
+      .delete()
+      .eq('lead_id', leadId)
+      .eq('property_id', propertyId)
+
+    return NextResponse.json({ success: true, message: 'Imóvel removido da seleção com sucesso' })
+  } catch (err) {
+    console.error('Error in DELETE /api/property-interactions:', err)
     return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 })
   }
 }

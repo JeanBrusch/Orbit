@@ -149,18 +149,20 @@ export default function ClientSpacesManager({ leadId, onClose }: ClientSpacesMan
   const handleRemoveProperty = async (propertyId: string) => {
     if (!confirm("Remover este imóvel da seleção do cliente?")) return
     
-    const { error } = await (supabase
-      .from('property_interactions') as any)
-      .delete()
-      .eq('lead_id', leadId)
-      .eq('property_id', propertyId)
-      .eq('interaction_type', 'sent')
+    try {
+      const res = await fetch(`/api/property-interactions?leadId=${leadId}&propertyId=${propertyId}`, {
+        method: 'DELETE'
+      })
 
-    if (error) {
-      toast.error("Erro ao remover: " + error.message)
-    } else {
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || "Falha na exclusão")
+      }
+
       toast.success("Imóvel removido com sucesso")
       if (space) fetchSentProperties(space.id)
+    } catch (err: any) {
+      toast.error("Erro ao remover: " + err.message)
     }
   }
 

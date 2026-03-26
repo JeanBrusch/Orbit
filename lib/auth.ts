@@ -114,7 +114,7 @@ export async function setSession(user: AuthUser): Promise<void> {
   
   cookieStore.set(SESSION_COOKIE, JSON.stringify(session), {
     httpOnly: true,
-    secure: true,
+    secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     maxAge: SESSION_TTL / 1000,
     path: "/",
