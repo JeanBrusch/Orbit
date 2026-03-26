@@ -308,6 +308,7 @@ async function analyzeContext(
     propertyInteractions: string;
     compatibleProperties: string;
     lastInsight: string;
+    internalPropertyNotes?: string;
   }
 ): Promise<CoreAnalysis | null> {
   if (!process.env.OPENAI_API_KEY) {
@@ -332,7 +333,13 @@ PORTFÓLIO COMPATÍVEL (RAG)
 ════════════════════════════════════════
 ${context.compatibleProperties}
 
+${context.internalPropertyNotes ? `════════════════════════════════════════
+CONDIÇÕES ESTRATÉGICAS DOS IMÓVEIS (Notas Internas do Corretor)
 ════════════════════════════════════════
+IMPORTANTE: Estas são notas privadas do corretor sobre cada imóvel enviado. Use estas informações para calibrar sua análise, especialmente sobre condições de pagamento, prazo, dação, permuta e flexibilidade.
+${context.internalPropertyNotes}
+
+` : ''}════════════════════════════════════════
 CONVERSA RECENTE
 ════════════════════════════════════════
 ${context.lastMessages}
@@ -527,6 +534,32 @@ async function getContext(leadId: string, leadState: string = 'exploring') {
   const interactions = (interactionsRes?.data || []) as PropertyInteractionRow[];
   const rawInsights = (insightsRes?.data || []) as any[];
 
+  // Buscar notas internas dos imóveis enviados a este lead
+  let internalPropertyNotes = ""
+  try {
+    const sentPropertyIds = interactions
+      .filter((i: any) => i.interaction_type === "sent")
+      .map((i: any) => i.property_id)
+      .filter(Boolean)
+
+    if (sentPropertyIds.length > 0) {
+      const { data: propNotes } = await (getSupabase() as any)
+        .from("properties")
+        .select("title, internal_code, internal_notes")
+        .in("id", sentPropertyIds)
+        .not("internal_notes", "is", null)
+
+      if (propNotes && propNotes.length > 0) {
+        internalPropertyNotes = propNotes
+          .filter((p: any) => p.internal_notes?.trim())
+          .map((p: any) => `[${p.internal_code || p.title}] ${p.internal_notes}`)
+          .join(" | ")
+      }
+    }
+  } catch (err) {
+    console.warn("[ORBIT CORE] Erro ao buscar notas internas:", err)
+  }
+
   // 2. Priorização de Memórias (Orbit AI Governance)
   const MEMORY_PRIORITY: Record<string, number> = {
     identity: 1,
@@ -577,6 +610,7 @@ async function getContext(leadId: string, leadState: string = 'exploring') {
     propertyInteractions: interactions.map((i) => `${i.interaction_type} em ${i.timestamp}`).join(" | "),
     lastInsight: lastRelevantInsight ? `${lastRelevantInsight.content}` : "Nenhum",
     currentState: cognitiveState,
+    internalPropertyNotes,
   };
 }
 
@@ -630,6 +664,7 @@ export async function processEventWithCore(
     const analysis = await analyzeContext(leadId, cleanContent, type, {
       ...context,
       compatibleProperties: compatiblePropertiesText,
+      internalPropertyNotes: context.internalPropertyNotes,
     });
     if (!analysis) {
       console.error(`[ORBIT CORE] Falha ao obter análise para leadId=${leadId}`);

@@ -426,8 +426,8 @@ async function saveMessage(
       resolveAnalysisCadence(lead?.orbit_stage || 'pending', lead?.days_since_interaction || 0, content)
 
     if (cadence === "realtime" || lead?.state === 'pending') {
-      // Leads pendentes sempre real-time por ser primeira interação, ou se a cadência for real-time
-      console.log(`[WEBHOOK] Disparando redeliver de Orbit Core para lead=${leadId} | Cadência: Real-time`);
+      // Leads pendentes sempre recebem atenção real-time na base, mas orbit core fica pausado
+      console.log(`[WEBHOOK] Atualizando base para lead=${leadId} | Cadência: Real-time`);
       
       await Promise.all([
         supabase
@@ -447,14 +447,20 @@ async function saveMessage(
           .eq('lead_id', leadId)
       ])
 
-      // Fechamento do loop de reengajamento (opcional, manter o padrão existente)
-      closeReengagementLoop(leadId, content, supabase).catch(err =>
-        console.error("[REENGAGEMENT LOOP]", err)
-      )
+      const isPending = lead?.state === 'pending'
+      
+      if (!isPending) {
+        // Fechamento do loop de reengajamento
+        closeReengagementLoop(leadId, content, supabase).catch(err =>
+          console.error("[REENGAGEMENT LOOP]", err)
+        )
 
-      processEventWithCore(leadId, content, 'message_inbound', data.id).catch((err) => {
-        console.error('[WEBHOOK] Erro no Orbit Core:', err);
-      })
+        processEventWithCore(leadId, content, 'message_inbound', data.id).catch((err) => {
+          console.error('[WEBHOOK] Erro no Orbit Core:', err);
+        })
+      } else {
+        console.log(`[WEBHOOK] Lead pendente (${leadId}): Pulando Orbit Core e Loop de Reengajamento até aprovação.`);
+      }
     } else {
       // Enfileirar para análise em lote (Batch)
       console.log(`[WEBHOOK] Enfileirando para batch: lead=${leadId} | Cadência: ${cadence}`);
@@ -487,6 +493,20 @@ export async function POST(request: NextRequest) {
   try {
     const payload: ZAPIWebhookMessage = await request.json()
     
+    // ── Early Idempotency Check ──
+    const idempotencyKey = `zapi:${payload.messageId}`
+    const supabaseClient = getSupabaseServer() as any
+    const { data: existingMsg } = await supabaseClient
+      .from('messages')
+      .select('id')
+      .eq('idempotency_key', idempotencyKey)
+      .maybeSingle()
+      
+    if (existingMsg) {
+      console.log(`[WEBHOOK:${requestId}] EARLY Idempotent skip: ${idempotencyKey}`)
+      return NextResponse.json({ status: 'already_processed', id: existingMsg.id })
+    }
+
     // ── Trace: Inbound ──
     await trackEvent({
       event_type: 'message_received',
@@ -653,7 +673,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ status: 'ignored', reason: 'no_content' })
     }
     
-    const idempotencyKey = `zapi:${payload.messageId}`
     const direction: 'inbound' | 'outbound' = fromMe ? 'outbound' : 'inbound'
     
 

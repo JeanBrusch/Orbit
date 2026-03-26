@@ -507,7 +507,7 @@ export default function EditPropertyModal({ isOpen, onClose, property, onSave, o
               )}
             </div>
 
-            {/* Right Side Sidebar (Optional - for Match Insights later) */}
+             {/* Right Side Sidebar (Optional - for Match Insights later) */}
             <div className={`hidden lg:block w-72 border-l p-6 overflow-y-auto ${
               isDark ? "border-[var(--orbit-line)] bg-black/10" : "border-gray-200 bg-gray-50"
             } ${activeTab === 'details' ? '' : 'opacity-20 pointer-events-none'}`}>
@@ -515,19 +515,21 @@ export default function EditPropertyModal({ isOpen, onClose, property, onSave, o
                
                <div className="space-y-6">
                   <div className="p-4 rounded-xl bg-[var(--orbit-glow)]/5 border border-[var(--orbit-glow)]/10 space-y-3">
-                    <p className="text-[10px] font-mono text-[var(--orbit-glow)] uppercase font-bold">Por que é um match?</p>
-                    <p className="text-[11px] text-[var(--orbit-text-muted)] leading-relaxed italic">"Nenhum lead selecionado para análise de afinidade no momento."</p>
+                    <p className="text-[10px] font-mono text-[var(--orbit-glow)] uppercase font-bold">Notas Internas</p>
+                    <p className={`text-[11px] leading-relaxed ${isDark ? "text-[var(--orbit-text-muted)]" : "text-slate-500"}`}>
+                      Use o campo de <strong>Notas Internas</strong> abaixo para registrar condições de pagamento, flexibilidade de prazo, permuta e qualquer detalhe estratégico. Essas informações são lidas pela IA automaticamente.
+                    </p>
                   </div>
 
                   <div className="space-y-3">
-                     <p className="text-[9px] font-mono text-[var(--orbit-text-muted)] uppercase">Status de Mercado</p>
-                     <div className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/5">
-                        <span className="text-[10px] text-[var(--orbit-text-muted)]">Visualizações</span>
-                        <span className="text-[10px] font-mono font-bold">124</span>
+                     <p className="text-[9px] font-mono text-[var(--orbit-text-muted)] uppercase">Chaves do Imóvel</p>
+                     <div className={`flex items-center justify-between p-3 rounded-lg border ${isDark ? "bg-white/5 border-white/5" : "bg-white border-gray-200"}`}>
+                        <span className="text-[10px] text-[var(--orbit-text-muted)]">Código Interno</span>
+                        <span className="text-[10px] font-mono font-bold text-[var(--orbit-glow)]">{property.internal_code || '—'}</span>
                      </div>
-                     <div className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/5">
-                        <span className="text-[10px] text-[var(--orbit-text-muted)]">Interesse</span>
-                        <span className="text-[10px] font-mono font-bold text-emerald-400">Alto</span>
+                     <div className={`flex items-center justify-between p-3 rounded-lg border ${isDark ? "bg-white/5 border-white/5" : "bg-white border-gray-200"}`}>
+                        <span className="text-[10px] text-[var(--orbit-text-muted)]">Cód. Vista</span>
+                        <span className="text-[10px] font-mono text-[var(--orbit-text-muted)]">{property.vista_code || '—'}</span>
                      </div>
                   </div>
                </div>

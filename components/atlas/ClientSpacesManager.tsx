@@ -166,23 +166,31 @@ export default function ClientSpacesManager({ leadId, onClose }: ClientSpacesMan
 
   const saveContext = async (propertyId: string, contextData: any) => {
     if (!space) return
-    const { error } = await (supabase
-      .from('client_property_context') as any)
-      .upsert({
-        client_space_id: space.id,
-        property_id: propertyId,
-        note: contextData.note,
-        video_url: contextData.video_url
-      }, { onConflict: 'client_space_id,property_id' })
+    try {
+      const res = await fetch(`/api/client-space/${space.id}/context`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          property_id: propertyId,
+          note: contextData.note,
+          video_url: contextData.video_url,
+        }),
+      })
 
-    if (error) {
-      toast.error("Erro ao salvar nota: " + error.message)
-    } else {
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        toast.error("Erro ao salvar nota: " + (err.error || res.statusText))
+        return
+      }
+
       fetchSentProperties(space.id)
       setEditingContext(null)
-      toast.success("Nota salva com sucesso!")
+      toast.success("Insight salvo com sucesso!")
+    } catch (err: any) {
+      toast.error("Erro ao salvar: " + err.message)
     }
   }
+
 
   useEffect(() => {
     fetchSpace()

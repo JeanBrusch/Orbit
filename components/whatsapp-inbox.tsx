@@ -173,13 +173,16 @@ export function WhatsAppInbox({ externalCount, onCountChange }: WhatsAppInboxPro
     onCountChange?.(Math.max(0, (externalCount || 0) - 1));
 
     try {
-      const supabase = getSupabase();
-      const { error } = await (supabase as any)
-        .from("leads")
-        .update({ state: newState })
-        .eq("id", leadId);
+      const res = await fetch(`/api/lead/${leadId}/update-state`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ state: newState }),
+      });
 
-      if (error) throw error;
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || "Falha ao atualizar o status do lead");
+      }
 
       const toastConfigs: Record<string, { title: string; description: string }> = {
         approved: {
