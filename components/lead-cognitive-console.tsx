@@ -1367,76 +1367,46 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
           <>
             {/* ── TOP BAR ── */}
             <header className="shrink-0 px-2 md:px-6 py-2 md:py-4">
-              <div className={`${glass} rounded-xl px-3 md:px-6 py-2 md:py-3 flex items-center justify-between shadow-2xl gap-3 overflow-x-auto custom-scrollbar`}>
-                
-                {/* Left: close + lead info */}
-                <div className="flex items-center gap-5">
-                  <button
-                    onClick={onClose}
-                    className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors ${
-                      isDark ? 'bg-white/5 border border-white/10 hover:bg-white/10' : 'bg-white border border-[var(--orbit-line)] hover:bg-gray-50 shadow-sm'
-                    }`}
-                    title="Fechar"
-                  >
-                    <X className={`w-4 h-4 ${isDark ? 'text-white' : 'text-[var(--orbit-text)]'}`} />
-                  </button>
 
-                  <div className={`h-7 w-px ${isDark ? 'bg-white/10' : 'bg-[var(--orbit-line)]'}`} />
-
-                  <div className="flex items-center gap-3">
-                    <div className="relative">
+              {/* ── MOBILE HEADER: Compacto para iPhone 14 ── */}
+              {isMobile ? (
+                <div className={`${glass} rounded-xl px-3 py-2.5 flex items-center justify-between shadow-xl gap-3`}>
+                  {/* Avatar + info */}
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="relative shrink-0">
                       {lead?.photo_url ? (
-                        <img
-                          src={lead.photo_url}
-                          className={`w-10 h-10 rounded-full border object-cover ${isDark ? 'border-[#d4af35]/30' : 'border-[var(--orbit-glow)]/30'}`}
-                          alt=""
-                        />
+                        <img src={lead.photo_url} className={`w-10 h-10 rounded-full border object-cover ${isDark ? 'border-[#d4af35]/30' : 'border-[var(--orbit-glow)]/30'}`} alt="" />
                       ) : (
-                        <div className={`w-10 h-10 rounded-full border flex items-center justify-center text-sm font-bold ${
-                          isDark ? 'border-[#d4af35]/30 bg-[#d4af35]/10 text-[#d4af35]' : 'border-[var(--orbit-glow)]/30 bg-[var(--orbit-glow)]/10 text-[var(--orbit-glow)]'
-                        }`}>
+                        <div className={`w-10 h-10 rounded-full border flex items-center justify-center text-sm font-bold ${isDark ? 'border-[#d4af35]/30 bg-[#d4af35]/10 text-[#d4af35]' : 'border-[var(--orbit-glow)]/30 bg-[var(--orbit-glow)]/10 text-[var(--orbit-glow)]'}`}>
                           {getInitials(lead?.name || null)}
                         </div>
                       )}
-                      <div className={`absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 ${isDark ? 'border-[#050505]' : 'border-white'}`} />
+                      <div className={`absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 ${isDark ? 'border-[#050505]' : 'border-white'}`} />
                     </div>
-                    <div>
-                      <p className="text-sm font-semibold">{lead?.name || "—"}</p>
-                      <div className="relative">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold truncate">{lead?.name || "—"}</p>
+                      <div className="flex items-center gap-2">
                         <button
                           onClick={() => setShowStageDropdown(prev => !prev)}
-                          className={`text-[10px] font-medium uppercase tracking-wider transition-colors cursor-pointer ${
-                            isDark ? 'text-[#d4af35]/70 hover:text-[#d4af35]' : 'text-[var(--orbit-glow)]/70 hover:text-[var(--orbit-glow)]'
-                          }`}
+                          className={`text-[10px] font-medium uppercase tracking-wider cursor-pointer truncate ${isDark ? 'text-[#d4af35]/70' : 'text-[var(--orbit-glow)]/70'}`}
                         >
                           {humanStage(lead?.orbit_stage)}
                         </button>
                         {showStageDropdown && (
-                          <div
-                            className={`absolute top-6 left-0 z-50 border rounded-xl shadow-2xl p-2 flex flex-col gap-0.5 min-w-[180px] ${
-                              isDark ? 'bg-[#0a0a0c] border-white/10' : 'bg-white border-[var(--orbit-line)]'
-                            }`}
-                            onMouseLeave={() => setShowStageDropdown(false)}
-                          >
+                          <div className={`absolute top-16 left-4 z-50 border rounded-xl shadow-2xl p-2 flex flex-col gap-0.5 min-w-[180px] ${isDark ? 'bg-[#0a0a0c] border-white/10' : 'bg-white border-[var(--orbit-line)]'}`}
+                            onMouseLeave={() => setShowStageDropdown(false)}>
                             {Object.entries(STAGE_LABELS).filter(([k]) =>
                               !["ativo","quente","frio","decidindo","negociando","explorando","comparando","fechado","perdido","novo"].includes(k)
                             ).map(([key, label]) => (
-                              <button
-                                key={key}
+                              <button key={key}
                                 onClick={async () => {
                                   const supabase = getSupabase();
-                                  await (supabase.from("leads") as any)
-                                    .update({ orbit_stage: key })
-                                    .eq("id", leadId);
+                                  await (supabase.from("leads") as any).update({ orbit_stage: key }).eq("id", leadId);
                                   setLead(prev => prev ? { ...prev, orbit_stage: key } : prev);
                                   setShowStageDropdown(false);
                                 }}
-                                className={`text-left text-[11px] px-3 py-1.5 rounded-lg transition-colors ${
-                                  isDark ? 'hover:bg-white/5 text-slate-300 hover:text-[#d4af35]' : 'hover:bg-[var(--orbit-bg-secondary)] text-[var(--orbit-text)] hover:text-[var(--orbit-glow)]'
-                                }`}
-                              >
-                                {label}
-                              </button>
+                                className={`text-left text-[11px] px-3 py-1.5 rounded-lg transition-colors ${isDark ? 'hover:bg-white/5 text-slate-300 hover:text-[#d4af35]' : 'hover:bg-[var(--orbit-bg-secondary)] text-[var(--orbit-text)] hover:text-[var(--orbit-glow)]'}`}
+                              >{label}</button>
                             ))}
                           </div>
                         )}
@@ -1444,73 +1414,105 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
                     </div>
                   </div>
 
-                   <div className={`h-7 w-px ${isDark ? 'bg-white/10' : 'bg-[var(--orbit-line)]'}`} />
-
-                  <div>
-                    <p className={`text-[9px] uppercase tracking-widest font-bold ${isDark ? 'text-slate-500' : 'text-[var(--orbit-text-muted)]'}`}>ORBIT 3.0</p>
-                    <p className={`text-[9px] uppercase tracking-tight ${isDark ? 'text-slate-600' : 'text-[var(--orbit-text-muted)]/60'}`}>Cognitive Terminal</p>
-                  </div>
-                </div>
-
-                {/* Center: 4 Cognitive Rings */}
-                <div className="flex items-center gap-7">
-                  <CognitiveRing value={cog?.interest_score ?? 0} label="Interesse" color={ringGold} />
-                  <CognitiveRing value={cog?.momentum_score ?? 0} label="Momentum" color={ringGold} />
-                  <CognitiveRing value={cog?.risk_score ?? 0} label="Risco" color="#ef4444" />
-                  <CognitiveRing value={cog?.clarity_level ?? 0} label="Clareza" color={ringGold} />
-                </div>
-
-                {/* Right: last analysis */}
-                <div className="flex items-center gap-3">
-                  {cog?.last_ai_analysis_at && (
-                    <div className="text-right">
-                      <p className="text-[9px] text-slate-600 uppercase tracking-widest">Última análise</p>
-                      <p className="text-[10px] text-slate-400">
-                        {new Date(cog.last_ai_analysis_at).toLocaleString("pt-BR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
-                      </p>
+                  {/* Right: estado cognitivo + fechar */}
+                  <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      <span className="text-[9px] text-emerald-400 font-bold uppercase tracking-wider">{humanCogState(cog?.current_state)}</span>
                     </div>
-                  )}
-                  <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    <span className="text-[9px] text-emerald-400 font-bold uppercase tracking-wider">
-                      {humanCogState(cog?.current_state)}
-                    </span>
+                    <button
+                      onClick={() => setShowBlockConfirm(true)}
+                      className={`w-9 h-9 rounded-full flex items-center justify-center transition-all ${isDark ? 'hover:bg-red-500/20 text-slate-500 hover:text-red-400' : 'hover:bg-red-50/80 text-gray-400 hover:text-red-500'}`}
+                      title="Bloquear Lead"
+                    >
+                      <Ban className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={onClose}
+                      className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors ${isDark ? 'bg-white/5 border border-white/10 hover:bg-white/10' : 'bg-white border border-[var(--orbit-line)] hover:bg-gray-50 shadow-sm'}`}
+                      title="Fechar"
+                    >
+                      <X className={`w-4 h-4 ${isDark ? 'text-white' : 'text-[var(--orbit-text)]'}`} />
+                    </button>
                   </div>
-
-                  <button 
-                    onClick={() => setShowBlockConfirm(true)}
-                    className={`w-7 h-7 rounded-full flex items-center justify-center transition-all ${
-                      isDark ? 'hover:bg-red-500/20 text-slate-500 hover:text-red-400' : 'hover:bg-red-50/80 text-gray-400 hover:text-red-500'
-                    }`}
-                    title="Bloquear Lead"
-                  >
-                    <Ban className="w-3.5 h-3.5" />
-                  </button>
                 </div>
-              </div>
+              ) : (
+                /* ── DESKTOP HEADER: Completo ── */
+                <div className={`${glass} rounded-xl px-6 py-3 flex items-center justify-between shadow-2xl gap-3 overflow-x-auto custom-scrollbar`}>
+                  <div className="flex items-center gap-5">
+                    <button onClick={onClose} className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors ${isDark ? 'bg-white/5 border border-white/10 hover:bg-white/10' : 'bg-white border border-[var(--orbit-line)] hover:bg-gray-50 shadow-sm'}`} title="Fechar">
+                      <X className={`w-4 h-4 ${isDark ? 'text-white' : 'text-[var(--orbit-text)]'}`} />
+                    </button>
+                    <div className={`h-7 w-px ${isDark ? 'bg-white/10' : 'bg-[var(--orbit-line)]'}`} />
+                    <div className="flex items-center gap-3">
+                      <div className="relative">
+                        {lead?.photo_url ? (
+                          <img src={lead.photo_url} className={`w-10 h-10 rounded-full border object-cover ${isDark ? 'border-[#d4af35]/30' : 'border-[var(--orbit-glow)]/30'}`} alt="" />
+                        ) : (
+                          <div className={`w-10 h-10 rounded-full border flex items-center justify-center text-sm font-bold ${isDark ? 'border-[#d4af35]/30 bg-[#d4af35]/10 text-[#d4af35]' : 'border-[var(--orbit-glow)]/30 bg-[var(--orbit-glow)]/10 text-[var(--orbit-glow)]'}`}>
+                            {getInitials(lead?.name || null)}
+                          </div>
+                        )}
+                        <div className={`absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 ${isDark ? 'border-[#050505]' : 'border-white'}`} />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold">{lead?.name || "—"}</p>
+                        <div className="relative">
+                          <button onClick={() => setShowStageDropdown(prev => !prev)} className={`text-[10px] font-medium uppercase tracking-wider transition-colors cursor-pointer ${isDark ? 'text-[#d4af35]/70 hover:text-[#d4af35]' : 'text-[var(--orbit-glow)]/70 hover:text-[var(--orbit-glow)]'}`}>
+                            {humanStage(lead?.orbit_stage)}
+                          </button>
+                          {showStageDropdown && (
+                            <div className={`absolute top-6 left-0 z-50 border rounded-xl shadow-2xl p-2 flex flex-col gap-0.5 min-w-[180px] ${isDark ? 'bg-[#0a0a0c] border-white/10' : 'bg-white border-[var(--orbit-line)]'}`} onMouseLeave={() => setShowStageDropdown(false)}>
+                              {Object.entries(STAGE_LABELS).filter(([k]) =>
+                                !["ativo","quente","frio","decidindo","negociando","explorando","comparando","fechado","perdido","novo"].includes(k)
+                              ).map(([key, label]) => (
+                                <button key={key}
+                                  onClick={async () => {
+                                    const supabase = getSupabase();
+                                    await (supabase.from("leads") as any).update({ orbit_stage: key }).eq("id", leadId);
+                                    setLead(prev => prev ? { ...prev, orbit_stage: key } : prev);
+                                    setShowStageDropdown(false);
+                                  }}
+                                  className={`text-left text-[11px] px-3 py-1.5 rounded-lg transition-colors ${isDark ? 'hover:bg-white/5 text-slate-300 hover:text-[#d4af35]' : 'hover:bg-[var(--orbit-bg-secondary)] text-[var(--orbit-text)] hover:text-[var(--orbit-glow)]'}`}
+                                >{label}</button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className={`h-7 w-px ${isDark ? 'bg-white/10' : 'bg-[var(--orbit-line)]'}`} />
+                    <div>
+                      <p className={`text-[9px] uppercase tracking-widest font-bold ${isDark ? 'text-slate-500' : 'text-[var(--orbit-text-muted)]'}`}>ORBIT 3.0</p>
+                      <p className={`text-[9px] uppercase tracking-tight ${isDark ? 'text-slate-600' : 'text-[var(--orbit-text-muted)]/60'}`}>Cognitive Terminal</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-7">
+                    <CognitiveRing value={cog?.interest_score ?? 0} label="Interesse" color={ringGold} />
+                    <CognitiveRing value={cog?.momentum_score ?? 0} label="Momentum" color={ringGold} />
+                    <CognitiveRing value={cog?.risk_score ?? 0} label="Risco" color="#ef4444" />
+                    <CognitiveRing value={cog?.clarity_level ?? 0} label="Clareza" color={ringGold} />
+                  </div>
+                  <div className="flex items-center gap-3">
+                    {cog?.last_ai_analysis_at && (
+                      <div className="text-right">
+                        <p className="text-[9px] text-slate-600 uppercase tracking-widest">Última análise</p>
+                        <p className="text-[10px] text-slate-400">{new Date(cog.last_ai_analysis_at).toLocaleString("pt-BR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</p>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      <span className="text-[9px] text-emerald-400 font-bold uppercase tracking-wider">{humanCogState(cog?.current_state)}</span>
+                    </div>
+                    <button onClick={() => setShowBlockConfirm(true)} className={`w-7 h-7 rounded-full flex items-center justify-center transition-all ${isDark ? 'hover:bg-red-500/20 text-slate-500 hover:text-red-400' : 'hover:bg-red-50/80 text-gray-400 hover:text-red-500'}`} title="Bloquear Lead">
+                      <Ban className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              )}
             </header>
 
-            {/* ── MOBILE TABS ── */}
-            {isMobile && (
-              <div className="flex md:hidden shrink-0 px-2 py-2 gap-2 border-b border-[var(--orbit-line)]/50 bg-[var(--orbit-bg)] z-10 w-full overflow-x-auto">
-                <button
-                  onClick={() => setActiveMobileTab("chat")}
-                  className={`flex-[1] py-2.5 px-4 text-[10px] font-bold uppercase tracking-[0.2em] rounded-xl transition-all whitespace-nowrap ${
-                    activeMobileTab === "chat" ? "bg-[var(--orbit-glow)] text-[var(--orbit-bg)] shadow-[0_4px_15px_var(--orbit-glow)]/30" : "bg-white/5 text-[var(--orbit-text-muted)] hover:bg-white/10"
-                  }`}
-                >
-                  Chat & Interações
-                </button>
-                <button
-                  onClick={() => setActiveMobileTab("info")}
-                  className={`flex-[1] py-2.5 px-4 text-[10px] font-bold uppercase tracking-[0.2em] rounded-xl transition-all whitespace-nowrap ${
-                    activeMobileTab === "info" ? "bg-[var(--orbit-glow)] text-[var(--orbit-bg)] shadow-[0_4px_15px_var(--orbit-glow)]/30" : "bg-white/5 text-[var(--orbit-text-muted)] hover:bg-white/10"
-                  }`}
-                >
-                  Radar IA
-                </button>
-              </div>
-            )}
+            {/* Mobile tabs removidas — navegação já existe na bottom nav */}
 
             {/* ── MAIN 3-COLUMN GRID ── */}
             <main className="flex-1 flex flex-col md:flex-row gap-0 md:gap-5 px-0 md:px-6 pb-0 md:pb-5 min-h-0 overflow-hidden relative">
@@ -1605,7 +1607,7 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
               {/* ── CENTRAL AREA: Chat ── */}
               <section className={`flex-1 flex-col ${glass} rounded-none md:rounded-xl overflow-hidden min-w-0 ${isMobile && activeMobileTab !== "chat" ? 'hidden' : 'flex'}`}>
                 {/* Chat stream */}
-                <div className="flex-1 overflow-y-auto p-3 md:p-5 flex flex-col-reverse gap-4 custom-scrollbar min-h-0">
+                <div className="flex-1 overflow-y-auto px-4 py-3 md:p-5 flex flex-col-reverse gap-4 custom-scrollbar min-h-0">
                   <div ref={bottomRef} style={{ overflowAnchor: "auto" }} />
                   {hasMore && messages.length >= 20 && (
                     <button
@@ -1654,9 +1656,9 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
                 </div>
 
                 {/* ── Composer ── */}
-                <div className={`px-3 md:px-5 py-3 md:py-4 border-t ${
+                <div className={`px-3 md:px-5 pt-3 md:pt-4 pb-3 border-t ${
                   isDark ? 'border-white/[0.06] bg-black/30' : 'border-[var(--orbit-line)] bg-[var(--orbit-bg-secondary)]'
-                }`}>
+                }`} style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom, 12px))' }}>
                   {/* Recording indicator */}
                   {isRecording && (
                     <div className="mb-3 flex items-center gap-3 px-3 py-2 bg-red-500/10 border border-red-500/20 rounded-xl">
@@ -1670,15 +1672,19 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
                     </div>
                   )}
 
-                  {/* AI autocomplete chip */}
+                  {/* AI suggestion chip */}
                   {aiSuggestion && !isRecording && (
-                    <div className="mb-3 flex items-start gap-2">
-                      <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider pt-1.5 shrink-0">IA:</span>
+                    <div className="mb-2 flex items-center gap-2">
+                      <span className={`text-[9px] font-bold uppercase tracking-wider shrink-0 ${isDark ? 'text-slate-500' : 'text-[var(--orbit-text-muted)]'}`}>IA:</span>
                       <button
                         onClick={() => setComposerText(aiSuggestion)}
-                        className="text-left bg-white/5 hover:bg-[#d4af35]/10 border border-white/10 hover:border-[#d4af35]/30 rounded-full px-3 py-1 text-xs text-slate-300 hover:text-[#d4af35] transition-all line-clamp-1 max-w-[90%]"
+                        className={`flex-1 text-left rounded-full px-3 py-1 text-xs transition-all line-clamp-1 border cursor-pointer ${
+                          isDark
+                            ? 'bg-white/5 hover:bg-[#d4af35]/10 border-white/10 hover:border-[#d4af35]/30 text-slate-300 hover:text-[#d4af35]'
+                            : 'bg-[var(--orbit-glow)]/5 hover:bg-[var(--orbit-glow)]/10 border-[var(--orbit-glow)]/20 text-[var(--orbit-text-muted)] hover:text-[var(--orbit-glow)]'
+                        }`}
                       >
-                        "{aiSuggestion.slice(0, 80)}{aiSuggestion.length > 80 ? "…" : ""}"
+                        &ldquo;{aiSuggestion.slice(0, 70)}{aiSuggestion.length > 70 ? "…" : ""}&rdquo;
                       </button>
                     </div>
                   )}
@@ -1686,152 +1692,133 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
                   {/* Hidden file input */}
                   <input ref={fileInputRef} type="file" accept="image/*,application/pdf" className="hidden" onChange={handleFileChange} />
 
-                  <div className="flex items-end gap-3 pb-1">
-                    {/* File attach */}
+                  {/* ── Linha 1: Tabs de modo (full width) ── */}
+                  <div className={`flex items-center gap-1 p-1 border rounded-xl mb-2 ${
+                    isDark ? 'bg-white/5 border-white/10' : 'bg-[var(--orbit-bg)] border-[var(--orbit-line)]'
+                  }`}>
+                    <button
+                      onClick={() => setInteractionMode("whatsapp")}
+                      className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                        interactionMode === "whatsapp"
+                          ? isDark ? "bg-[#2ec5ff] text-black shadow-[0_0_12px_rgba(46,197,255,0.4)]" : "bg-[var(--orbit-glow)] text-white shadow-sm"
+                          : isDark ? "text-slate-400 hover:text-white" : "text-[var(--orbit-text-muted)] hover:text-[var(--orbit-glow)]"
+                      }`}
+                    >
+                      <Zap className="w-3 h-3" /> WhatsApp
+                    </button>
+                    <button
+                      onClick={() => setInteractionMode("note")}
+                      className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                        interactionMode === "note"
+                          ? isDark ? "bg-[#d4af35] text-black shadow-[0_0_12px_rgba(212,175,53,0.4)]" : "bg-[var(--orbit-glow)] text-white shadow-sm"
+                          : isDark ? "text-slate-400 hover:text-white" : "text-[var(--orbit-text-muted)] hover:text-[var(--orbit-glow)]"
+                      }`}
+                    >
+                      <Star className="w-3 h-3" /> Nota
+                    </button>
+                    <button
+                      onClick={() => setInteractionMode("call")}
+                      className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                        interactionMode === "call"
+                          ? isDark ? "bg-emerald-500 text-black shadow-[0_0_12px_rgba(16,185,129,0.4)]" : "bg-emerald-500 text-white shadow-sm"
+                          : isDark ? "text-slate-400 hover:text-white" : "text-[var(--orbit-text-muted)] hover:text-emerald-500"
+                      }`}
+                    >
+                      <Mic className="w-3 h-3" /> Ligação
+                    </button>
+                  </div>
+
+                  {/* Call Status Selector */}
+                  <AnimatePresence>
+                    {interactionMode === "call" && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="flex items-center gap-4 overflow-hidden mb-2"
+                      >
+                        <label className="flex items-center gap-2 cursor-pointer group">
+                          <input type="radio" checked={callStatus === "attended"} onChange={() => setCallStatus("attended")} className="hidden" />
+                          <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all ${callStatus === "attended" ? "border-emerald-500" : "border-slate-600 group-hover:border-slate-500"}`}>
+                            {callStatus === "attended" && <div className="w-2 h-2 rounded-full bg-emerald-500" />}
+                          </div>
+                          <span className={`text-[10px] font-bold uppercase tracking-wider ${callStatus === "attended" ? "text-emerald-400" : "text-slate-500"}`}>Atendida</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer group">
+                          <input type="radio" checked={callStatus === "missed"} onChange={() => setCallStatus("missed")} className="hidden" />
+                          <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all ${callStatus === "missed" ? "border-red-500" : "border-slate-600 group-hover:border-slate-500"}`}>
+                            {callStatus === "missed" && <div className="w-2 h-2 rounded-full bg-red-500" />}
+                          </div>
+                          <span className={`text-[10px] font-bold uppercase tracking-wider ${callStatus === "missed" ? "text-red-400" : "text-slate-500"}`}>Não Atendida</span>
+                        </label>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  {/* ── Linha 2: Ações + Textarea + Enviar ── */}
+                  <div className="flex items-end gap-2">
                     <button
                       onClick={handleFileAttach}
                       title="Anexar imagem ou arquivo"
-                      className={`w-11 h-11 md:w-9 md:h-9 rounded-full flex items-center justify-center transition-all shrink-0 mb-[1px] ${
-                        isDark 
-                          ? 'bg-white/5 border border-white/10 text-slate-400 hover:text-[#d4af35] hover:border-[#d4af35]/30' 
+                      className={`w-11 h-11 rounded-full flex items-center justify-center transition-all shrink-0 cursor-pointer ${
+                        isDark
+                          ? 'bg-white/5 border border-white/10 text-slate-400 hover:text-[#d4af35] hover:border-[#d4af35]/30'
                           : 'bg-white border border-[var(--orbit-line)] text-[var(--orbit-text-muted)] hover:text-[var(--orbit-glow)] hover:border-[var(--orbit-glow)]/30 shadow-sm'
                       }`}
                     >
                       <Paperclip className="w-4 h-4" />
                     </button>
-
-                    {/* Attach property */ }
                     <button
-                      onClick={() => {
-                        const url = `/atlas?leadId=${lead?.id}&tab=acervo`;
-                        window.open(url, "_blank");
-                      }}
+                      onClick={() => window.open(`/atlas?leadId=${lead?.id}&tab=acervo`, "_blank")}
                       title="Anexar imóvel"
-                      className={`w-11 h-11 md:w-9 md:h-9 rounded-full border flex items-center justify-center transition-all shrink-0 mb-[1px] ${
-                        isDark 
-                          ? 'bg-white/5 border border-white/10 text-slate-400 hover:text-[#d4af35] hover:border-[#d4af35]/30' 
+                      className={`w-11 h-11 rounded-full flex items-center justify-center transition-all shrink-0 cursor-pointer ${
+                        isDark
+                          ? 'bg-white/5 border border-white/10 text-slate-400 hover:text-[#d4af35] hover:border-[#d4af35]/30'
                           : 'bg-white border border-[var(--orbit-line)] text-[var(--orbit-text-muted)] hover:text-[var(--orbit-glow)] hover:border-[var(--orbit-glow)]/30 shadow-sm'
                       }`}
                     >
                       <Building2 className="w-4 h-4" />
                     </button>
 
-                    {/* Main Interaction UI - Refactored for Modes */}
-                    <div className="flex-1 flex flex-col gap-3">
-                      {/* Tabs */}
-                      <div className={`flex items-center gap-1 p-1 border rounded-xl w-fit ${
-                        isDark ? 'bg-white/5 border-white/10' : 'bg-[var(--orbit-bg)] border-[var(--orbit-line)]'
-                      }`}>
-                        <button
-                          onClick={() => setInteractionMode("whatsapp")}
-                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all ${
-                            interactionMode === "whatsapp" 
-                              ? isDark ? "bg-[#2ec5ff] text-black shadow-[0_0_12px_rgba(46,197,255,0.4)]" : "bg-[var(--orbit-glow)] text-white shadow-sm"
-                              : isDark ? "text-slate-400 hover:text-white" : "text-[var(--orbit-text-muted)] hover:text-[var(--orbit-glow)]"
-                          }`}
-                        >
-                          <Zap className="w-3 h-3" /> WhatsApp
-                        </button>
-                        <button
-                          onClick={() => setInteractionMode("note")}
-                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all ${
-                            interactionMode === "note" 
-                              ? isDark ? "bg-[#d4af35] text-black shadow-[0_0_12px_rgba(212,175,53,0.4)]" : "bg-[var(--orbit-glow)] text-white shadow-sm"
-                              : isDark ? "text-slate-400 hover:text-white" : "text-[var(--orbit-text-muted)] hover:text-[var(--orbit-glow)]"
-                          }`}
-                        >
-                          <Star className="w-3 h-3" /> Anotação
-                        </button>
-                        <button
-                          onClick={() => setInteractionMode("call")}
-                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all ${
-                            interactionMode === "call" 
-                              ? isDark ? "bg-emerald-500 text-black shadow-[0_0_12px_rgba(16,185,129,0.4)]" : "bg-emerald-500 text-white shadow-sm"
-                              : isDark ? "text-slate-400 hover:text-white" : "text-[var(--orbit-text-muted)] hover:text-emerald-500"
-                          }`}
-                        >
-                          <Mic className="w-3 h-3" /> Ligação
-                        </button>
-                      </div>
-
-                      {/* Call Status Selector */}
-                      <AnimatePresence>
-                        {interactionMode === "call" && (
-                          <motion.div 
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: "auto" }}
-                            exit={{ opacity: 0, height: 0 }}
-                            className="flex items-center gap-4 overflow-hidden"
-                          >
-                            <label className="flex items-center gap-2 cursor-pointer group">
-                              <input 
-                                type="radio" 
-                                checked={callStatus === "attended"} 
-                                onChange={() => setCallStatus("attended")}
-                                className="hidden"
-                              />
-                              <div className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center transition-all ${callStatus === "attended" ? "border-emerald-500" : "border-slate-600 group-hover:border-slate-500"}`}>
-                                {callStatus === "attended" && <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />}
-                              </div>
-                              <span className={`text-[10px] font-bold uppercase tracking-wider ${callStatus === "attended" ? "text-emerald-400" : "text-slate-500"}`}>Atendida</span>
-                            </label>
-                            <label className="flex items-center gap-2 cursor-pointer group">
-                              <input 
-                                type="radio" 
-                                checked={callStatus === "missed"} 
-                                onChange={() => setCallStatus("missed")}
-                                className="hidden"
-                              />
-                              <div className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center transition-all ${callStatus === "missed" ? "border-red-500" : "border-slate-600 group-hover:border-slate-500"}`}>
-                                {callStatus === "missed" && <div className="w-1.5 h-1.5 rounded-full bg-red-500" />}
-                              </div>
-                              <span className={`text-[10px] font-bold uppercase tracking-wider ${callStatus === "missed" ? "text-red-400" : "text-slate-500"}`}>Não Atendida</span>
-                            </label>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-
-                      <textarea
-                        ref={textareaRef}
-                        name="message"
-                        lang="pt-BR"
-                        rows={1}
-                        autoComplete="on"
-                        autoCorrect="on"
-                        spellCheck={true}
-                        autoCapitalize="sentences"
-                        className={`border rounded-xl px-4 py-2.5 text-sm focus:outline-none transition-all disabled:opacity-50 resize-none min-h-[42px] max-h-[200px] overflow-y-auto leading-relaxed ${
-                          isDark ? 'bg-white/5 text-slate-100 placeholder:text-slate-500' : 'bg-[var(--orbit-bg)] text-[var(--orbit-text)] placeholder:text-[var(--orbit-text-muted)]'
-                        } ${
-                          interactionMode === 'note' ? 'border-[#d4af35]/40 focus:border-[#d4af35]' :
-                          interactionMode === 'call' ? 'border-emerald-500/40 focus:border-emerald-500' :
-                          isDark ? 'border-white/10 focus:border-[#2ec5ff]/40' : 'border-[var(--orbit-line)] focus:border-[var(--orbit-glow)]/40'
-                        }`}
-                        placeholder={
-                          isTranscribing ? "Processando transcrição…" :
-                          isRecording ? "Gravando áudio…" : 
-                          interactionMode === "note" ? "Descreva o que aconteceu (reunião, anotação importante)…" : 
-                          interactionMode === "call" ? (callStatus === "attended" ? "Resumo da conversa ocorrida..." : "O que aconteceu na ligação não atendida?") :
-                          "Digite sua mensagem do WhatsApp…"
+                    <textarea
+                      ref={textareaRef}
+                      name="message"
+                      lang="pt-BR"
+                      rows={1}
+                      autoComplete="on"
+                      autoCorrect="on"
+                      spellCheck={true}
+                      autoCapitalize="sentences"
+                      className={`flex-1 border rounded-2xl px-4 py-3 text-sm focus:outline-none transition-all disabled:opacity-50 resize-none min-h-[44px] max-h-[160px] overflow-y-auto leading-relaxed ${
+                        isDark ? 'bg-white/5 text-slate-100 placeholder:text-slate-500' : 'bg-[var(--orbit-bg)] text-[var(--orbit-text)] placeholder:text-[var(--orbit-text-muted)]'
+                      } ${
+                        interactionMode === 'note' ? 'border-[#d4af35]/40 focus:border-[#d4af35]' :
+                        interactionMode === 'call' ? 'border-emerald-500/40 focus:border-emerald-500' :
+                        isDark ? 'border-white/10 focus:border-[#2ec5ff]/40' : 'border-[var(--orbit-line)] focus:border-[var(--orbit-glow)]/40'
+                      }`}
+                      placeholder={
+                        isTranscribing ? "Processando transcrição…" :
+                        isRecording ? "Gravando áudio…" :
+                        interactionMode === "note" ? "Anotação interna…" :
+                        interactionMode === "call" ? (callStatus === "attended" ? "Resumo da conversa…" : "O que aconteceu?") :
+                        "Mensagem WhatsApp…"
+                      }
+                      value={composerText}
+                      disabled={isRecording}
+                      onChange={e => setComposerText(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSend();
                         }
-                        value={composerText}
-                        disabled={isRecording}
-                        onChange={e => setComposerText(e.target.value)}
-                        onKeyDown={e => {
-                          if (e.key === "Enter" && !e.shiftKey) {
-                            e.preventDefault();
-                            handleSend();
-                          }
-                        }}
-                      />
-                    </div>
+                      }}
+                    />
 
-                    {/* Mic — toggles recording */}
-                    {/* Mic — toggles recording */}
+                    {/* Mic */}
                     <button
                       onClick={isRecording ? stopRecording : startRecording}
                       title={isRecording ? "Parar gravação" : "Gravar áudio"}
-                      className={`w-11 h-11 md:w-9 md:h-9 rounded-full border flex items-center justify-center transition-all shrink-0 mb-[2px] ${
+                      className={`w-11 h-11 rounded-full border flex items-center justify-center transition-all shrink-0 cursor-pointer ${
                         isTranscribing
                           ? isDark ? "bg-[#2ec5ff]/80 border-[#2ec5ff] text-white" : "bg-[var(--orbit-glow)] border-[var(--orbit-glow)] text-white"
                           : isRecording
@@ -1839,18 +1826,17 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
                             : isDark ? "bg-white/5 border-white/10 text-slate-400 hover:text-white hover:border-white/30" : "bg-white border-[var(--orbit-line)] text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)] hover:border-[var(--orbit-glow)]/40 shadow-sm"
                       }`}
                     >
-                      {isTranscribing ? <Loader2 className="w-4 h-4 animate-spin" /> : 
-                       isRecording ? <Square className="w-3.5 h-3.5 fill-current" /> : 
+                      {isTranscribing ? <Loader2 className="w-4 h-4 animate-spin" /> :
+                       isRecording ? <Square className="w-3.5 h-3.5 fill-current" /> :
                        <Mic className="w-4 h-4" />}
                     </button>
-
                     {/* Send */}
-                     <button
-                       onClick={handleSend}
+                    <button
+                      onClick={handleSend}
                       disabled={!composerText.trim() || sendStatus === "sending" || isRecording}
-                      className={`w-11 h-11 md:w-9 md:h-9 rounded-full flex items-center justify-center transition-all shrink-0 mb-[2px] ${
+                      className={`w-11 h-11 rounded-full flex items-center justify-center transition-all shrink-0 cursor-pointer ${
                         sendStatus === "done" ? "bg-emerald-500 text-black" :
-                        composerText.trim() && !isRecording 
+                        composerText.trim() && !isRecording
                           ? isDark ? "bg-[#d4af35] text-black shadow-[0_0_14px_rgba(212,175,53,0.3)]" : "bg-[var(--orbit-glow)] text-white shadow-[var(--orbit-shadow)]"
                           : isDark ? "bg-white/5 text-white/20" : "bg-gray-100 text-gray-400"
                       }`}
@@ -1934,9 +1920,9 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
 
             {/* Mobile Bottom Navigation */}
             {isMobile && (
-              <div className={`flex items-center justify-around h-[68px] shrink-0 border-t pb-safe ${
+              <div className={`flex items-center justify-around h-[68px] shrink-0 border-t ${
                 isDark ? 'bg-[#050505] border-white/10' : 'bg-[var(--orbit-bg)] border-[var(--orbit-line)]'
-              }`}>
+              }`} style={{ paddingBottom: 'env(safe-area-inset-bottom, 8px)' }}>
                 <button
                   onClick={() => setActiveMobileTab("chat")}
                   className={`flex flex-col items-center justify-center flex-1 h-full gap-1 transition-all ${
