@@ -255,28 +255,17 @@ export default function EditPropertyModal({ isOpen, onClose, property, onSave, o
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className={labelClass}>Valor de Venda</label>
-                          <input 
-                            type="text" 
-                            value={formData.value ? Number(formData.value).toLocaleString('pt-BR') : ""} 
-                            onChange={e => {
-                              const rawValue = e.target.value.replace(/\D/g, '');
-                              setFormData({...formData, value: rawValue ? Number(rawValue) : ""});
-                            }} 
-                            className={inputClass} 
-                          />
-                        </div>
-                        <div>
-                          <label className={labelClass}>Condomínio (Mensal)</label>
-                          <input 
-                            type="number" 
-                            value={formData.condo_fee} 
-                            onChange={e => setFormData({...formData, condo_fee: e.target.value})} 
-                            className={inputClass} 
-                          />
-                        </div>
+                      <div>
+                        <label className={labelClass}>Valor de Venda</label>
+                        <input 
+                          type="text" 
+                          value={formData.value ? Number(formData.value).toLocaleString('pt-BR') : ""} 
+                          onChange={e => {
+                            const rawValue = e.target.value.replace(/\D/g, '');
+                            setFormData({...formData, value: rawValue ? Number(rawValue) : ""});
+                          }} 
+                          className={inputClass} 
+                        />
                       </div>
 
                       <div className="grid grid-cols-2 gap-4">

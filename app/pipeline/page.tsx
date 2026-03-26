@@ -12,8 +12,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { LeadCognitiveConsole } from "@/components/lead-cognitive-console";
-import { OrbitCore } from "@/components/orbit-core";
-import type { CoreState } from "@/app/page";
+import { Search, Loader2 } from "lucide-react";
 
 // ─── Interfaces ──────────────────────────────────────────────────────────────
 interface PipelineLead {
@@ -79,9 +78,6 @@ function PipelineContent() {
   const [activeTab, setActiveTab] = useState<StageKey>("latent");
   const [isMobile, setIsMobile] = useState(false);
 
-  // Orbit Core State
-  const [coreState, setCoreState] = useState<CoreState>("idle");
-  const [coreMessage, setCoreMessage] = useState<string>("Campo Cognitivo Ativo");
   const { orbitView, activateOrbitView, deactivateOrbitView } = useOrbitContext();
 
   useEffect(() => {
@@ -187,23 +183,24 @@ function PipelineContent() {
     filtered: displayedLeads.length
   };
 
-  const handleCoreActivate = useCallback(() => {
-    setCoreState("listening");
-    setCoreMessage("O que você busca no pipeline?");
-  }, []);
+  const [searchText, setSearchText] = useState("");
 
-  const handleQuerySubmit = useCallback(async (query: string) => {
-    setCoreState("processing");
-    setCoreMessage("Analisando pipeline...");
-    try {
-      const count = await activateOrbitView(query);
-      setCoreState("responding");
-      setCoreMessage(`${count} leads encontrados`);
-      setTimeout(() => setCoreState("idle"), 3000);
-    } catch (err) {
-      setCoreState("idle");
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setSearchText(val);
+    if (!val.trim()) {
+      deactivateOrbitView();
     }
-  }, [activateOrbitView]);
+  };
+
+  const handleSearchSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchText.trim()) {
+      setLoading(true);
+      await activateOrbitView(searchText.trim());
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-[var(--orbit-bg)] text-[var(--orbit-text)]">
@@ -251,6 +248,23 @@ function PipelineContent() {
             </div>
           </div>
 
+          <div className="flex-1 max-w-md mx-4 hidden md:block">
+            <form onSubmit={handleSearchSubmit} className="relative group">
+              <div className={`absolute inset-0 blur-lg transition-opacity duration-500 opacity-20 group-focus-within:opacity-40 rounded-full bg-gradient-to-r from-amber-500 to-amber-300`} />
+              <div className={`relative flex items-center gap-2 px-4 py-1.5 rounded-full border transition-all ${
+                isDark ? 'bg-black/40 border-white/10 focus-within:border-amber-500/50' : 'bg-white border-slate-200 focus-within:border-amber-400'
+              }`}>
+                {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-500" /> : <Search className="w-3.5 h-3.5 text-amber-500" />}
+                <input 
+                  value={searchText}
+                  onChange={handleSearchChange}
+                  placeholder="Pesquisa Cognitiva (IA)..."
+                  className="bg-transparent text-xs w-full focus:outline-none placeholder:text-slate-500 py-1"
+                />
+              </div>
+            </form>
+          </div>
+
           <div className="flex items-center gap-2">
             <button
               onClick={() => setFilterUrgent(!filterUrgent)}
@@ -263,20 +277,12 @@ function PipelineContent() {
               <Zap className="w-3 h-3" />
               Urgentes
             </button>
-            <button
-              onClick={handleCoreActivate}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[10px] font-bold uppercase tracking-wider transition-all ${
-                orbitView.active
-                  ? "bg-amber-500/10 text-amber-500 border-amber-500/25"
-                  : "bg-[var(--orbit-glass)] border-[var(--orbit-glass-border)] text-amber-500/80 hover:text-amber-500 hover:border-amber-500/30"
-              }`}
-            >
-              <Sparkles className="w-3 h-3" />
-              Busca IA
-            </button>
             {orbitView.active && (
               <button
-                onClick={deactivateOrbitView}
+                onClick={() => {
+                  setSearchText("");
+                  deactivateOrbitView();
+                }}
                 className="px-2.5 py-1.5 rounded-lg border border-red-500/20 text-red-500 bg-red-500/5 text-[9px] font-bold uppercase"
               >
                 Limpar
@@ -389,25 +395,6 @@ function PipelineContent() {
           onClose={closeLeadPanel}
         />
       )}
-
-      {/* Campo Cognitivo Orbit Core */}
-      <div className="fixed inset-x-0 bottom-12 pointer-events-none z-[200]">
-        <div className="flex justify-center">
-          <div className="pointer-events-auto">
-            <OrbitCore
-              state={coreState}
-              message={coreMessage}
-              activeCount={stats.active}
-              onActivate={handleCoreActivate}
-              onQuerySubmit={handleQuerySubmit}
-              onCancel={() => {
-                setCoreState("idle");
-                deactivateOrbitView();
-              }}
-            />
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

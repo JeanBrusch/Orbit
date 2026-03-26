@@ -240,26 +240,7 @@ export default function MapModal({ isOpen, onClose, selectedIds, onToggleSelect 
             />
           </div>
 
-          {/* Heatmap Toggle Button — Repositioned to avoid overlap with search bar (top-center but offset if needed) */}
-          <div className="absolute top-6 left-1/2 -translate-x-1/2 z-[110] hidden md:flex items-center gap-2">
-            <button
-              onClick={toggleHeatmap}
-              className={`flex items-center gap-2 h-9 px-6 rounded-full border text-[11px] font-mono uppercase tracking-wider transition-all shadow-2xl ${
-                heatmapActive
-                  ? 'bg-orange-500/25 border-orange-500/60 text-orange-400 shadow-[0_0_20px_rgba(249,115,22,0.4)]'
-                  : isDark
-                  ? 'bg-[#14120c]/80 border-[#d4af35]/20 text-[#d4af35]/60 hover:text-[#d4af35] hover:border-[#d4af35]/40 backdrop-blur-md'
-                  : 'bg-white/80 border-[var(--orbit-line)] text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)] backdrop-blur-md'
-              }`}
-            >
-              {isLoadingHeatmap
-                ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                : <Flame className="h-3.5 w-3.5" />}
-              {heatmapActive ? 'Heatmap Ativo' : 'Interesse por Bairro'}
-            </button>
-          </div>
-
-          {/* Metric Switcher — flutua abaixo do botão toggle */}
+          {/* Metric Switcher — flutua abaixo do botão toggle agora no header da sidebar */}
           <AnimatePresence>
             {heatmapActive && (
               <motion.div
@@ -267,7 +248,7 @@ export default function MapModal({ isOpen, onClose, selectedIds, onToggleSelect 
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -8 }}
                 transition={{ duration: 0.2 }}
-                className={`absolute top-20 left-1/2 -translate-x-1/2 z-[110] hidden md:flex items-center gap-1 p-1 rounded-xl border shadow-2xl ${
+                className={`absolute top-12 left-1/2 -translate-x-1/2 z-[110] hidden md:flex items-center gap-1 p-1 rounded-xl border shadow-2xl ${
                   isDark ? 'bg-[#0a0907]/90 border-[#d4af35]/15 backdrop-blur-xl' : 'bg-white/90 border-[var(--orbit-line)] backdrop-blur-xl'
                 }`}
               >
@@ -318,13 +299,32 @@ export default function MapModal({ isOpen, onClose, selectedIds, onToggleSelect 
         <aside className={`w-full md:w-[420px] ${isDark ? 'bg-[#0a0907]' : 'bg-[var(--orbit-bg)]'} border-l ${isDark ? 'border-[#d4af35]/20' : 'border-[var(--orbit-line)]'} flex flex-col order-1 md:order-2 shadow-[-20px_0_40px_rgba(0,0,0,0.5)] z-[105]`}>
           
           {/* Header */}
-          <div className={`p-8 border-b ${isDark ? 'border-[#d4af35]/10 bg-gradient-to-br from-[#14120c] to-black' : 'border-[var(--orbit-line)] bg-[var(--orbit-bg-secondary)]'}`}
+          <div className={`p-8 border-b relative ${isDark ? 'border-[#d4af35]/10 bg-gradient-to-br from-[#14120c] to-black' : 'border-[var(--orbit-line)] bg-[var(--orbit-bg-secondary)]'}`}
             style={heatmapActive && selectedNeighborhood ? {
               background: isDark
                 ? `linear-gradient(135deg, ${scoreColor}15 0%, #0a0907 60%)`
                 : `linear-gradient(135deg, ${scoreColor}08 0%, var(--orbit-bg-secondary) 60%)`
             } : undefined}
           >
+            {/* Heatmap Toggle Inside Sidebar */}
+            <div className="absolute top-8 right-8">
+              <button
+                onClick={toggleHeatmap}
+                className={`flex items-center justify-center w-10 h-10 rounded-xl border transition-all shadow-lg ${
+                  heatmapActive
+                    ? 'bg-orange-500/25 border-orange-500/60 text-orange-400'
+                    : isDark
+                    ? 'bg-black/40 border-[#d4af35]/20 text-[#d4af35]/60 hover:text-[#d4af35]'
+                    : 'bg-white border-[var(--orbit-line)] text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)]'
+                }`}
+                title={heatmapActive ? 'Desativar Heatmap' : 'Ativar Heatmap'}
+              >
+                {isLoadingHeatmap
+                  ? <Loader2 className="h-4 w-4 animate-spin" />
+                  : <Flame className={`h-4 w-4 ${heatmapActive ? 'animate-pulse' : ''}`} />}
+              </button>
+            </div>
+
             <h2 className={`font-mono text-[10px] uppercase tracking-[0.3em] mb-2 font-bold ${
               heatmapActive && selectedNeighborhood ? '' : isDark ? 'text-[#d4af35]' : 'text-[var(--orbit-glow)]'
             }`} style={heatmapActive && selectedNeighborhood ? { color: scoreColor } : undefined}>
