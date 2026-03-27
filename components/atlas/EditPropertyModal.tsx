@@ -187,6 +187,11 @@ export default function EditPropertyModal({ isOpen, onClose, property, onSave, o
                   <div className="px-2 py-0.5 rounded-full bg-[var(--orbit-glow)]/10 border border-[var(--orbit-glow)]/20 text-[var(--orbit-glow)] text-[10px] font-mono uppercase font-bold tracking-tighter">
                     {formData.ui_type || "Ativo"}
                   </div>
+                  <div className="flex items-center gap-2 ml-2 text-[10px] font-mono text-[var(--orbit-text-muted)]">
+                    {formData.bedrooms && <span>{formData.bedrooms} Dorms</span>}
+                    {formData.area_privativa && <span>• {Math.round(formData.area_privativa)}m² Priv.</span>}
+                    {formData.area_total && <span>• {Math.round(formData.area_total)}m² Tot.</span>}
+                  </div>
                 </div>
               </div>
             </div>
@@ -286,7 +291,7 @@ export default function EditPropertyModal({ isOpen, onClose, property, onSave, o
                     <div className="space-y-5">
                       <h4 className={`text-[10px] font-mono uppercase tracking-[0.3em] text-[var(--orbit-glow)] opacity-60 border-b pb-2 ${isDark ? "border-[var(--orbit-line)]" : "border-gray-200"}`}>Atributos e Tags</h4>
                       
-                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
                         <div>
                           <label className={labelClass}>Quartos</label>
                           <input type="number" value={formData.bedrooms} onChange={e => setFormData({...formData, bedrooms: e.target.value})} className={inputClass} />
@@ -296,8 +301,12 @@ export default function EditPropertyModal({ isOpen, onClose, property, onSave, o
                           <input type="number" value={formData.suites} onChange={e => setFormData({...formData, suites: e.target.value})} className={inputClass} />
                         </div>
                         <div>
-                          <label className={labelClass}>Área (m²)</label>
+                          <label className={labelClass}>Área Priv. (m²)</label>
                           <input type="number" value={formData.area_privativa} onChange={e => setFormData({...formData, area_privativa: e.target.value})} className={inputClass} />
+                        </div>
+                        <div>
+                          <label className={labelClass}>Área Total (m²)</label>
+                          <input type="number" value={formData.area_total} onChange={e => setFormData({...formData, area_total: e.target.value})} className={inputClass} />
                         </div>
                         <div>
                           <label className={labelClass}>Vagas</label>

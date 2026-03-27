@@ -327,7 +327,7 @@ function AtlasManagerContent() {
 
   const [scrapedData, setScrapedData] = useState<any>({
     title: "", image: "", value: "", condo_name: "", payment: "",
-    source_link: "", source_domain: "", bedrooms: "", suites: "", area_privativa: ""
+    source_link: "", source_domain: "", bedrooms: "", suites: "", area_privativa: "", area_total: ""
   })
 
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null)
@@ -452,6 +452,7 @@ function AtlasManagerContent() {
         neighborhood: data.neighborhood || "",
         city: data.city || "",
         area_privativa: data.area_privativa || null,
+        area_total: data.area_total || null,
         bedrooms: data.bedrooms || null,
         suites: data.suites || "",
         parking_spots: data.parking_spots || "",
@@ -486,6 +487,7 @@ function AtlasManagerContent() {
         neighborhood: scrapedData.neighborhood || null,
         city: scrapedData.city || null,
         area_privativa: parseFloat(scrapedData.area_privativa) || null,
+        area_total: parseFloat(scrapedData.area_total) || null,
         bedrooms: parseInt(scrapedData.bedrooms) || null,
         suites: parseInt(scrapedData.suites) || null,
         parking_spots: parseInt(scrapedData.parking_spots) || null,
@@ -1269,11 +1271,20 @@ function AtlasManagerContent() {
                           />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[8px] font-mono uppercase text-[#94a3b8]">Área (m²)</label>
+                          <label className="text-[8px] font-mono uppercase text-[#94a3b8]">Área Priv. (m²)</label>
                           <Input
                             type="number"
                             value={scrapedData.area_privativa}
                             onChange={(e) => setScrapedData({ ...scrapedData, area_privativa: e.target.value })}
+                            className="h-9 bg-[#2ec5ff]/5 border border-[rgba(46,197,255,0.1)] text-center text-xs font-bold"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[8px] font-mono uppercase text-[#94a3b8]">Área Total (m²)</label>
+                          <Input
+                            type="number"
+                            value={scrapedData.area_total}
+                            onChange={(e) => setScrapedData({ ...scrapedData, area_total: e.target.value })}
                             className="h-9 bg-[#2ec5ff]/5 border border-[rgba(46,197,255,0.1)] text-center text-xs font-bold"
                           />
                         </div>
