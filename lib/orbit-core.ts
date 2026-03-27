@@ -175,7 +175,7 @@ function applyTemporalDecay(
 // EMBEDDINGS E BUSCA (RAG)
 // ═══════════════════════════════════════════════════════════
 
-async function generateEmbedding(text: string): Promise<number[] | null> {
+export async function generateEmbedding(text: string): Promise<number[] | null> {
   if (!text || text.trim().length < 2) return null;
   const openai = getOpenAI();
   if (!openai) return null;
