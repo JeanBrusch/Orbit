@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:kml="http://www.opengis.net/kml/2.2" xmlns:atom="http://www.w3.org/2005/Atom">
+<GroundOverlay>
+	<name>Zen</name>
+	<Icon>
+		<href>/overlays/zen-overlay.png</href>
+		<viewBoundScale>0.75</viewBoundScale>
+	</Icon>
+	<LatLonBox>
+		<north>-29.82216860959286</north>
+		<south>-29.82763396467291</south>
+		<east>-50.05663217442957</east>
+		<west>-50.06764261422266</west>
+		<rotation>-12.96888160705566</rotation>
+	</LatLonBox>
+</GroundOverlay>
+</kml>

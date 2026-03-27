@@ -1,69 +1,88 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useRef } from "react"
+import { parseKmlToMapboxCoords } from "@/lib/kmlToMapbox"
 
-const SOURCE_ID = "zen-overlay-source-v3"
-const LAYER_ID = "zen-overlay-layer-v3"
+interface OverlayConfig {
+  sourceId: string
+  layerId: string
+  imageUrl: string
+  kmlUrl: string
+}
+
+const OVERLAYS: OverlayConfig[] = [
+  {
+    sourceId: "overlay-zen",
+    layerId: "overlay-zen-layer",
+    imageUrl: "/overlays/zen.png",
+    kmlUrl: "/overlays/zen.kml",
+  },
+  {
+    sourceId: "overlay-amare",
+    layerId: "overlay-amare-layer",
+    imageUrl: "/overlays/amare.png",
+    kmlUrl: "/overlays/amare.kml",
+  },
+]
 
 interface ZenOverlayProps {
   mapRef: React.RefObject<any>
 }
 
 export function ZenOverlay({ mapRef }: ZenOverlayProps) {
+  const loadedRef = useRef(false)
+
   useEffect(() => {
     if (!mapRef.current) return
     const map = mapRef.current.getMap?.()
     if (!map) return
 
-    const addLayers = () => {
-      // Se a fonte já existe, não faz nada (evita erro de duplicata)
-      if (map.getSource(SOURCE_ID)) {
-        return
+    const addOverlay = async (cfg: OverlayConfig) => {
+      // Se já existe, não faz nada — styledata pode disparar várias vezes
+      if (map.getSource(cfg.sourceId)) return
+
+      try {
+        const kmlText = await fetch(cfg.kmlUrl).then(r => r.text())
+        const coordinates = parseKmlToMapboxCoords(kmlText)
+
+        // Checa de novo após o await (pode ter sido adicionado enquanto aguardava)
+        if (map.getSource(cfg.sourceId)) return
+
+        map.addSource(cfg.sourceId, {
+          type: 'image',
+          url: cfg.imageUrl,
+          coordinates,
+        })
+
+        map.addLayer({
+          id: cfg.layerId,
+          type: 'raster',
+          source: cfg.sourceId,
+          paint: {
+            'raster-opacity': 0.85,
+            'raster-fade-duration': 500,
+          },
+        })
+      } catch (err) {
+        console.error(`[Overlay] Falha ao carregar ${cfg.kmlUrl}:`, err)
       }
-
-      map.addSource(SOURCE_ID, {
-        type: 'image',
-        url: '/overlays/zen-overlay.png',
-        // Coordenadas derivadas do KML (LatLonBox + rotation: -12.97°)
-        // north: -29.82216860959286 | south: -29.82763396467291
-        // east:  -50.05663217442957 | west:  -50.06764261422266
-        // O Mapbox não aceita rotação direta — os 4 cantos já são passados rotacionados
-        coordinates: [
-          [-50.06688891512792, -29.82100282298439],  // Top-Left
-          [-50.05615932857463, -29.823473805953324], // Top-Right
-          [-50.05738587352431, -29.82879975128138],  // Bottom-Right
-          [-50.0681154600776, -29.826328768312447], // Bottom-Left
-        ]
-      })
-
-      map.addLayer({
-        id: LAYER_ID,
-        type: 'raster',
-        source: SOURCE_ID,
-        paint: {
-          'raster-opacity': 0.85,
-          'raster-fade-duration': 500
-        }
-      })
     }
 
-    // Tenta adicionar quando o estilo carregar
+    const addAll = () => {
+      if (!map.isStyleLoaded()) return
+      OVERLAYS.forEach(addOverlay)
+    }
+
     if (map.isStyleLoaded()) {
-      addLayers()
+      addAll()
     } else {
-      map.once("load", addLayers)
+      map.once("load", addAll)
     }
 
-    // Crucial: Reinjetar a camada sempre que o estilo mudar (ex: troca para Satélite)
-    const onStyleData = () => {
-      if (!map.getSource(SOURCE_ID)) {
-        addLayers()
-      }
-    }
-    map.on("styledata", onStyleData)
+    map.on("styledata", addAll)
 
     return () => {
-      map.off("styledata", onStyleData)
+      map.off("styledata", addAll)
     }
   }, [mapRef])
 
