@@ -16,7 +16,9 @@ export type OrbitEventType =
   | 'ai_call' 
   | 'classification' 
   | 'silence_analysis'
-  | 'property_import';
+  | 'property_import'
+  | 'gate_blocked';
+
 
 export interface OrbitEventPayload {
   lead_id?: string;

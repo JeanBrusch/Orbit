@@ -5,6 +5,7 @@ import { getContactProfile } from '@/lib/zapi/client'
 import { normalizePhone, isLidFormat, extractLid, hasRealPhone } from '@/lib/phone-utils'
 import { processEventWithCore } from '@/lib/orbit-core'
 import { trackAICall, trackEvent } from '@/lib/observability'
+import { markActionAsReplied } from '@/lib/orbit-outcome-evaluator'
 import OpenAI from "openai"
 
 // Orbit AI Governance imports
@@ -450,14 +451,19 @@ async function saveMessage(
       const isPending = lead?.state === 'pending'
       
       if (!isPending) {
-        // Fechamento do loop de reengajamento
-        closeReengagementLoop(leadId, content, supabase).catch(err =>
-          console.error("[REENGAGEMENT LOOP]", err)
-        )
+          // Fechar loop de desfecho — lead respondeu → atualiza outcome da ação pendente
+          markActionAsReplied(leadId).catch(err =>
+            console.error('[ORBIT STATE ENGINE] Erro ao fechar ação pendente:', err)
+          )
 
-        processEventWithCore(leadId, content, 'message_inbound', data.id).catch((err) => {
-          console.error('[WEBHOOK] Erro no Orbit Core:', err);
-        })
+          // Fechamento do loop de reengajamento
+          closeReengagementLoop(leadId, content, supabase).catch(err =>
+            console.error("[REENGAGEMENT LOOP]", err)
+          )
+
+          processEventWithCore(leadId, content, 'message_inbound', data.id).catch((err) => {
+            console.error('[WEBHOOK] Erro no Orbit Core:', err);
+          })
       } else {
         console.log(`[WEBHOOK] Lead pendente (${leadId}): Pulando Orbit Core e Loop de Reengajamento até aprovação.`);
       }

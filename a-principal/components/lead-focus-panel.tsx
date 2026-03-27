@@ -28,6 +28,7 @@ import {
 import type { Property } from "./atlas-map"
 import { useOrbitContext, type CycleEndReason } from "./orbit-context"
 import { LeadMemory } from "./lead-memory"
+import { OrbitInsightBar } from "./orbit-insight-bar"
 
 export type LeadInternalState = "priority" | "focus" | "resolved" | "default"
 
@@ -552,6 +553,9 @@ export function LeadFocusPanel({
 
         {/* Operational Memory - Quick Notes, Call Outcomes, Follow-up */}
         {leadId && <LeadMemory leadId={leadId} />}
+
+        {/* Orbit Cognitive Analysis — dados reais do motor de produção */}
+        {leadId && <OrbitInsightBar leadId={leadId} />}
 
         {/* Capsule View - Decision Space Timeline (appears after first property sent) */}
         {isCapsuleActive && (

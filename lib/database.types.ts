@@ -18,24 +18,36 @@ export type Database = {
         Row: {
           content: string
           created_at: string | null
+          emotional_climate: string | null
           id: string
           lead_id: string
+          message_intention: string | null
+          possibility_hook: string | null
+          suggested_whatsapp_message: string | null
           type: string
           urgency: number
         }
         Insert: {
           content: string
           created_at?: string | null
+          emotional_climate?: string | null
           id?: string
           lead_id: string
+          message_intention?: string | null
+          possibility_hook?: string | null
+          suggested_whatsapp_message?: string | null
           type: string
           urgency: number
         }
         Update: {
           content?: string
           created_at?: string | null
+          emotional_climate?: string | null
           id?: string
           lead_id?: string
+          message_intention?: string | null
+          possibility_hook?: string | null
+          suggested_whatsapp_message?: string | null
           type?: string
           urgency?: number
         }
@@ -431,6 +443,60 @@ export type Database = {
           },
         ]
       }
+      lead_actions: {
+        Row: {
+          ai_analysis_id: string | null
+          content: string
+          created_at: string
+          expected_signal: string | null
+          id: string
+          lead_id: string
+          metadata: Json | null
+          outcome: string
+          sent_at: string | null
+          type: string
+        }
+        Insert: {
+          ai_analysis_id?: string | null
+          content: string
+          created_at?: string
+          expected_signal?: string | null
+          id?: string
+          lead_id: string
+          metadata?: Json | null
+          outcome?: string
+          sent_at?: string | null
+          type: string
+        }
+        Update: {
+          ai_analysis_id?: string | null
+          content?: string
+          created_at?: string
+          expected_signal?: string | null
+          id?: string
+          lead_id?: string
+          metadata?: Json | null
+          outcome?: string
+          sent_at?: string | null
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_actions_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_actions_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads_center"
+            referencedColumns: ["lead_id"]
+          },
+        ]
+      }
       lead_cognitive_state: {
         Row: {
           central_conflict: string | null
@@ -533,6 +599,7 @@ export type Database = {
       leads: {
         Row: {
           action_suggested: string | null
+          client_stage: Database["public"]["Enums"]["client_stage"] | null
           created_at: string | null
           cycle_stage: string | null
           followup_active: boolean | null
@@ -544,19 +611,25 @@ export type Database = {
           last_evaluated_at: string | null
           last_event_type: string | null
           last_interaction_at: string | null
+          lead_phase: string | null
+          lead_stage: string | null
           lid: string | null
           name: string | null
+          next_allowed_action_at: string | null
           orbit_stage: string | null
           orbit_visual_state: string | null
           origin: string | null
           phone: string
           photo_url: string | null
           public_token: string | null
+          reentry_trigger_type: string | null
+          reentry_trigger_value: string | null
           semantic_vector: string | null
           state: string | null
         }
         Insert: {
           action_suggested?: string | null
+          client_stage?: Database["public"]["Enums"]["client_stage"] | null
           created_at?: string | null
           cycle_stage?: string | null
           followup_active?: boolean | null
@@ -568,19 +641,25 @@ export type Database = {
           last_evaluated_at?: string | null
           last_event_type?: string | null
           last_interaction_at?: string | null
+          lead_phase?: string | null
+          lead_stage?: string | null
           lid?: string | null
           name?: string | null
+          next_allowed_action_at?: string | null
           orbit_stage?: string | null
           orbit_visual_state?: string | null
           origin?: string | null
           phone: string
           photo_url?: string | null
           public_token?: string | null
+          reentry_trigger_type?: string | null
+          reentry_trigger_value?: string | null
           semantic_vector?: string | null
           state?: string | null
         }
         Update: {
           action_suggested?: string | null
+          client_stage?: Database["public"]["Enums"]["client_stage"] | null
           created_at?: string | null
           cycle_stage?: string | null
           followup_active?: boolean | null
@@ -592,14 +671,19 @@ export type Database = {
           last_evaluated_at?: string | null
           last_event_type?: string | null
           last_interaction_at?: string | null
+          lead_phase?: string | null
+          lead_stage?: string | null
           lid?: string | null
           name?: string | null
+          next_allowed_action_at?: string | null
           orbit_stage?: string | null
           orbit_visual_state?: string | null
           origin?: string | null
           phone?: string
           photo_url?: string | null
           public_token?: string | null
+          reentry_trigger_type?: string | null
+          reentry_trigger_value?: string | null
           semantic_vector?: string | null
           state?: string | null
         }
@@ -1026,7 +1110,7 @@ export type Database = {
             columns: ["lead_id"]
             isOneToOne: false
             referencedRelation: "leads_center"
-            referencedColumns: ["id"]
+            referencedColumns: ["lead_id"]
           },
           {
             foreignKeyName: "property_history_property_id_fkey"
@@ -1503,7 +1587,12 @@ export type Database = {
       }
     }
     Enums: {
-      [_ in never]: never
+      client_stage:
+        | "descoberta"
+        | "exploracao"
+        | "direcionamento"
+        | "decisao"
+        | "manutencao"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1517,26 +1606,26 @@ type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
 
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
-    | keyof (DefaultSchema["Tables"] | DefaultSchema["Views"])
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] |
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
     : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
-  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] |
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
       DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
       Row: infer R
     }
     ? R
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] |
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
         DefaultSchema["Views"])
-    ? (DefaultSchema["Tables"] |
+    ? (DefaultSchema["Tables"] &
         DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
         Row: infer R
       }
@@ -1630,6 +1719,14 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      client_stage: [
+        "descoberta",
+        "exploracao",
+        "direcionamento",
+        "decisao",
+        "manutencao",
+      ],
+    },
   },
 } as const

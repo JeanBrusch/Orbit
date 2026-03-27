@@ -6,7 +6,7 @@ import {
   X, ArrowUp, Play, Loader2, Check, Brain, Pencil,
   Mic, Zap, Star, Building2, ExternalLink, Copy, CheckCheck,
   Square, Paperclip, Search, StopCircle, FileText, User, HelpCircle,
-  Trash2, AlertTriangle, MessageSquare, Ban
+  Trash2, AlertTriangle, MessageSquare, Ban, Lightbulb
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { getSupabase } from "@/lib/supabase";
@@ -35,6 +35,8 @@ interface Lead {
   action_suggested: string | null;
   last_interaction_at: string | null;
   lid: string | null;
+  lead_phase?: string | null;
+  lead_stage?: string | null;
 }
 
 interface CognitiveState {
@@ -60,6 +62,10 @@ interface AiInsight {
   content: string;
   urgency: number;
   created_at: string | null;
+  message_intention?: string | null;
+  possibility_hook?: string | null;
+  suggested_whatsapp_message?: string | null;
+  emotional_climate?: string | null;
 }
 
 interface Message {
@@ -1055,7 +1061,7 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
       console.log("[COG] Fallback to 'interactions'. msgRes.data is:", msgRes.data, "error:", msgRes.error);
       // Fallback to `interactions` table (older schema)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const intRes = await (supabase.from("interactions") as any)
+      const intRes = await supabase.from("interactions" as any)
         .select("id,content,created_at,direction")
         .eq("lead_id", leadId).order("created_at", { ascending: false }).limit(20);
       
@@ -2012,52 +2018,129 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
 
                 {/* Seções da direita originais... vamos garantir padding correto */}
                 <div className="p-4 flex flex-col gap-4">
-                  {/* Próxima Melhor Ação */}
-                  <div className={`${glass} border rounded-xl p-5 ${isDark ? 'border-[#d4af35]/15' : 'border-[var(--orbit-line)]'}`}>
-                    <div className="flex items-center gap-2 mb-4">
-                      <Star className={`w-4 h-4 ${isDark ? 'text-[#d4af35]' : 'text-[var(--orbit-glow)]'}`} />
-                      <h3 className={`text-[10px] font-bold uppercase tracking-widest ${isDark ? 'text-slate-300' : 'text-[var(--orbit-text)]'}`}>Próxima Melhor Ação</h3>
+                  {/* Orbit State Engine UI */}
+                  <div className={`${glass} border rounded-xl p-0 overflow-hidden flex flex-col ${isDark ? 'border-[#d4af35]/20 shadow-[0_4px_30px_rgba(212,175,53,0.05)]' : 'border-[var(--orbit-glow)]/20 shadow-[0_4px_20px_rgba(0,0,0,0.03)]'}`}>
+                    <div className={`px-4 py-3 border-b flex items-center justify-between ${isDark ? 'border-white/5 bg-white/5' : 'border-[var(--orbit-line)] bg-gray-50/50'}`}>
+                      <div className="flex items-center gap-2">
+                        <Brain className={`w-4 h-4 ${isDark ? 'text-[#d4af35]' : 'text-[var(--orbit-glow)]'}`} />
+                        <h3 className={`text-[10px] font-bold uppercase tracking-widest ${isDark ? 'text-slate-200' : 'text-[var(--orbit-text)]'}`}>State Engine</h3>
+                      </div>
+                      <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                        {lead?.lead_phase === 'PAUSED' && (
+                          <span className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider bg-rose-500/10 text-rose-500 border border-rose-500/20 px-2 py-0.5 rounded-full">
+                            <StopCircle className="w-2.5 h-2.5" /> Pausado
+                          </span>
+                        )}
+                        {lead?.lead_phase === 'ACTIVE' && (
+                          <span className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 px-2 py-0.5 rounded-full">
+                            <Zap className="w-2.5 h-2.5" /> Ativo
+                          </span>
+                        )}
+                        {lead?.lead_phase === 'DIAGNOSING' && (
+                          <span className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider bg-amber-500/10 text-amber-500 border border-amber-500/20 px-2 py-0.5 rounded-full">
+                            <Search className="w-2.5 h-2.5" /> Diagnosticando
+                          </span>
+                        )}
+                        {lead?.lead_stage && (
+                          <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${isDark ? 'bg-white/5 border-white/10 text-slate-300' : 'bg-gray-100 border-[var(--orbit-line)] text-gray-600'}`}>
+                            {lead.lead_stage}
+                          </span>
+                        )}
+                      </div>
                     </div>
 
-                    {lead?.action_suggested ? (
-                    <div className={`p-3 border rounded-lg mb-4 ${
-                      isDark ? 'bg-[#d4af35]/8 border-[#d4af35]/15' : 'bg-[var(--orbit-glow)]/5 border-[var(--orbit-glow)]/10'
-                    }`}>
-                      <p className={`text-sm font-semibold mb-1 leading-snug ${isDark ? 'text-[#d4af35]' : 'text-[var(--orbit-glow)]'}`}>
-                        {cog?.current_state === "deciding" ? "🎯 Acionar Agora" : "💡 Ação Recomendada"}
-                      </p>
-                      <p className={`text-[11px] leading-relaxed ${isDark ? 'text-slate-300' : 'text-[var(--orbit-text)]'}`}>{lead.action_suggested || "Nenhuma ação sugerida"}</p>
-                    </div>
-                  ) : (
-                    <div className={`p-3 border rounded-lg mb-4 ${isDark ? 'bg-white/3 border-white/5' : 'bg-gray-50 border-[var(--orbit-line)]'}`}>
-                      <p className={`text-[11px] italic ${isDark ? 'text-slate-600' : 'text-[var(--orbit-text-muted)]'}`}>Aguardando dados suficientes para recomenda …</p>
-                    </div>
-                  )}
+                    <div className="p-4 flex flex-col gap-3">
+                      {topInsight ? (
+                        <>
+                          {(topInsight.message_intention || topInsight.emotional_climate) && (
+                            <div className="grid grid-cols-2 gap-2">
+                              {topInsight.message_intention && (
+                                <div className={`p-3 rounded-xl border ${isDark ? 'bg-white/5 border-white/10' : 'bg-white border-[var(--orbit-line)]'}`}>
+                                  <p className="text-[9px] font-bold uppercase tracking-widest text-[var(--orbit-text-muted)] mb-1">Intenção</p>
+                                  <p className={`text-xs font-medium leading-relaxed ${isDark ? 'text-slate-200' : 'text-[var(--orbit-text)]'}`}>{topInsight.message_intention}</p>
+                                </div>
+                              )}
+                              {topInsight.emotional_climate && (
+                                <div className={`p-3 rounded-xl border flex flex-col ${isDark ? 'bg-white/5 border-white/10' : 'bg-white border-[var(--orbit-line)]'}`}>
+                                  <p className="text-[9px] font-bold uppercase tracking-widest text-[var(--orbit-text-muted)] mb-1">Clima</p>
+                                  <p className={`text-xs font-medium leading-relaxed ${isDark ? 'text-slate-200' : 'text-[var(--orbit-text)]'}`}>{topInsight.emotional_climate}</p>
+                                </div>
+                              )}
+                            </div>
+                          )}
 
-                  <div className="flex flex-col gap-2">
-                    <button
-                      onClick={() => {
-                        const phone = lead?.phone?.replace(/\D/g, "") || lead?.lid?.replace(/\D/g, "");
-                        if (!phone) return;
-                        const text = aiSuggestion ? encodeURIComponent(aiSuggestion) : "";
-                        window.open(`https://wa.me/${phone}${text ? `?text=${text}` : ""}`, "_blank");
-                      }}
-                      className={`w-full py-2.5 rounded-lg font-bold text-[10px] uppercase tracking-widest transition-all ${
-                        isDark ? 'bg-[#d4af35] text-black hover:brightness-110' : 'bg-[var(--orbit-glow)] text-white hover:brightness-110 shadow-sm'
-                      }`}
-                    >
-                      Abrir WhatsApp
-                    </button>
-                    <button
-                      onClick={() => { if (aiSuggestion) setComposerText(aiSuggestion); }}
-                      className={`w-full border py-2.5 rounded-lg font-bold text-[10px] uppercase tracking-widest transition-all ${
-                        isDark ? 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10' : 'bg-white border-[var(--orbit-line)] text-[var(--orbit-text)] hover:bg-gray-50 shadow-sm'
-                      }`}
-                    >
-                      Usar Sugestão da IA
-                    </button>
+                          {topInsight.possibility_hook && (
+                            <div className={`p-3 rounded-xl border flex items-start gap-2 ${isDark ? 'bg-[#d4af35]/5 border-[#d4af35]/20' : 'bg-[var(--orbit-glow)]/5 border-[var(--orbit-glow)]/20 shadow-sm'}`}>
+                              <Lightbulb className={`w-4 h-4 shrink-0 mt-0.5 ${isDark ? 'text-[#d4af35]' : 'text-[var(--orbit-glow)]'}`} />
+                              <div>
+                                <p className={`text-[9px] font-bold uppercase tracking-widest mb-1 ${isDark ? 'text-[#d4af35]/80' : 'text-[var(--orbit-glow)]/80'}`}>Nova Possibilidade</p>
+                                <p className={`text-[11px] font-medium leading-relaxed ${isDark ? 'text-slate-200' : 'text-[var(--orbit-text)]'}`}>{topInsight.possibility_hook}</p>
+                              </div>
+                            </div>
+                          )}
+
+                          {topInsight.suggested_whatsapp_message ? (
+                            <div className={`p-4 rounded-xl border flex flex-col gap-3 ${isDark ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-emerald-50 border-emerald-200 text-emerald-900 shadow-sm'}`}>
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-1.5">
+                                  <MessageSquare className="w-3.5 h-3.5 text-emerald-500" />
+                                  <p className="text-[9px] font-bold uppercase tracking-widest text-emerald-600">Ação Recomendada</p>
+                                </div>
+                                <button
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(topInsight.suggested_whatsapp_message || "");
+                                    setCopied(true);
+                                    setTimeout(() => setCopied(false), 2000);
+                                  }}
+                                  className={`rounded-md px-2 py-1 text-[9px] font-bold uppercase tracking-wider transition-colors border ${copied ? 'bg-emerald-500/20 text-emerald-600 border-emerald-500/30' : 'bg-transparent text-emerald-600/70 border-emerald-500/20 hover:bg-emerald-500/10'}`}
+                                >
+                                  {copied ? "✓ Copiado" : "Copiar"}
+                                </button>
+                              </div>
+                              <p className={`text-xs leading-relaxed whitespace-pre-wrap ${isDark ? 'text-emerald-100/90' : 'text-emerald-800'}`}>
+                                {topInsight.suggested_whatsapp_message}
+                              </p>
+                              
+                              <div className="grid grid-cols-2 gap-2 mt-2">
+                                <button
+                                  onClick={() => setComposerText(topInsight.suggested_whatsapp_message || "")}
+                                  className={`py-2 rounded-lg font-bold text-[9px] uppercase tracking-widest transition-all border ${
+                                    isDark ? 'bg-white/5 border-white/10 text-emerald-400 hover:bg-white/10' : 'bg-white border-emerald-200 text-emerald-700 hover:bg-emerald-100/50 shadow-sm'
+                                  }`}
+                                >
+                                  Usar Texto
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    const phone = lead?.phone?.replace(/\D/g, "") || lead?.lid?.replace(/\D/g, "");
+                                    if (!phone || !topInsight.suggested_whatsapp_message) return;
+                                    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(topInsight.suggested_whatsapp_message)}`, "_blank");
+                                  }}
+                                  className={`py-2 rounded-lg font-bold text-[9px] uppercase tracking-widest transition-all ${
+                                    isDark ? 'bg-[#d4af35] text-black hover:brightness-110 shadow-[0_0_15px_rgba(212,175,53,0.3)]' : 'bg-[var(--orbit-glow)] text-white hover:brightness-110 shadow-[var(--orbit-shadow)]'
+                                  }`}
+                                >
+                                  Abrir WPP
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className={`p-4 rounded-xl border ${isDark ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-[var(--orbit-line)]'}`}>
+                              <p className={`text-xs text-center italic ${isDark ? 'text-slate-500' : 'text-[var(--orbit-text-muted)]'}`}>
+                                Ação recomendada pendente.
+                              </p>
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <div className={`p-5 rounded-xl border text-center ${isDark ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-[var(--orbit-line)]'}`}>
+                          <p className={`text-xs italic ${isDark ? 'text-slate-500' : 'text-[var(--orbit-text-muted)]'}`}>
+                            Nenhuma análise cognitiva do State Engine recente.
+                          </p>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
               </div>
 
                 {/* Orbit Selection — protagonista */}
