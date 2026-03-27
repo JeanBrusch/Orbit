@@ -12,6 +12,7 @@ export interface PropertyForCarousel {
   suites?: number | null
   parking_spots?: number | null
   area_privativa?: number | null
+  area_total?: number | null
   ui_type?: string | null
   internal_code?: string | null
 }
@@ -59,12 +60,17 @@ export function buildPropertyCarousel(
     // Icon based on type
     const typeIcon = prop.ui_type?.toLowerCase().includes('casa') ? '🏡' : '🏢'
     
+    const areaBits = []
+    if (prop.area_privativa) areaBits.push(`${Math.round(Number(prop.area_privativa))}m² Priv.`)
+    if (prop.area_total) areaBits.push(`${Math.round(Number(prop.area_total))}m² Tot.`)
+    const areaStr = areaBits.length > 0 ? `📐 ${areaBits.join(' / ')}` : null
+
     // Details line
     const details = [
       prop.bedrooms ? `🛏️ ${prop.bedrooms} Dorm` : null,
       prop.suites ? `(${prop.suites} Suítes)` : null,
       prop.parking_spots ? `🚗 ${prop.parking_spots} Vagas` : null,
-      prop.area_privativa ? `📐 ${Math.round(Number(prop.area_privativa))}m²` : null
+      areaStr
     ].filter(Boolean).join(' ')
 
     const textParts = [

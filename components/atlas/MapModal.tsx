@@ -6,7 +6,8 @@ import { motion, AnimatePresence } from "framer-motion"
 import { 
   X, Search, MapPin, Loader2, Flame, BarChart3,
   Users, TrendingUp, ArrowRight, Building2, Sparkles, Check,
-  Map as MapIcon
+  Map as MapIcon,
+  Ruler
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useSupabaseProperties } from "@/hooks/use-supabase-data"
@@ -132,6 +133,7 @@ export default function MapModal({ isOpen, onClose, selectedIds, onToggleSelect 
         suites: p.suites,
         internalCode: p.internal_code,
         area_privativa: p.area_privativa,
+        area_total: (p as any).area_total,
       }))
   }, [filtered])
 
@@ -501,10 +503,16 @@ export default function MapModal({ isOpen, onClose, selectedIds, onToggleSelect 
                       </p>
                     </div>
                     <div className={`p-4 rounded-2xl ${glassDarker} border-white/5`}>
-                      <span className={`text-[9px] font-mono uppercase tracking-widest ${isDark ? 'text-[#d4af35]' : 'text-[var(--orbit-glow)]'}`}>Área Privativa</span>
-                      <p className={`text-xl font-serif mt-1 ${isDark ? 'text-white' : 'text-[var(--orbit-text)]'}`}>
-                        {selectedProperty.area_privativa ? `${Math.round(selectedProperty.area_privativa)}m²` : 'N/A'}
-                      </p>
+                      <span className={`text-[9px] font-mono uppercase tracking-widest ${isDark ? 'text-[#d4af35]' : 'text-[var(--orbit-glow)]'}`}>Área Total</span>
+                      <div className="flex items-center gap-1.5 opacity-80 min-w-0">
+                        <Ruler className="h-4 w-4 shrink-0 text-[var(--orbit-glow)]" />
+                        <div className="flex items-center gap-1 flex-wrap break-words text-sm font-serif">
+                          {selectedProperty.area_privativa ? <span>{Math.round(selectedProperty.area_privativa)}m² priv</span> : null}
+                          {selectedProperty.area_privativa && selectedProperty.area_total ? <span>/</span> : null}
+                          {selectedProperty.area_total ? <span>{Math.round(selectedProperty.area_total)}m² tot</span> : null}
+                          {!selectedProperty.area_privativa && !selectedProperty.area_total && <span>N/A</span>}
+                        </div>
+                      </div>
                     </div>
                   </div>
 

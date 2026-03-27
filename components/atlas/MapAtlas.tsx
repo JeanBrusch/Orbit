@@ -5,7 +5,12 @@ import Map, { Marker, Popup, NavigationControl, Source, Layer } from "react-map-
 import 'mapbox-gl/dist/mapbox-gl.css'
 import type { ViewState } from "react-map-gl/mapbox"
 import { motion, AnimatePresence } from "framer-motion"
-import { Building2, Globe, Map as MapIcon } from "lucide-react"
+import { Building2, Globe, Map as MapIcon, Info,
+  ChevronRight,
+  Filter,
+  Eye,
+  Ruler
+} from "lucide-react"
 import { HeatmapLayer } from "./HeatmapLayer"
 import { ZenOverlay } from "./ZenOverlay"
 
@@ -25,6 +30,7 @@ export interface MapProperty {
   features?: string[]
   payment_conditions?: Record<string, any>
   area_privativa?: number
+  area_total?: number
   bedrooms?: number
   suites?: string | number
   internalCode?: string | null
@@ -313,9 +319,13 @@ export const MapAtlas = forwardRef<any, MapAtlasProps>(function MapAtlasInner({
                       </div>
                     )}
                     <div className="flex flex-col items-center">
-                      <span className={`text-[10px] font-mono font-bold ${isDark ? 'text-white/80' : 'text-slate-700'}`}>
-                        {Math.round(hoveredProperty.area_privativa || 0)}m²
-                      </span>
+                      <div className="flex items-center gap-1 opacity-80 mt-0.5">
+                        <Ruler className="h-3 w-3" />
+                        {hoveredProperty.area_privativa ? <span>{Math.round(hoveredProperty.area_privativa)}m² priv.</span> : null}
+                        {hoveredProperty.area_privativa && hoveredProperty.area_total ? <span>/</span> : null}
+                        {hoveredProperty.area_total ? <span>{Math.round(hoveredProperty.area_total)}m² tot.</span> : null}
+                        {!hoveredProperty.area_privativa && !hoveredProperty.area_total && <span>-- m²</span>}
+                      </div>
                       <span className="text-[7px] uppercase tracking-tighter opacity-50">Área</span>
                     </div>
                   </div>

@@ -156,6 +156,7 @@ export async function POST(req: NextRequest) {
 
     // --- Step 5: Upsert into properties ---
     const payload = {
+      id: existingProperty?.id,
       source_link: url.trim(),
       internal_name: normalizedData.id,
       title: normalizedData.title || `${type} em ${normalizedData.neighborhood}`,
@@ -194,19 +195,10 @@ export async function POST(req: NextRequest) {
       status: 'active'
     }
 
-    const { data: property, error } = await (supabase.from('properties') as any)
-      .upsert(payload, { onConflict: 'internal_name', ignoreDuplicates: false })
-      .select()
-      .single()
-
-    if (error) {
-      console.error('[VistaNet Import] Supabase upsert error:', error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
-    }
-
+    // Retorna para o frontend lidar com o salvamento (forçando a etapa de validação de local via mapa)
     return NextResponse.json({
       ok: true,
-      property,
+      property: payload,
       photos_count: photos.length,
       agent: data.Corretor?.Nome ?? null,
       title: payload.title,

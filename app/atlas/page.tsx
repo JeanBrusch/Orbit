@@ -252,7 +252,12 @@ function PropertyCard({
 
         {/* TECH SPECS: Minimalist Line */}
         <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-wider text-[var(--orbit-text-muted)] py-2 border-y border-[var(--orbit-line)]/50 mb-3">
-          <span>{property.area_privativa || property.area_total || "--"} m²</span>
+          <div className="flex items-center gap-1 shrink-0 whitespace-nowrap overflow-hidden">
+            {property.area_privativa ? <span>{property.area_privativa}m² priv</span> : null}
+            {property.area_privativa && property.area_total ? <span>/</span> : null}
+            {property.area_total ? <span>{property.area_total}m² tot</span> : null}
+            {!property.area_privativa && !property.area_total && <span>-- m²</span>}
+          </div>
           <span className="w-1 h-1 rounded-full bg-[var(--orbit-line)]" />
           <span>{property.bedrooms || "0"} dorm</span>
           <span className="w-1 h-1 rounded-full bg-[var(--orbit-line)]" />
@@ -418,15 +423,17 @@ function AtlasManagerContent() {
 
         if (!res.ok) throw new Error(data.error || "Erro na importação nativa do VistaNet")
 
-        toast.success(`Captura estruturada: ${data.title}`)
+        toast.info(`Confirme a localização no mapa: ${data.title}`)
         setIngestStatus("complete")
-        await refetch()
 
         setTimeout(() => {
           setIsIngestModalOpen(false)
           setIngestStatus("idle")
           setIngestUrl("")
-        }, 1500)
+
+          setEditingProperty(data.property)
+          setIsEditModalOpen(true)
+        }, 1000)
         return
       }
 
@@ -494,30 +501,22 @@ function AtlasManagerContent() {
         status: 'active'
       }
 
-      const res = await fetch("/api/properties", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      })
-
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}))
-        throw new Error(errData.error || `Erro na API (${res.status})`)
-      }
-
+      toast.info("Confirme a localização no mapa")
       setIngestStatus("complete")
-      toast.success("Imóvel cadastrado com sucesso!")
-      await refetch()
+
       setTimeout(() => {
         setIsIngestModalOpen(false)
         setIngestStatus("idle")
         setIngestUrl("")
         setIngestStep("url")
         setScrapedData({ title: "", image: "", value: "", condo_name: "", payment: "", photos: [] })
-      }, 1500)
+
+        setEditingProperty(payload)
+        setIsEditModalOpen(true)
+      }, 1000)
     } catch (err: any) {
       setIngestStatus("failed")
-      toast.error(`Erro ao salvar: ${err.message}`)
+      toast.error(`Erro ao preparar salvamento: ${err.message}`)
     }
   }
 
@@ -525,10 +524,15 @@ function AtlasManagerContent() {
     setIsSavingEdit(true)
 
     try {
-      const res = await fetch(`/api/properties/${updatedData.id}`, {
-        method: "PUT",
+      const isNew = !updatedData.id;
+      const url = isNew ? "/api/properties" : `/api/properties/${updatedData.id}`;
+      const method = isNew ? "POST" : "PUT";
+
+      const res = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          ...updatedData, // Pass all fields (like internal_name, vista_code, property_embedding)
           title: updatedData.title,
           value: parseFloat(updatedData.value) || null,
           location_text: updatedData.location_text,

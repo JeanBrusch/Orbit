@@ -38,6 +38,8 @@ interface SelectionProperty {
   internal_code: string | null;
   cover_image: string | null;
   value: number | null;
+  area_privativa?: number | null;
+  area_total?: number | null;
   source_link: string | null;
   state: string;
   lastInteraction?: string;
@@ -183,6 +185,16 @@ function PropertyRow({ prop, isTop, onRefresh }: PropertyRowProps) {
           </p>
           <div className="flex items-center gap-2 mt-0.5">
             <span className="text-[10px] text-[#d4af35]/80 font-medium">{formatValue(prop.value)}</span>
+            {(prop.area_privativa || prop.area_total) ? (
+              <>
+                <span className="text-slate-700">·</span>
+                <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-medium">
+                  {prop.area_privativa ? <span>{Math.round(prop.area_privativa)}m² Priv.</span> : null}
+                  {prop.area_privativa && prop.area_total ? <span className="text-slate-600">/</span> : null}
+                  {prop.area_total ? <span>{Math.round(prop.area_total)}m² Tot.</span> : null}
+                </div>
+              </>
+            ) : null}
             {prop.lastInteraction && (
               <>
                 <span className="text-slate-700">·</span>
@@ -360,6 +372,8 @@ export function OrbitSelectionPanel({ leadId }: OrbitSelectionPanelProps) {
             internal_code: p.internal_code || null,
             cover_image: p.cover_image,
             value: p.value,
+            area_privativa: p.area_privativa || null,
+            area_total: p.area_total || null,
             source_link: p.source_link,
             state: item.state,
             lastInteraction: latestInt?.ts,

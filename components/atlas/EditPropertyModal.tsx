@@ -60,8 +60,10 @@ export default function EditPropertyModal({ isOpen, onClose, property, onSave, o
       })
       if (property.lat && property.lng) {
         setMarker({ lat: property.lat, lng: property.lng })
+        setActiveTab('details')
       } else {
         setMarker(null)
+        setActiveTab('location') // Force map tab if no location
       }
       setConfirmDelete(false)
     }

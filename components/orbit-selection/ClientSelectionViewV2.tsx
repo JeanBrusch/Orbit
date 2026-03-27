@@ -27,7 +27,8 @@ interface Property {
   price: number
   bedrooms: number
   bathrooms: number
-  area: number
+  area_privativa?: number
+  area_total?: number
   location?: string
   note?: string
   videoUrl?: string
@@ -468,8 +469,13 @@ export default function ClientSelectionView({
                     </div>
                     <div className="w-1 h-1 rounded-full bg-gray-200" />
                     <div className="flex items-center gap-1.5">
-                      <Ruler size={14} className="text-gray-300" />
-                      <span>{item.area} m²</span>
+                      <Ruler size={14} className="text-gray-300 shrink-0" />
+                      <div className="flex items-center gap-1 min-w-0 flex-wrap">
+                        {item.area_privativa ? <span className="truncate">{item.area_privativa} m² Priv.</span> : null}
+                        {item.area_privativa && item.area_total ? <span className="text-gray-200">/</span> : null}
+                        {item.area_total ? <span className="truncate">{item.area_total} m² Tot.</span> : null}
+                        {!item.area_privativa && !item.area_total && <span>-- m²</span>}
+                      </div>
                     </div>
                   </div>
 

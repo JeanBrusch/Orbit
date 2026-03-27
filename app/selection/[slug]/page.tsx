@@ -137,7 +137,8 @@ async function getSelectionData(slug: string) {
         price: prop.value || 0,
         bedrooms: prop.bedrooms || 0,
         bathrooms: prop.suites || 0, // Fallback suites as bathrooms
-        area: prop.area_privativa || prop.area_total || 0,
+        area_privativa: prop.area_privativa || null,
+        area_total: prop.area_total || null,
         location: prop.location_text || "",
         note: ctx?.note,
         videoUrl: ctx?.video_url,
