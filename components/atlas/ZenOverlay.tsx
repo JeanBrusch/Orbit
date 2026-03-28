@@ -23,6 +23,12 @@ const OVERLAYS: OverlayConfig[] = [
     imageUrl: "/overlays/amare.png",
     kmlUrl: "/overlays/amare.kml",
   },
+  {
+    sourceId: "overlay-sunset",
+    layerId: "overlay-sunset-layer",
+    imageUrl: "/overlays/sunset.png",
+    kmlUrl: "/overlays/sunset.kml",
+  },
 ]
 
 interface ZenOverlayProps {
