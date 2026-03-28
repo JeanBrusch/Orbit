@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { Home, ExternalLink, MapPin } from 'lucide-react'
 import { createClient } from '@supabase/supabase-js'
 import { verifyLeadToken } from '@/lib/lead-token'
+import { PublicCapsuleList } from './PublicCapsuleList'
 
 export const metadata: Metadata = {
   title: 'Imóveis Selecionados',
@@ -20,6 +21,7 @@ interface PublicPropertyCard {
   location: string | null
   price: number | null
   sentAt: string | null
+  neighborhood: string | null
 }
 
 interface PublicLeadCapsule {
@@ -114,7 +116,8 @@ async function getCapsuleData(token: string): Promise<PublicLeadCapsule | null> 
           source_link,
           cover_image,
           location_text,
-          value
+          value,
+          neighborhood
         )
       `)
       .eq('capsule_id', capsuleId)
@@ -139,7 +142,8 @@ async function getCapsuleData(token: string): Promise<PublicLeadCapsule | null> 
           coverImageUrl: prop.cover_image,
           location: prop.location_text,
           price: prop.value,
-          sentAt: item.created_at
+          sentAt: item.created_at,
+          neighborhood: prop.neighborhood
         }
       })
     
@@ -153,64 +157,7 @@ async function getCapsuleData(token: string): Promise<PublicLeadCapsule | null> 
   }
 }
 
-function formatPrice(value: number | null): string {
-  if (!value) return ''
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-    maximumFractionDigits: 0,
-  }).format(value)
-}
-
-function PropertyCard({ item }: { item: PublicPropertyCard }) {
-  return (
-    <a
-      href={item.externalUrl || '#'}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="block bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl overflow-hidden hover:bg-white/10 transition-colors"
-    >
-      {item.coverImageUrl ? (
-        <div className="relative h-48 bg-neutral-900">
-          <img
-            src={item.coverImageUrl}
-            alt={item.title}
-            className="w-full h-full object-cover"
-            loading="lazy"
-          />
-        </div>
-      ) : (
-        <div className="h-48 bg-gradient-to-br from-indigo-500/20 to-purple-500/20 flex items-center justify-center">
-          <Home className="w-12 h-12 text-white/30" />
-        </div>
-      )}
-      
-      <div className="p-4 space-y-2">
-        <h3 className="font-semibold text-white text-lg leading-tight">
-          {item.title}
-        </h3>
-        
-        {item.location && (
-          <div className="flex items-center gap-1.5 text-white/60 text-sm">
-            <MapPin className="w-4 h-4 flex-shrink-0" />
-            <span>{item.location}</span>
-          </div>
-        )}
-        
-        {item.price && (
-          <div className="text-indigo-400 font-semibold">
-            {formatPrice(item.price)}
-          </div>
-        )}
-        
-        <div className="flex items-center gap-1.5 text-indigo-400 text-sm font-medium pt-2">
-          <span>Ver detalhes</span>
-          <ExternalLink className="w-4 h-4" />
-        </div>
-      </div>
-    </a>
-  )
-}
+// Local components removed (moved to PublicCapsuleList.tsx)
 
 export default async function PublicCapsulePage({
   params,
@@ -246,13 +193,7 @@ export default async function PublicCapsulePage({
           </div>
         ) : (
           <div className="space-y-4">
-            <p className="text-white/60 text-sm text-center mb-6">
-              {data.items.length} {data.items.length === 1 ? 'imóvel selecionado' : 'imóveis selecionados'}
-            </p>
-            
-            {data.items.map((item) => (
-              <PropertyCard key={item.id} item={item} />
-            ))}
+            <PublicCapsuleList items={data.items} />
           </div>
         )}
       </main>

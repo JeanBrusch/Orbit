@@ -36,8 +36,8 @@ export function kmlToMapboxCoords(box: KmlLatLonBox): MapboxCoordinates {
   const sin = Math.sin(rad)
 
   const rotate = (x: number, y: number): [number, number] => [
-    cx + x * cos - y * sin,
-    cy + x * sin + y * cos,
+    cx + x * cos + y * sin,
+    cy - x * sin + y * cos,
   ]
 
   return [
@@ -58,17 +58,24 @@ export function kmlToMapboxCoords(box: KmlLatLonBox): MapboxCoordinates {
  *   const coords = parseKmlToMapboxCoords(text)
  */
 export function parseKmlToMapboxCoords(kmlText: string): MapboxCoordinates {
-  const get = (tag: string) => {
+  const getTagValue = (tag: string): string | null => {
     const match = kmlText.match(new RegExp(`<${tag}>([^<]+)</${tag}>`))
-    if (!match) throw new Error(`Tag <${tag}> não encontrada no KML`)
-    return parseFloat(match[1])
+    return match ? match[1] : null
+  }
+
+  const getRequired = (tag: string): number => {
+    const val = getTagValue(tag)
+    if (val === null) {
+      throw new Error(`Tag <${tag}> não encontrada no KML. Início do texto: "${kmlText.substring(0, 100)}..."`)
+    }
+    return parseFloat(val)
   }
 
   return kmlToMapboxCoords({
-    north: get('north'),
-    south: get('south'),
-    east: get('east'),
-    west: get('west'),
-    rotation: get('rotation'),
+    north: getRequired('north'),
+    south: getRequired('south'),
+    east: getRequired('east'),
+    west: getRequired('west'),
+    rotation: getRequired('rotation'),
   })
 }

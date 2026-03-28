@@ -1,7 +1,8 @@
 "use client"
 
-import { useEffect, useRef } from "react"
-import { parseKmlToMapboxCoords } from "@/lib/kmlToMapbox"
+import { useEffect, useState } from "react"
+import { Source, Layer } from "react-map-gl/mapbox"
+import { parseKmlToMapboxCoords, MapboxCoordinates } from "@/lib/kmlToMapbox"
 
 interface OverlayConfig {
   sourceId: string
@@ -14,83 +15,78 @@ const OVERLAYS: OverlayConfig[] = [
   {
     sourceId: "overlay-zen",
     layerId: "overlay-zen-layer",
-    imageUrl: "/overlays/zen.png",
+    imageUrl: "/overlays/zen.jpg",
     kmlUrl: "/overlays/zen.kml",
   },
   {
     sourceId: "overlay-amare",
     layerId: "overlay-amare-layer",
-    imageUrl: "/overlays/amare.png",
+    imageUrl: "/overlays/amare.jpg",
     kmlUrl: "/overlays/amare.kml",
-  },
-  {
-    sourceId: "overlay-sunset",
-    layerId: "overlay-sunset-layer",
-    imageUrl: "/overlays/sunset.png",
-    kmlUrl: "/overlays/sunset.kml",
   },
 ]
 
-interface ZenOverlayProps {
-  mapRef: React.RefObject<any>
-}
+// Cache de coordenadas fora do componente para persistir entre trocas de estilo
+const coordsCache: Record<string, MapboxCoordinates> = {}
 
-export function ZenOverlay({ mapRef }: ZenOverlayProps) {
-  const loadedRef = useRef(false)
+export function ZenOverlay({ mapRef }: { mapRef: React.RefObject<any> }) {
+  const [overlaysData, setOverlaysData] = useState<Record<string, MapboxCoordinates>>({})
 
   useEffect(() => {
-    if (!mapRef.current) return
-    const map = mapRef.current.getMap?.()
-    if (!map) return
+    const loadAllKmls = async () => {
+      const results: Record<string, MapboxCoordinates> = {}
+      
+      for (const cfg of OVERLAYS) {
+        try {
+          if (coordsCache[cfg.kmlUrl]) {
+            results[cfg.sourceId] = coordsCache[cfg.kmlUrl]
+            continue
+          }
 
-    const addOverlay = async (cfg: OverlayConfig) => {
-      // Se já existe, não faz nada — styledata pode disparar várias vezes
-      if (map.getSource(cfg.sourceId)) return
-
-      try {
-        const kmlText = await fetch(cfg.kmlUrl).then(r => r.text())
-        const coordinates = parseKmlToMapboxCoords(kmlText)
-
-        // Checa de novo após o await (pode ter sido adicionado enquanto aguardava)
-        if (map.getSource(cfg.sourceId)) return
-
-        map.addSource(cfg.sourceId, {
-          type: 'image',
-          url: cfg.imageUrl,
-          coordinates,
-        })
-
-        map.addLayer({
-          id: cfg.layerId,
-          type: 'raster',
-          source: cfg.sourceId,
-          paint: {
-            'raster-opacity': 0.85,
-            'raster-fade-duration': 500,
-          },
-        })
-      } catch (err) {
-        console.error(`[Overlay] Falha ao carregar ${cfg.kmlUrl}:`, err)
+          const res = await fetch(cfg.kmlUrl)
+          if (!res.ok) throw new Error(`Status ${res.status}`)
+          const kmlText = await res.text()
+          const coordinates = parseKmlToMapboxCoords(kmlText)
+          
+          coordsCache[cfg.kmlUrl] = coordinates
+          results[cfg.sourceId] = coordinates
+          console.log(`[ZenOverlay] KML carregado e cacheados: ${cfg.sourceId}`)
+        } catch (err) {
+          console.error(`[ZenOverlay] Erro ao carregar ${cfg.kmlUrl}:`, err)
+        }
       }
+      
+      setOverlaysData(results)
     }
 
-    const addAll = () => {
-      if (!map.isStyleLoaded()) return
-      OVERLAYS.forEach(addOverlay)
-    }
+    loadAllKmls()
+  }, [])
 
-    if (map.isStyleLoaded()) {
-      addAll()
-    } else {
-      map.once("load", addAll)
-    }
+  return (
+    <>
+      {OVERLAYS.map((cfg) => {
+        const coords = overlaysData[cfg.sourceId]
+        if (!coords) return null
 
-    map.on("styledata", addAll)
-
-    return () => {
-      map.off("styledata", addAll)
-    }
-  }, [mapRef])
-
-  return null
+        return (
+          <Source
+            key={cfg.sourceId}
+            id={cfg.sourceId}
+            type="image"
+            url={cfg.imageUrl}
+            coordinates={coords}
+          >
+            <Layer
+              id={cfg.layerId}
+              type="raster"
+              paint={{
+                'raster-opacity': 0.85,
+                'raster-fade-duration': 500,
+              }}
+            />
+          </Source>
+        )
+      })}
+    </>
+  )
 }

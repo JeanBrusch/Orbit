@@ -11,7 +11,6 @@ import { Building2, Globe, Map as MapIcon, Info,
   Eye,
   Ruler
 } from "lucide-react"
-import { HeatmapLayer } from "./HeatmapLayer"
 import { ZenOverlay } from "./ZenOverlay"
 
 import { PropertyCarousel } from "./PropertyCarousel"
@@ -46,10 +45,6 @@ interface MapAtlasProps {
   previewMarker?: { lat: number; lng: number } | null
   isPlacing?: boolean
   onMapClick?: (lat: number, lng: number) => void
-  // Heatmap
-  heatmapVisible?: boolean
-  heatmapGeoJSON?: GeoJSON.FeatureCollection | null
-  heatmapMetric?: string
 }
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN
@@ -136,9 +131,6 @@ export const MapAtlas = forwardRef<any, MapAtlasProps>(function MapAtlasInner({
   previewMarker = null,
   isPlacing = false,
   onMapClick,
-  heatmapVisible = false,
-  heatmapGeoJSON = null,
-  heatmapMetric = "all",
 }, ref) {
   const { resolvedTheme } = useTheme()
   const isDark = resolvedTheme === 'dark'
@@ -228,7 +220,7 @@ export const MapAtlas = forwardRef<any, MapAtlasProps>(function MapAtlasInner({
         mapStyle={isSatellite ? SATELLITE_STYLE : (isDark ? DARK_STYLE : LIGHT_STYLE)}
         attributionControl={false}
         logoPosition="bottom-right"
-        cursor={isPlacing ? "crosshair" : heatmapVisible ? "crosshair" : "grab"}
+        cursor={isPlacing ? "crosshair" : "grab"}
         onClick={(e) => {
           if (onMapClick) onMapClick(e.lngLat.lat, e.lngLat.lng)
         }}
@@ -237,14 +229,6 @@ export const MapAtlas = forwardRef<any, MapAtlasProps>(function MapAtlasInner({
  
          {/* Zen GroundOverlay (Empreendimento Zen) */}
          <ZenOverlay mapRef={mapRef} />
-
-        {/* Heatmap Layer (headless, gerenciado via mapbox-gl nativo) */}
-        <HeatmapLayer
-          mapRef={mapRef}
-          geojson={heatmapGeoJSON}
-          visible={heatmapVisible}
-          metric={heatmapMetric}
-        />
 
         {/* Constelação de Imóveis (Markers) */}
         {validProps.map((prop) => (
