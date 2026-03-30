@@ -1,8 +1,8 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { Source, Layer } from "react-map-gl/mapbox"
-import { parseKmlToMapboxCoords, MapboxCoordinates } from "@/lib/kmlToMapbox"
+import { useEffect } from "react"
+import type { MapRef } from "react-map-gl/mapbox"
+import { parseGroundOverlayKml, MapboxCoordinates } from "@/lib/kmlToMapbox"
 
 interface OverlayConfig {
   sourceId: string
@@ -26,67 +26,114 @@ const OVERLAYS: OverlayConfig[] = [
   },
 ]
 
-// Cache de coordenadas fora do componente para persistir entre trocas de estilo
 const coordsCache: Record<string, MapboxCoordinates> = {}
 
-export function ZenOverlay({ mapRef }: { mapRef: React.RefObject<any> }) {
-  const [overlaysData, setOverlaysData] = useState<Record<string, MapboxCoordinates>>({})
+interface ZenOverlayProps {
+  mapRef: React.RefObject<MapRef | null>
+}
 
+export function ZenOverlay({ mapRef }: ZenOverlayProps) {
   useEffect(() => {
-    const loadAllKmls = async () => {
-      const results: Record<string, MapboxCoordinates> = {}
-      
-      for (const cfg of OVERLAYS) {
-        try {
-          if (coordsCache[cfg.kmlUrl]) {
-            results[cfg.sourceId] = coordsCache[cfg.kmlUrl]
-            continue
+    const map = mapRef.current?.getMap?.()
+    if (!map) return
+
+    let cancelled = false
+
+    const ensureOverlay = async (cfg: OverlayConfig) => {
+      try {
+        let coordinates = coordsCache[cfg.kmlUrl]
+
+        if (!coordinates) {
+          const res = await fetch(cfg.kmlUrl)
+          if (!res.ok) {
+            throw new Error(`Erro ao buscar ${cfg.kmlUrl}: ${res.status}`)
           }
 
-          const res = await fetch(cfg.kmlUrl)
-          if (!res.ok) throw new Error(`Status ${res.status}`)
           const kmlText = await res.text()
-          const coordinates = parseKmlToMapboxCoords(kmlText)
-          
+          const parsed = parseGroundOverlayKml(kmlText)
+
+          coordinates = parsed.coordinates
           coordsCache[cfg.kmlUrl] = coordinates
-          results[cfg.sourceId] = coordinates
-          console.log(`[ZenOverlay] KML carregado e cacheados: ${cfg.sourceId}`)
-        } catch (err) {
-          console.error(`[ZenOverlay] Erro ao carregar ${cfg.kmlUrl}:`, err)
+
+          console.log(`[Overlay] ${cfg.sourceId}`, {
+            north: parsed.north,
+            south: parsed.south,
+            east: parsed.east,
+            west: parsed.west,
+            rotation: parsed.rotation,
+            coordinates: parsed.coordinates,
+          })
         }
+
+        if (cancelled) return
+
+        const existingLayer = map.getLayer(cfg.layerId)
+        const existingSource = map.getSource(cfg.sourceId) as any
+
+        if (existingSource && typeof existingSource.updateImage === "function") {
+          existingSource.updateImage({
+            url: cfg.imageUrl,
+            coordinates,
+          })
+
+          if (!existingLayer) {
+            map.addLayer({
+              id: cfg.layerId,
+              type: "raster",
+              source: cfg.sourceId,
+              paint: {
+                "raster-opacity": 0.85,
+                "raster-fade-duration": 500,
+              },
+            })
+          }
+
+          return
+        }
+
+        if (!existingSource) {
+          map.addSource(cfg.sourceId, {
+            type: "image",
+            url: cfg.imageUrl,
+            coordinates,
+          })
+        }
+
+        if (!existingLayer) {
+          map.addLayer({
+            id: cfg.layerId,
+            type: "raster",
+            source: cfg.sourceId,
+            paint: {
+              "raster-opacity": 0.85,
+              "raster-fade-duration": 500,
+            },
+          })
+        }
+      } catch (err) {
+        console.error(`[ZenOverlay] Falha ao carregar ${cfg.kmlUrl}:`, err)
       }
-      
-      setOverlaysData(results)
     }
 
-    loadAllKmls()
-  }, [])
+    const syncAll = () => {
+      OVERLAYS.forEach((cfg) => {
+        void ensureOverlay(cfg)
+      })
+    }
 
-  return (
-    <>
-      {OVERLAYS.map((cfg) => {
-        const coords = overlaysData[cfg.sourceId]
-        if (!coords) return null
+    if (map.isStyleLoaded()) {
+      syncAll()
+    } else {
+      map.once("load", syncAll)
+    }
 
-        return (
-          <Source
-            key={cfg.sourceId}
-            id={cfg.sourceId}
-            type="image"
-            url={cfg.imageUrl}
-            coordinates={coords}
-          >
-            <Layer
-              id={cfg.layerId}
-              type="raster"
-              paint={{
-                'raster-opacity': 0.85,
-                'raster-fade-duration': 500,
-              }}
-            />
-          </Source>
-        )
-      })}
-    </>
-  )
+    map.on("styledata", syncAll)
+
+    return () => {
+      cancelled = true
+      map.off("styledata", syncAll)
+    }
+  }, [mapRef])
+
+  return null
 }

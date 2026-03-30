@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, Suspense, useMemo } from "react"
+import { useState, useEffect, Suspense, useMemo, useCallback } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { useSupabaseProperties, useSupabaseLeads, useLeadDetails } from "@/hooks/use-supabase-data"
 import { useTheme } from "next-themes"
@@ -31,7 +31,13 @@ function AtlasManagerContent() {
 
   const { properties, loading: propsLoading, refetch: refetchProps } = useSupabaseProperties()
   const { leads, loading: leadsLoading } = useSupabaseLeads()
-  const { selectedLeadId, openLeadPanel } = useOrbitContext()
+  const { selectedLeadId, openLeadPanel, leadStates } = useOrbitContext()
+  
+  // Ativa o lead como campo gravitacional no mapa, SEM abrir o LeadPanel
+  // (o LeadPanel só existe em outras rotas como /leads)
+  const handleActivateLeadOnMap = useCallback((leadId: string) => {
+    openLeadPanel(leadId) // seta selectedLeadId no context
+  }, [openLeadPanel])
   
   // States newly introduced for Map-First logic
   const [mapMode, setMapMode] = useState<MapMode>("hybrid")

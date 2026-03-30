@@ -38,6 +38,10 @@ export interface OrbitLead {
   followupActive?: boolean
   followupRemaining?: number
   followupDoneToday?: boolean
+  // Preference fields for Atlas Match
+  budget?: number
+  preferred_features?: string[]
+  preferred_area?: string
 }
 
 function mapStateToEmotionalState(state: string | null): "engaged" | "warm" | "neutral" | "cooling" {
@@ -202,6 +206,11 @@ export function useSupabaseLeads(options: Options = {}) {
           followupDoneToday: row.followup_done_today,
           hasCapsuleActive: row.tem_capsula_ativa,
           daysSinceInteraction: row.dias_sem_interacao,
+          
+          // Mapping preferences
+          budget: row.preferred_price_range?.max || row.preferred_price_range?.min || undefined,
+          preferred_features: row.preferred_features || [],
+          preferred_area: row.preferred_area,
         }
       })
 
@@ -291,8 +300,8 @@ interface PropertyRow {
   area_privativa?: number
   bedrooms?: number
   neighborhood?: string
-  suites?: string
-  condo_fee?: string
+  suites?: string | number | null
+  condo_fee?: string | number | null
   photos?: string[]
 }
 
