@@ -61,11 +61,11 @@ const SATELLITE_STYLE = "mapbox://styles/mapbox/satellite-streets-v12"
 
 // Atlas design tokens
 const TOKEN = {
-  gold: "#C9A84C",
-  goldDim: "#9A6B1A",
+  primary: "#3B82F6",    // Blue-500 — visibility on satellite
+  primaryBright: "#60A5FA", // Blue-400 — hover/glow
   zinc: "#52524F",
-  amber: "#E8A030",
-  coral: "#D85A30",
+  amber: "#F59E0B",       // Reserved status
+  coral: "#EF4444",       // Sold status
 }
 
 function formatValue(value: number | null): string {
@@ -86,7 +86,7 @@ function getCoreColor(status?: string): string {
   switch (status) {
     case "reserved": return TOKEN.amber
     case "sold": return TOKEN.zinc
-    default: return TOKEN.gold
+    default: return TOKEN.primary
   }
 }
 
@@ -184,8 +184,8 @@ const PropertyMarker = memo(({
             <>
               <defs>
                 <radialGradient id={`premiumGlow-${prop.id}`} cx="50%" cy="50%" r="50%">
-                  <stop offset="0%" stopColor={TOKEN.gold} stopOpacity="0.4" />
-                  <stop offset="100%" stopColor={TOKEN.gold} stopOpacity="0" />
+                  <stop offset="0%" stopColor={TOKEN.primaryBright} stopOpacity="0.4" />
+                  <stop offset="100%" stopColor={TOKEN.primaryBright} stopOpacity="0" />
                 </radialGradient>
               </defs>
               <circle
@@ -203,7 +203,7 @@ const PropertyMarker = memo(({
             <circle
               cx="26" cy="26" r="24"
               fill="none"
-              stroke={TOKEN.gold}
+              stroke={TOKEN.primaryBright}
               strokeWidth="2"
               opacity={0.6}
               style={{
@@ -420,7 +420,7 @@ export const MapAtlas = forwardRef<any, MapAtlasProps>(function MapAtlasInner({
           />
         ))}
 
-        {/* Minimalist Hover Popup (Reality Layer) */}
+        {/* Rich Hover Popup (Reality Layer) */}
         {hoveredProperty?.lat && hoveredProperty?.lng && hoveredProperty.id !== clickedProperty?.id && (
           <Popup
             longitude={hoveredProperty.lng}
@@ -428,18 +428,49 @@ export const MapAtlas = forwardRef<any, MapAtlasProps>(function MapAtlasInner({
             closeButton={false}
             anchor="bottom"
             offset={15}
-            className="atlas-minimal-popup z-[60]"
+            className="atlas-rich-hover-popup z-[60]"
           >
             <motion.div 
-               initial={{ opacity: 0, y: 5, scale: 0.9 }}
+               initial={{ opacity: 0, y: 10, scale: 0.95 }}
                animate={{ opacity: 1, y: 0, scale: 1 }}
-               className={`px-3 py-2 rounded-full whitespace-nowrap backdrop-blur-2xl border shadow-xl flex items-center gap-3 overflow-hidden ${
-                 isDark ? 'bg-[#12121A]/80 border-white/10' : 'bg-white/80 border-slate-200'
+               className={`w-48 overflow-hidden rounded-2xl border shadow-2xl backdrop-blur-3xl ${
+                 isDark ? 'bg-[#0a0a0f]/90 border-white/10' : 'bg-white/90 border-slate-200'
                }`}
             >
-               <span className={`text-[11px] font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{hoveredProperty.name.split(' ')[0]}</span>
-               <div className="w-px h-3 bg-white/10" />
-               <span className="text-[11px] font-mono font-bold" style={{ color: TOKEN.gold }}>{formatValue(hoveredProperty.value)}</span>
+               {hoveredProperty.coverImage && (
+                 <div className="h-24 w-full overflow-hidden">
+                   <img 
+                    src={hoveredProperty.coverImage} 
+                    alt="" 
+                    className="h-full w-full object-cover transition-transform duration-500 hover:scale-110"
+                   />
+                 </div>
+               )}
+               <div className="p-3">
+                 <div className="flex items-center justify-between gap-2 mb-1">
+                   <span className={`text-[11px] font-bold truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                     {hoveredProperty.name}
+                   </span>
+                 </div>
+                 
+                 <div className="flex items-center gap-2 mb-2">
+                   <span className="text-[11px] font-mono font-bold" style={{ color: TOKEN.primary }}>
+                     {formatValue(hoveredProperty.value)}
+                   </span>
+                 </div>
+
+                 <div className="flex items-center justify-between border-t border-white/5 pt-2">
+                    <div className="flex items-center gap-1.5">
+                      <Ruler className="w-3 h-3 text-zinc-500" />
+                      <span className="text-[10px] font-medium text-zinc-400">{hoveredProperty.area_privativa || 0}m²</span>
+                    </div>
+                    {(hoveredProperty.bedrooms ?? 0) > 0 && (
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] font-bold text-zinc-500">{hoveredProperty.bedrooms}Q</span>
+                      </div>
+                    )}
+                 </div>
+               </div>
             </motion.div>
           </Popup>
         )}
@@ -508,13 +539,13 @@ export const MapAtlas = forwardRef<any, MapAtlasProps>(function MapAtlasInner({
 
       {/* Global popup overrides */}
       <style>{`
-        .atlas-minimal-popup .mapboxgl-popup-content {
+        .atlas-rich-hover-popup .mapboxgl-popup-content {
           background: transparent !important;
           padding: 0 !important;
           box-shadow: none !important;
-          border-radius: 9999px !important;
+          border-radius: 1rem !important;
         }
-        .atlas-minimal-popup .mapboxgl-popup-tip {
+        .atlas-rich-hover-popup .mapboxgl-popup-tip {
              display: none !important;
         }
         .atlas-premium-popup .mapboxgl-popup-content {

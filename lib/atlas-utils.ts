@@ -8,7 +8,7 @@ export function computeMatch(property: any, lead: any) {
   // 1. Orçamento (Peso 3)
   const propPrice = property.value || 0;
   const leadBudget = lead.budget || 0;
-  if (leadBudget > 0) {
+  if (leadBudget > 0 && propPrice > 0) {
     if (propPrice <= leadBudget) {
       score += 3;
       reasons.push("Dentro do orçamento");
@@ -34,7 +34,7 @@ export function computeMatch(property: any, lead: any) {
 
   // 3. Características (Peso 2 por match)
   const propFeatures = property.features || [];
-  const leadFeatures = lead.desired_features || [];
+  const leadFeatures = lead.preferred_features || lead.desired_features || [];
   if (leadFeatures.length > 0) {
     const matchedFeatures = propFeatures.filter((f: string) => 
       leadFeatures.some((lf: string) => f.toLowerCase().includes(lf.toLowerCase()))
@@ -47,17 +47,22 @@ export function computeMatch(property: any, lead: any) {
 
   // 4. Localização (Peso 2)
   const propNeighborhood = property.neighborhood?.toLowerCase() || "";
-  const leadLocations = lead.preferred_locations || [];
+  const propLocationText = property.locationText?.toLowerCase() || "";
+  // preferred_area pode ser string ou array
+  const leadArea = lead.preferred_area || "";
+  const leadLocations = Array.isArray(leadArea) ? leadArea : leadArea ? [leadArea] : [];
   if (leadLocations.length > 0) {
-    if (leadLocations.some((loc: string) => propNeighborhood.includes(loc.toLowerCase()))) {
+    if (leadLocations.some((loc: string) => 
+      propNeighborhood.includes(loc.toLowerCase()) || propLocationText.includes(loc.toLowerCase())
+    )) {
       score += 2;
       reasons.push("Localização desejada");
     }
   }
 
   return {
-    score: Math.min(score, 10), // Normalizar para 10
-    scorePercentage: Math.min(score * 10, 100), // Normalizar para 100%
+    score: Math.min(score, 10),
+    scorePercentage: Math.min(score * 10, 100),
     reasons,
     warnings
   };

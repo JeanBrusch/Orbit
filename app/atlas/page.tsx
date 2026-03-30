@@ -18,8 +18,8 @@ const EditPropertyModal = dynamic(() => import("@/components/atlas/EditPropertyM
 const ClientSpacesManager = dynamic(() => import("@/components/atlas/ClientSpacesManager"), { ssr: false })
 const MapAtlas = dynamic(() => import("@/components/atlas/MapAtlas").then(m => m.MapAtlas), { ssr: false })
 
-// VoiceIngestion wrapper — adapta a API ao novo uso
-const VoiceIngestion = dynamic(() => import("@/components/atlas/VoiceIngestion"), { ssr: false })
+// PropertyIngestion wrapper — unifica Voz e URL (incluindo Vistanet)
+const PropertyIngestion = dynamic(() => import("@/components/atlas/PropertyIngestion"), { ssr: false })
 const CognitiveDrawer = dynamic(() => import("@/components/atlas/CognitiveDrawer").then(m => m.CognitiveDrawer), { ssr: false })
 const SemanticSearch = dynamic(() => import("@/components/atlas/SemanticSearch").then(m => m.SemanticSearch), { ssr: false })
 
@@ -42,6 +42,11 @@ function AtlasManagerContent() {
   // States newly introduced for Map-First logic
   const [mapMode, setMapMode] = useState<MapMode>("hybrid")
   const [isSearchOpen, setIsSearchOpen] = useState(false) // for semantic search
+  const [filters, setFilters] = useState({
+    valueRange: { min: 0, max: 20000000 },
+    areaRange: { min: 0, max: 1000 },
+    bedrooms: 0
+  })
   
   // Modal states
   const [isSelectionsOpen, setIsSelectionsOpen] = useState(false)
@@ -58,8 +63,21 @@ function AtlasManagerContent() {
   const activeLead = useMemo(() => leads?.find(l => l.id === selectedLeadId), [leads, selectedLeadId])
 
   const mappedProperties = useMemo(() => {
-    return (properties || []).map((p: any): MapProperty => {
-      const match = activeLead ? computeMatch(p, activeLead) : null;
+    return (properties || [])
+      .filter((p: any) => {
+        const propVal = p.value || 0
+        if (propVal < filters.valueRange.min || propVal > filters.valueRange.max) return false
+        
+        const propArea = p.area_privativa || p.area_total || 0
+        if (propArea < filters.areaRange.min || propArea > filters.areaRange.max) return false
+        
+        const propBeds = p.bedrooms || 0
+        if (filters.bedrooms > 0 && propBeds < filters.bedrooms) return false
+
+        return true
+      })
+      .map((p: any): MapProperty => {
+        const match = activeLead ? computeMatch(p, activeLead) : null;
       return {
         id: p.id,
         name: p.title || p.internal_name || p.name || '',
@@ -81,7 +99,7 @@ function AtlasManagerContent() {
         lastInteractionAt: p.updated_at || p.created_at,
       };
     });
-  }, [properties, activeLead]);
+  }, [properties, activeLead, filters]);
 
   // Handlers
   const handleOpenSearch = () => setIsSearchOpen(true)
@@ -148,6 +166,8 @@ function AtlasManagerContent() {
         onOpenSearch={handleOpenSearch}
         onOpenSelections={handleOpenSelections}
         onOpenIngestion={handleOpenIngestion}
+        filters={filters}
+        onFiltersChange={setFilters}
       />
 
       {/* 
@@ -186,8 +206,8 @@ function AtlasManagerContent() {
 
       <AnimatePresence>
         {isVoiceModalOpen && (
-          <div className="fixed inset-0 z-[50] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-            <VoiceIngestion
+          <div className="fixed inset-0 z-[50] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 text-[#f1f5f9]">
+            <PropertyIngestion
               onDataExtracted={(data: any) => {
                 refetchProps()
                 setIsVoiceModalOpen(false)

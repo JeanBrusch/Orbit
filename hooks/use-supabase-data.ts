@@ -298,6 +298,7 @@ interface PropertyRow {
   features?: string[]
   payment_conditions?: Record<string, any>
   area_privativa?: number
+  area_total?: number
   bedrooms?: number
   neighborhood?: string
   suites?: string | number | null

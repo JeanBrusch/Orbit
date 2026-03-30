@@ -4,13 +4,21 @@ import { useTheme } from "next-themes"
 import { motion, AnimatePresence } from "framer-motion"
 import { 
   ChevronLeft, Search, Map as MapIcon, 
-  Layers, Filter, Users, LayoutGrid, Plus, Pencil
+  Layers, Filter, Users, LayoutGrid, Plus, Pencil, Globe, SlidersHorizontal
 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { useOrbitContext } from "@/components/orbit-context"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Slider } from "@/components/ui/slider"
 
 export type MapMode = "inventory" | "intent" | "hybrid"
+
+export interface AtlasFilters {
+  valueRange: { min: number; max: number }
+  areaRange: { min: number; max: number }
+  bedrooms: number
+}
 
 interface AtlasTopBarProps {
   mapMode: MapMode
@@ -18,6 +26,21 @@ interface AtlasTopBarProps {
   onOpenSearch: () => void
   onOpenSelections: () => void
   onOpenIngestion: () => void
+  filters: AtlasFilters
+  onFiltersChange: (filters: AtlasFilters) => void
+}
+
+function formatValue(value: number | null): string {
+  if (value === null || value === 0) return "R$ 0"
+  if (value >= 1_000_000) {
+    const m = value / 1_000_000
+    return m % 1 === 0 ? `R$ ${m}M` : `R$ ${m.toFixed(1)}M`
+  }
+  if (value >= 1_000) {
+    const k = value / 1_000
+    return k % 1 === 0 ? `R$ ${k}k` : `R$ ${k.toFixed(0)}k`
+  }
+  return `R$ ${value}`
 }
 
 export function AtlasTopBar({
@@ -25,7 +48,9 @@ export function AtlasTopBar({
   onMapModeChange,
   onOpenSearch,
   onOpenSelections,
-  onOpenIngestion
+  onOpenIngestion,
+  filters,
+  onFiltersChange
 }: AtlasTopBarProps) {
   const router = useRouter()
   const { resolvedTheme } = useTheme()
@@ -33,6 +58,7 @@ export function AtlasTopBar({
   const { selectedLeadId, leadStates } = useOrbitContext()
   
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [isFilterOpen, setIsFilterOpen] = useState(false)
 
   const activeLead = selectedLeadId ? leadStates[selectedLeadId] : null
 
@@ -103,10 +129,12 @@ export function AtlasTopBar({
 
       {/* RIGHT: Modes & Menu */}
       <div className="pointer-events-auto flex flex-col items-end gap-3">
-        {/* Map Modes */}
-        <div className={`p-1 flex rounded-2xl backdrop-blur-md border ${
-          isDark ? "bg-[#12121A]/80 border-white/5" : "bg-white/80 border-black/5"
-        }`}>
+        {/* Actions Row: Map Modes + Filters + Menu */}
+        <div className="flex items-center gap-3">
+          {/* Map Modes */}
+          <div className={`p-1 flex rounded-2xl backdrop-blur-md border ${
+            isDark ? "bg-[#12121A]/80 border-white/5" : "bg-white/80 border-black/5"
+          }`}>
           {[
             { id: "inventory", icon: MapIcon, label: "Realidade" },
             { id: "hybrid", icon: Layers, label: "Híbrido" },
@@ -139,6 +167,118 @@ export function AtlasTopBar({
               </button>
             )
           })}
+        </div>
+
+        {/* Filter Popover */}
+        <div className="relative">
+          <Popover open={isFilterOpen} onOpenChange={setIsFilterOpen}>
+            <PopoverTrigger asChild>
+              <button className={`w-12 h-12 flex items-center justify-center rounded-2xl backdrop-blur-md border transition-all ${
+                filters.valueRange.min > 0 || filters.valueRange.max < 20000000 || filters.areaRange.min > 0 || filters.areaRange.max < 1000 || filters.bedrooms > 0
+                  ? (isDark ? "bg-[#d4af35]/10 border-[#d4af35]/30 text-[#d4af35]" : "bg-blue-600/10 border-blue-600/30 text-blue-600")
+                  : (isDark ? "bg-[#12121A]/80 border-white/5 text-white/70 hover:text-white" : "bg-white/80 border-black/5 text-black/70 hover:text-black")
+              }`}>
+                <SlidersHorizontal className="w-5 h-5" />
+                {(filters.valueRange.min > 0 || filters.valueRange.max < 20000000 || filters.areaRange.min > 0 || filters.areaRange.max < 1000 || filters.bedrooms > 0) && (
+                  <span className={`absolute top-3 right-3 w-2 h-2 rounded-full ${isDark ? 'bg-[#d4af35]' : 'bg-blue-600'}`} />
+                )}
+              </button>
+            </PopoverTrigger>
+            <PopoverContent 
+              className={`w-80 p-5 z-[500] rounded-2xl border shadow-2xl outline-none ${
+                isDark ? "bg-[#12121A]/95 border-white/10" : "bg-white/95 border-black/10"
+              }`} 
+              align="end" 
+              sideOffset={15}
+            >
+              <div className="space-y-6">
+                
+                {/* PREÇO */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between border-b pb-2 border-white/5">
+                    <h4 className={`font-bold text-sm ${isDark ? "text-white" : "text-black"}`}>Preço</h4>
+                    <span className={`text-[10px] uppercase tracking-wider font-mono px-2 py-1 rounded ${
+                      isDark ? "bg-white/5 text-white/60" : "bg-black/5 text-black/60"
+                    }`}>
+                      {formatValue(filters.valueRange.min)} - {filters.valueRange.max >= 20000000 ? '20M+' : formatValue(filters.valueRange.max)}
+                    </span>
+                  </div>
+                  <Slider 
+                    defaultValue={[0, 20000000]}
+                    max={20000000}
+                    step={100000}
+                    value={[filters.valueRange.min, filters.valueRange.max]}
+                    onValueChange={(vals) => onFiltersChange({ ...filters, valueRange: { min: vals[0], max: vals[1] } })}
+                    className="w-full pt-2"
+                  />
+                </div>
+
+                {/* ÁREA */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between border-b pb-2 border-white/5">
+                    <h4 className={`font-bold text-sm ${isDark ? "text-white" : "text-black"}`}>Área Privativa</h4>
+                    <span className={`text-[10px] uppercase tracking-wider font-mono px-2 py-1 rounded ${
+                      isDark ? "bg-white/5 text-white/60" : "bg-black/5 text-black/60"
+                    }`}>
+                      {filters.areaRange.min}m² - {filters.areaRange.max >= 1000 ? '1000+m²' : `${filters.areaRange.max}m²`}
+                    </span>
+                  </div>
+                  <Slider 
+                    defaultValue={[0, 1000]}
+                    max={1000}
+                    step={10}
+                    value={[filters.areaRange.min, filters.areaRange.max]}
+                    onValueChange={(vals) => onFiltersChange({ ...filters, areaRange: { min: vals[0], max: vals[1] } })}
+                    className="w-full pt-2"
+                  />
+                </div>
+
+                {/* DORMITÓRIOS */}
+                <div className="space-y-3">
+                  <h4 className={`font-bold text-sm border-b pb-2 border-white/5 ${isDark ? "text-white" : "text-black"}`}>Dormitórios</h4>
+                  <div className="flex gap-2">
+                    {[0, 1, 2, 3, 4].map((qt) => (
+                      <button
+                        key={`bed-${qt}`}
+                        onClick={() => onFiltersChange({ ...filters, bedrooms: qt })}
+                        className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                          filters.bedrooms === qt
+                            ? (isDark ? "bg-[#d4af35] text-black" : "bg-blue-600 text-white")
+                            : (isDark ? "bg-white/5 text-white/60 hover:bg-white/10" : "bg-black/5 text-black/60 hover:bg-black/10")
+                        }`}
+                      >
+                        {qt === 0 ? 'Qualquer' : `${qt}+`}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* AÇÕES */}
+                <div className="flex justify-between items-center pt-2">
+                  <button 
+                    onClick={() => onFiltersChange({ 
+                      valueRange: { min: 0, max: 20000000 }, 
+                      areaRange: { min: 0, max: 1000 }, 
+                      bedrooms: 0 
+                    })} 
+                    className={`text-[10px] uppercase tracking-wider font-bold ${
+                      isDark ? "text-white/50 hover:text-white" : "text-black/50 hover:text-black"
+                    }`}
+                  >
+                    Resetar
+                  </button>
+                  <button 
+                    onClick={() => setIsFilterOpen(false)}
+                    className={`px-4 py-2 rounded-lg text-xs font-bold transition-colors ${
+                      isDark ? "bg-[#d4af35]/10 text-[#d4af35] hover:bg-[#d4af35]/20" : "bg-blue-600/10 text-blue-600 hover:bg-blue-600/20"
+                    }`}
+                  >
+                    Aplicar
+                  </button>
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
 
         {/* Expandable Menu */}
@@ -191,6 +331,30 @@ export function AtlasTopBar({
                     Ingestão Imóveis
                   </button>
                   <button
+                    onClick={() => {
+                      router.push('/atlas/manager')
+                      setIsMenuOpen(false)
+                    }}
+                    className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm transition-colors ${
+                      isDark ? "text-white/70 hover:text-white hover:bg-emerald-500/10" : "text-black/70 hover:text-black hover:bg-emerald-500/10"
+                    }`}
+                  >
+                    <LayoutGrid className="w-4 h-4 text-emerald-500" />
+                    Gerenciador Atlas
+                  </button>
+                  <button
+                    onClick={() => {
+                      onOpenIngestion() // Por enquanto abre a mesma modal, mas o plano diz para adicionar vistanet lá
+                      setIsMenuOpen(false)
+                    }}
+                    className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm transition-colors ${
+                      isDark ? "text-white/70 hover:text-white hover:bg-blue-500/10" : "text-black/70 hover:text-black hover:bg-blue-500/10"
+                    }`}
+                  >
+                    <Globe className="w-4 h-4 text-blue-500" />
+                    Busca Vistanet
+                  </button>
+                  <button
                     onClick={() => setIsMenuOpen(false)}
                     className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm transition-colors ${
                       isDark ? "text-white/70 hover:text-white hover:bg-white/5" : "text-black/70 hover:text-black hover:bg-black/5"
@@ -203,6 +367,7 @@ export function AtlasTopBar({
               </motion.div>
             )}
           </AnimatePresence>
+        </div>
         </div>
       </div>
     </div>
