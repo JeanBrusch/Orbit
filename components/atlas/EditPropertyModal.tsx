@@ -228,6 +228,16 @@ export default function EditPropertyModal({ isOpen, onClose, property, onSave, o
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div>
+                          <label className={labelClass}>Bairro</label>
+                          <input value={formData.neighborhood} onChange={e => setFormData({...formData, neighborhood: e.target.value})} className={inputClass} placeholder="ex: Batel" />
+                        </div>
+                        <div>
+                          <label className={labelClass}>Cidade</label>
+                          <input value={formData.city} onChange={e => setFormData({...formData, city: e.target.value})} className={inputClass} placeholder="ex: Curitiba" />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
                           <label className={labelClass}>Cód. Interno</label>
                           <input value={formData.internal_code} onChange={e => setFormData({...formData, internal_code: e.target.value})} className={inputClass} />
                         </div>

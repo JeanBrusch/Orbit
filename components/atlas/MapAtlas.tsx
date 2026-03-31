@@ -20,6 +20,7 @@ export interface MapProperty {
   lng: number | null
   value: number | null
   locationText?: string | null
+  neighborhood?: string | null
   coverImage?: string | null
   photos?: string[]
   url?: string | null
@@ -29,6 +30,7 @@ export interface MapProperty {
   area_total?: number
   bedrooms?: number
   suites?: string | number
+  parking_spots?: string | number
   internalCode?: string | null
   // Match fields (injected externally)
   matchScore?: number // 0–100
@@ -433,42 +435,58 @@ export const MapAtlas = forwardRef<any, MapAtlasProps>(function MapAtlasInner({
             <motion.div 
                initial={{ opacity: 0, y: 10, scale: 0.95 }}
                animate={{ opacity: 1, y: 0, scale: 1 }}
-               className={`w-48 overflow-hidden rounded-2xl border shadow-2xl backdrop-blur-3xl ${
-                 isDark ? 'bg-[#0a0a0f]/90 border-white/10' : 'bg-white/90 border-slate-200'
+               className={`w-64 rounded-3xl overflow-hidden shadow-2xl backdrop-blur-3xl border ${
+                 isDark ? 'bg-[#0a0a0f]/95 border-white/10' : 'bg-white/95 border-slate-200'
                }`}
             >
-               {hoveredProperty.coverImage && (
-                 <div className="h-24 w-full overflow-hidden">
-                   <img 
-                    src={hoveredProperty.coverImage} 
-                    alt="" 
-                    className="h-full w-full object-cover transition-transform duration-500 hover:scale-110"
-                   />
-                 </div>
-               )}
-               <div className="p-3">
-                 <div className="flex items-center justify-between gap-2 mb-1">
-                   <span className={`text-[11px] font-bold truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>
+               <div className="relative h-32 w-full overflow-hidden">
+                 {(hoveredProperty.photos && hoveredProperty.photos.length > 0) ? (
+                   <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${hoveredProperty.photos[0]})` }} />
+                 ) : hoveredProperty.coverImage ? (
+                   <img src={hoveredProperty.coverImage} alt="" className="h-full w-full object-cover" />
+                 ) : (
+                   <div className={`h-full w-full ${isDark ? 'bg-zinc-800' : 'bg-slate-200'}`} />
+                 )}
+                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                 {hoveredProperty.photos && hoveredProperty.photos.length > 1 && (
+                   <div className="absolute bottom-2 right-2 px-1.5 py-0.5 rounded bg-black/50 backdrop-blur-md text-[8px] font-mono text-white/80">
+                     {hoveredProperty.photos.length}f
+                   </div>
+                 )}
+               </div>
+               
+               <div className="p-3 space-y-2">
+                 <div className="space-y-0.5">
+                   <div className={`text-[11px] font-bold leading-tight line-clamp-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>
                      {hoveredProperty.name}
-                   </span>
+                   </div>
+                   <div className={`text-[9px] uppercase tracking-wider opacity-50 ${isDark ? 'text-white/60' : 'text-slate-500'}`}>
+                     {hoveredProperty.neighborhood || hoveredProperty.locationText || "Localização"}
+                   </div>
                  </div>
                  
-                 <div className="flex items-center gap-2 mb-2">
-                   <span className="text-[11px] font-mono font-bold" style={{ color: TOKEN.primary }}>
+                 <div className="flex items-center justify-between">
+                   <span className="text-[13px] font-mono font-bold" style={{ color: TOKEN.primary }}>
                      {formatValue(hoveredProperty.value)}
                    </span>
                  </div>
 
-                 <div className="flex items-center justify-between border-t border-white/5 pt-2">
-                    <div className="flex items-center gap-1.5">
+                 <div className="flex items-center justify-between gap-2 pt-2 border-t border-white/5">
+                    <div className="flex items-center gap-1">
                       <Ruler className="w-3 h-3 text-zinc-500" />
                       <span className="text-[10px] font-medium text-zinc-400">{hoveredProperty.area_privativa || 0}m²</span>
                     </div>
-                    {(hoveredProperty.bedrooms ?? 0) > 0 && (
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[10px] font-bold text-zinc-500">{hoveredProperty.bedrooms}Q</span>
-                      </div>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {Number(hoveredProperty.bedrooms ?? 0) > 0 && (
+                        <span className="text-[9px] font-bold text-zinc-500">{hoveredProperty.bedrooms}Q</span>
+                      )}
+                      {Number(hoveredProperty.suites ?? 0) > 0 && (
+                        <span className="text-[9px] font-bold text-zinc-500">{hoveredProperty.suites}Suite</span>
+                      )}
+                      {Number(hoveredProperty.parking_spots ?? 0) > 0 && (
+                        <span className="text-[9px] font-bold text-zinc-500">{hoveredProperty.parking_spots}V</span>
+                      )}
+                    </div>
                  </div>
                </div>
             </motion.div>
