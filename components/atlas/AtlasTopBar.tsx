@@ -4,7 +4,8 @@ import { useTheme } from "next-themes"
 import { motion, AnimatePresence } from "framer-motion"
 import { 
   ChevronLeft, Search, Map as MapIcon, 
-  Layers, Filter, Users, LayoutGrid, Plus, Pencil, Globe, SlidersHorizontal
+  Layers, Filter, Users, LayoutGrid, Plus, Pencil, Globe, SlidersHorizontal,
+  Link2 as LinkIcon, Mic
 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
@@ -25,7 +26,8 @@ interface AtlasTopBarProps {
   onMapModeChange: (mode: MapMode) => void
   onOpenSearch: () => void
   onOpenSelections: () => void
-  onOpenIngestion: () => void
+  onOpenUrlIngestion: () => void
+  onOpenVoiceIngestion: () => void
   filters: AtlasFilters
   onFiltersChange: (filters: AtlasFilters) => void
 }
@@ -48,7 +50,8 @@ export function AtlasTopBar({
   onMapModeChange,
   onOpenSearch,
   onOpenSelections,
-  onOpenIngestion,
+  onOpenUrlIngestion,
+  onOpenVoiceIngestion,
   filters,
   onFiltersChange
 }: AtlasTopBarProps) {
@@ -320,15 +323,27 @@ export function AtlasTopBar({
                   </button>
                   <button
                     onClick={() => {
-                      onOpenIngestion()
+                      onOpenUrlIngestion()
                       setIsMenuOpen(false)
                     }}
                     className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm transition-colors ${
                       isDark ? "text-white/70 hover:text-white hover:bg-white/5" : "text-black/70 hover:text-black hover:bg-black/5"
                     }`}
                   >
-                    <Plus className="w-4 h-4" />
-                    Ingestão Imóveis
+                    <LinkIcon className="w-4 h-4" />
+                    Adicionar URL (Vistanet/Web)
+                  </button>
+                  <button
+                    onClick={() => {
+                      onOpenVoiceIngestion()
+                      setIsMenuOpen(false)
+                    }}
+                    className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm transition-colors ${
+                      isDark ? "text-white/70 hover:text-white hover:bg-white/5" : "text-black/70 hover:text-black hover:bg-black/5"
+                    }`}
+                  >
+                    <Mic className="w-4 h-4 text-emerald-400" />
+                    Adicionar via Voz (IA)
                   </button>
                   <button
                     onClick={() => {
@@ -341,27 +356,6 @@ export function AtlasTopBar({
                   >
                     <LayoutGrid className="w-4 h-4 text-emerald-500" />
                     Gerenciador Atlas
-                  </button>
-                  <button
-                    onClick={() => {
-                      onOpenIngestion() // Por enquanto abre a mesma modal, mas o plano diz para adicionar vistanet lá
-                      setIsMenuOpen(false)
-                    }}
-                    className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm transition-colors ${
-                      isDark ? "text-white/70 hover:text-white hover:bg-blue-500/10" : "text-black/70 hover:text-black hover:bg-blue-500/10"
-                    }`}
-                  >
-                    <Globe className="w-4 h-4 text-blue-500" />
-                    Busca Vistanet
-                  </button>
-                  <button
-                    onClick={() => setIsMenuOpen(false)}
-                    className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm transition-colors ${
-                      isDark ? "text-white/70 hover:text-white hover:bg-white/5" : "text-black/70 hover:text-black hover:bg-black/5"
-                    }`}
-                  >
-                    <Pencil className="w-4 h-4" />
-                    Edição Rápida
                   </button>
                 </div>
               </motion.div>
