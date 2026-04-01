@@ -64,10 +64,11 @@ export function AtlasFocusSurface() {
   const [isLoadingHeatmap, setIsLoadingHeatmap] = useState(false)
   const [selectedNeighborhood, setSelectedNeighborhood] = useState<NeighborhoodData | null>(null)
   
-  const { 
-    isAtlasMapActive, 
-    closeAtlasMap, 
+  const {
+    isAtlasMapActive,
+    closeAtlasMap,
     atlasInvokeContext,
+    openLeadPanel,
   } = useOrbitContext()
   
   const { properties: supabaseProperties, refetch: refetchProperties } = useSupabaseProperties()
@@ -601,9 +602,8 @@ export function AtlasFocusSurface() {
         metric={heatmapMetric}
         onClose={() => setSelectedNeighborhood(null)}
         onLeadClick={(leadId) => {
-          // Fecha o heatmap e abre o lead na página principal
-          // (fullscreen redirecionaria; aqui apenas fecha o panel)
           setSelectedNeighborhood(null)
+          openLeadPanel(leadId)
         }}
       />
 

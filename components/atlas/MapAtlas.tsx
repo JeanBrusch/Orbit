@@ -41,6 +41,7 @@ export interface MapProperty {
 interface MapAtlasProps {
   properties: MapProperty[]
   onPropertyClick?: (property: MapProperty) => void
+  onPropertyDeselect?: () => void
   selectedPropertyId?: string | null
   className?: string
   initialCenter?: [number, number]
@@ -275,6 +276,7 @@ PropertyMarker.displayName = "PropertyMarker"
 export const MapAtlas = forwardRef<any, MapAtlasProps>(function MapAtlasInner({
   properties,
   onPropertyClick,
+  onPropertyDeselect,
   selectedPropertyId,
   className = "",
   initialCenter = [XANGRILA_CENTER.longitude, XANGRILA_CENTER.latitude],
@@ -362,6 +364,7 @@ export const MapAtlas = forwardRef<any, MapAtlasProps>(function MapAtlasInner({
         onMapClick(e.lngLat.lat, e.lngLat.lng)
     } else {
         setClickedProperty(null)
+        onPropertyDeselect?.()
     }
   }
 

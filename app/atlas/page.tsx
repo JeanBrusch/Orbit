@@ -278,6 +278,7 @@ function AtlasManagerContent() {
           properties={mappedProperties}
           activeLeadId={selectedLeadId}
           onPropertyClick={(p) => setSelectedProperty(p)}
+          onPropertyDeselect={() => setSelectedProperty(null)}
           selectedPropertyId={selectedProperty?.id}
         />
       </div>
