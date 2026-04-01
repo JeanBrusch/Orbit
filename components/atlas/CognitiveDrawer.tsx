@@ -10,11 +10,18 @@ interface CognitiveDrawerProps {
   isOpen: boolean
   onClose: () => void
   isDark: boolean
+  onAction?: (action: 'acervo' | 'propor' | 'ver-ficha', propertyId?: string, leadId?: string) => void
 }
 
-export const CognitiveDrawer = ({ property, lead, isOpen, onClose, isDark }: CognitiveDrawerProps) => {
-  const match = lead ? computeMatch(property, lead) : null
+export const CognitiveDrawer = ({ property, lead, isOpen, onClose, isDark, onAction }: CognitiveDrawerProps) => {
+  const match = (lead && property) ? computeMatch(property, lead) : null
   const score = match?.scorePercentage || 0
+
+  const handleAction = (type: 'acervo' | 'propor' | 'ver-ficha') => {
+    if (onAction) {
+      onAction(type, property?.id, lead?.id)
+    }
+  }
 
   return (
     <AnimatePresence>
@@ -137,9 +144,12 @@ export const CognitiveDrawer = ({ property, lead, isOpen, onClose, isDark }: Cog
                        <p className="text-[10px] opacity-50 uppercase tracking-tighter">Budget {lead?.budget ? `R$ ${(lead.budget/1000).toFixed(0)}k` : "N/A"}</p>
                     </div>
                  </div>
-                 <button className={`w-full py-3 rounded-xl border text-[11px] font-bold flex items-center justify-center gap-2 transition-all ${
+                 <button 
+                  disabled={!lead}
+                  onClick={() => handleAction('ver-ficha')}
+                  className={`w-full py-3 rounded-xl border text-[11px] font-bold flex items-center justify-center gap-2 transition-all ${
                    isDark ? 'border-white/10 text-white hover:bg-white/5 shadow-2xl' : 'border-slate-200 text-slate-700 hover:bg-slate-100 shadow-md'
-                 }`}>
+                 } ${!lead ? 'opacity-30 cursor-not-allowed' : ''}`}>
                     <MessageSquare size={14} />
                     Ver Ficha do Lead
                  </button>
@@ -147,15 +157,21 @@ export const CognitiveDrawer = ({ property, lead, isOpen, onClose, isDark }: Cog
 
               {/* Action Grid — One row on mobile for space */}
               <div className="grid grid-cols-2 gap-3 pb-6 md:pb-0">
-                 <button className={`flex flex-col items-center justify-center gap-2 p-4 rounded-3xl border transition-all ${
+                 <button 
+                  disabled={!lead || !property}
+                  onClick={() => handleAction('acervo')}
+                  className={`flex flex-col items-center justify-center gap-2 p-4 rounded-3xl border transition-all ${
                    isDark ? 'bg-white/2 border-white/5 hover:border-[#C9A84C]/40 text-white/60 hover:text-white' : 'bg-white border-slate-200 hover:border-[#C9A84C] text-slate-500 hover:text-slate-900'
-                 }`}>
+                 } ${!lead || !property ? 'opacity-30 cursor-not-allowed' : ''}`}>
                     <Heart size={20} />
                     <span className="text-[10px] font-bold uppercase tracking-tighter">Acervo</span>
                  </button>
-                 <button className={`flex flex-col items-center justify-center gap-2 p-4 rounded-3xl border transition-all ${
+                 <button 
+                  disabled={!lead || !property}
+                  onClick={() => handleAction('propor')}
+                  className={`flex flex-col items-center justify-center gap-2 p-4 rounded-3xl border transition-all ${
                    isDark ? 'bg-white/2 border-white/5 hover:border-[#C9A84C]/40 text-white/60 hover:text-white' : 'bg-white border-slate-200 hover:border-[#C9A84C] text-slate-500 hover:text-slate-900'
-                 }`}>
+                 } ${!lead || !property ? 'opacity-30 cursor-not-allowed' : ''}`}>
                     <Bookmark size={20} />
                     <span className="text-[10px] font-bold uppercase tracking-tighter">Propor</span>
                  </button>

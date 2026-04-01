@@ -1,5 +1,5 @@
 export function computeMatch(property: any, lead: any) {
-  if (!lead) return null;
+  if (!lead || !property) return null;
   
   let score = 0;
   const reasons: string[] = [];
@@ -34,7 +34,7 @@ export function computeMatch(property: any, lead: any) {
 
   // 3. Características (Peso 2 por match)
   const propFeatures = property.features || [];
-  const leadFeatures = lead.preferred_features || lead.desired_features || [];
+  const leadFeatures = (lead.preferred_features || lead.desired_features || []) as string[];
   if (leadFeatures.length > 0) {
     const matchedFeatures = propFeatures.filter((f: string) => 
       leadFeatures.some((lf: string) => f.toLowerCase().includes(lf.toLowerCase()))

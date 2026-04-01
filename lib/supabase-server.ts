@@ -1,19 +1,16 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js'
+import { createClient } from '@supabase/supabase-js'
 import type { Database } from './database.types'
 
-let supabaseServerInstance: SupabaseClient<Database> | null = null
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 
-export function getSupabaseServer(): SupabaseClient<Database> {
-  if (supabaseServerInstance) return supabaseServerInstance
-
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
-  // Use Service Role Key for server-side bypass if available
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-  
-  if (!supabaseUrl || !supabaseServiceKey) {
-    throw new Error('Supabase server credentials not configured (URL or keys)')
+export const getSupabaseServer = () => {
+  if (!supabaseUrl || !supabaseKey) {
+     console.error('Supabase server credentials missing in environment')
   }
-  
-  supabaseServerInstance = createClient<Database>(supabaseUrl, supabaseServiceKey)
-  return supabaseServerInstance
+  return createClient<Database>(supabaseUrl || 'https://mdjjglffrgrsewehcqph.supabase.co', supabaseKey || 'placeholder')
 }
+
+// Support legacy import if any
+const supabaseServer = getSupabaseServer()
+export default supabaseServer

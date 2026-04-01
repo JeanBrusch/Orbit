@@ -1925,8 +1925,42 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
                       <Paperclip className="w-4 h-4" />
                     </button>
                     <button
-                      onClick={() => window.open(`/atlas?leadId=${lead?.id}&tab=acervo`, "_blank")}
-                      title="Anexar imóvel"
+                      onClick={() => {
+                        invokeAtlasMap({
+                          leadId: lead?.id,
+                          leadName: lead?.name || "Lead Atual",
+                          onPropertySelected: (property) => {
+                            // Link property via API
+                            fetch("/api/property/interact", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ 
+                                propertyId: property.id, 
+                                leadId: lead?.id, 
+                                action: "sent" 
+                              })
+                            }).then(() => {
+                              // Local update - it will likely show up in interaction list
+                              setMessages(prev => [{
+                                id: Math.random().toString(),
+                                source: "operator",
+                                content: JSON.stringify({
+                                  type: "property",
+                                  id: property.id,
+                                  title: property.name,
+                                  value: property.value,
+                                  cover_image: property.coverImage
+                                }),
+                                timestamp: new Date().toISOString(),
+                                ai_analysis: null
+                              }, ...prev]);
+                            });
+                          }
+                        });
+                        // If we are on mobile, we might want to close the console to see the map
+                        if (isMobile) onClose();
+                      }}
+                      title="Selecionar imóvel no mapa"
                       className={`w-11 h-11 rounded-full flex items-center justify-center transition-all shrink-0 cursor-pointer ${
                         isDark
                           ? 'bg-white/5 border border-white/10 text-slate-400 hover:text-[#d4af35] hover:border-[#d4af35]/30'

@@ -23,11 +23,47 @@ export const SemanticSearch = ({ isOpen, onClose, isDark, leads, properties, onS
     l.name?.toLowerCase().includes(query.toLowerCase())
   ).slice(0, 3) || []
 
-  const filteredProperties = properties?.filter(p => 
-    p.title?.toLowerCase().includes(query.toLowerCase()) || 
-    p.internal_code?.toLowerCase().includes(query.toLowerCase()) ||
-    p.neighborhood?.toLowerCase().includes(query.toLowerCase())
-  ).slice(0, 5) || []
+  const filteredProperties = properties?.filter(p => {
+    const q = query.toLowerCase()
+    if (!q) return true
+    
+    let matchesCriteria = false
+    let hasExplicitFilter = false
+
+    // 1. Check for bedrooms (e.g. "3 dormitorios", "2 quartos")
+    const bedMatch = q.match(/(\d+)\s*(dormitorios|dormitórios|quartos|quarto)/)
+    if (bedMatch) {
+      hasExplicitFilter = true
+      const minBeds = parseInt(bedMatch[1])
+      if ((p.bedrooms || 0) >= minBeds) matchesCriteria = true
+      else return false // If specifically asked for N beds and doesn't have it, filter out
+    }
+
+    // 2. Check for price (e.g. "ate 900 mil", "menos de 1 milhao")
+    const priceMatch = q.match(/(ate|até|menos|abaixo|maximo|máximo)\s*(de|que)?\s*(\d+)\s*(mil|milhao|milhão)?/)
+    if (priceMatch) {
+      hasExplicitFilter = true
+      let limit = parseInt(priceMatch[3])
+      if (priceMatch[4]?.includes('milhao') || priceMatch[4]?.includes('milhão')) limit *= 1000000
+      else if (priceMatch[4] === 'mil') limit *= 1000
+      
+      if ((p.value || 0) <= limit) matchesCriteria = true
+      else return false // If specifically asked for price limit and exceeds it, filter out
+    }
+
+    // 3. Standard string matching (name, code, neighborhood)
+    const stringMatch = (
+      p.title?.toLowerCase().includes(q) || 
+      p.internal_code?.toLowerCase().includes(q) ||
+      p.neighborhood?.toLowerCase().includes(q) ||
+      p.internal_name?.toLowerCase().includes(q)
+    )
+
+    if (stringMatch) return true
+    if (hasExplicitFilter && matchesCriteria) return true
+    
+    return false
+  }).slice(0, 5) || []
 
   const results = [
     ...filteredLeads.map(l => ({ type: 'lead', data: l })),

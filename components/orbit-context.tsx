@@ -188,6 +188,7 @@ interface OrbitContextValue {
   isLeadPanelOpen: boolean
   openLeadPanel: (leadId: string) => void
   closeLeadPanel: () => void
+  setSelectedLeadId: (leadId: string | null) => void
 
   // Lead States (non-visual, behavioral)
   leadStates: Record<string, LeadState>
@@ -1256,6 +1257,7 @@ export function OrbitProvider({ children }: { children: ReactNode }) {
     isLeadPanelOpen,
     openLeadPanel,
     closeLeadPanel,
+    setSelectedLeadId,
 
     // Lead States
     leadStates,
@@ -1325,6 +1327,7 @@ export function OrbitProvider({ children }: { children: ReactNode }) {
     isLeadPanelOpen,
     openLeadPanel,
     closeLeadPanel,
+    setSelectedLeadId,
     leadStates,
     updateLeadState,
     initializeLeadStates,

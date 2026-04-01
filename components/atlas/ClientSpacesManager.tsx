@@ -25,6 +25,7 @@ interface ClientSpace {
 
 interface PropertyWithContext {
   property_id: string;
+  interaction_type?: string;
   title: string;
   internal_name?: string;
   cover_image: string;
@@ -80,6 +81,8 @@ export default function ClientSpacesManager({ leadId, onClose }: ClientSpacesMan
           const defaultSlug = (lead as any).name.toLowerCase().replace(/\s+/g, '-')
           setSlug(defaultSlug)
         }
+        // Even if no space exists, we can still show properties sent to this leadId
+        fetchSentProperties("") 
       }
     } catch (err) {
       console.error(err)
@@ -107,11 +110,11 @@ export default function ClientSpacesManager({ leadId, onClose }: ClientSpacesMan
   const fetchSentProperties = async (spaceId: string) => {
     // 1. Fetch properties directly linked to lead_id OR linked via capsules
     // For maximum reliability, we fetch all active capsule_items for this lead
-    const { data: capsuleItems, error: itemsError } = await (supabase
-      .from('property_interactions') as any)
-      .select('property_id, properties(title, internal_name, internal_code, cover_image, value, location_text)')
-      .eq('lead_id', leadId)
-      .eq('interaction_type', 'sent')
+    const { data: capsuleItems, error: itemsError } = await supabase
+      .from('property_interactions')
+      .select('property_id, interaction_type, properties(title, internal_name, internal_code, cover_image, value, location_text)')
+      .eq('lead_id', leadId as string)
+      .in('interaction_type', ['sent', 'favorited'])
 
     if (itemsError) {
       console.error("[MANAGER] Error fetching items:", itemsError)
@@ -138,6 +141,7 @@ export default function ClientSpacesManager({ leadId, onClose }: ClientSpacesMan
         return {
           ...props,
           property_id: item.property_id,
+          interaction_type: item.interaction_type,
           title: props.title || props.internal_name || 'Imóvel sem título',
           context: contextMap.get(item.property_id) || { note: '', video_url: '' }
         };
@@ -588,10 +592,12 @@ export default function ClientSpacesManager({ leadId, onClose }: ClientSpacesMan
                                  <p className="text-2xl font-display font-bold text-[var(--orbit-text)] tracking-tight">
                                    {prop.value ? `R$ ${(prop.value / 1000).toLocaleString()}k` : 'Sob consulta'}
                                  </p>
-                                 <div className="flex items-center gap-1.5 justify-end mt-1">
-                                   <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
-                                   <span className="text-[9px] font-mono font-bold uppercase tracking-widest text-emerald-500">Unidade Disponível</span>
-                                 </div>
+                                   <div className={`flex items-center gap-1.5 justify-end mt-1`}>
+                                     <div className={`w-1.5 h-1.5 rounded-full ${prop.interaction_type === 'sent' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]'}`} />
+                                     <span className={`text-[9px] font-mono font-bold uppercase tracking-widest ${prop.interaction_type === 'sent' ? 'text-emerald-500' : 'text-blue-500'}`}>
+                                       {prop.interaction_type === 'sent' ? 'PROPOSTO' : 'NO ACERVO'}
+                                     </span>
+                                   </div>
                               </div>
                             </div>
 

@@ -29,6 +29,7 @@ const MapAtlas = dynamic(() => import("@/components/atlas/MapAtlas").then(m => m
 const VoiceIngestion = dynamic(() => import("@/components/atlas/VoiceIngestion"), { ssr: false })
 const CognitiveDrawer = dynamic(() => import("@/components/atlas/CognitiveDrawer").then(m => m.CognitiveDrawer), { ssr: false })
 const SemanticSearch = dynamic(() => import("@/components/atlas/SemanticSearch").then(m => m.SemanticSearch), { ssr: false })
+const LeadCognitiveConsole = dynamic(() => import("@/components/lead-cognitive-console").then(m => m.LeadCognitiveConsole), { ssr: false })
 
 function AtlasManagerContent() {
   const { resolvedTheme } = useTheme()
@@ -38,13 +39,13 @@ function AtlasManagerContent() {
 
   const { properties, loading: propsLoading, refetch: refetchProps } = useSupabaseProperties()
   const { leads, loading: leadsLoading } = useSupabaseLeads()
-  const { selectedLeadId, openLeadPanel, leadStates } = useOrbitContext()
+  const { selectedLeadId, isLeadPanelOpen, openLeadPanel, closeLeadPanel, initializeLeadStates, atlasInvokeContext, closeAtlasMap, setSelectedLeadId } = useOrbitContext()
   
   // Ativa o lead como campo gravitacional no mapa, SEM abrir o LeadPanel
-  // (o LeadPanel só existe em outras rotas como /leads)
   const handleActivateLeadOnMap = useCallback((leadId: string) => {
-    openLeadPanel(leadId) // seta selectedLeadId no context
-  }, [openLeadPanel])
+    setSelectedLeadId(leadId)
+    setIsSearchOpen(false)
+  }, [setSelectedLeadId])
   
   // States newly introduced for Map-First logic
   const [mapMode, setMapMode] = useState<MapMode>("hybrid")
@@ -69,8 +70,27 @@ function AtlasManagerContent() {
   const [ingestStep, setIngestStep] = useState<"url" | "review">("url")
   const [scrapedData, setScrapedData] = useState<any>({ title: "", image: "", value: "", condo_name: "", payment: "", photos: [] })
   const [managingLeadId, setManagingLeadId] = useState<string | null>(null)
-  const activeLead = useMemo(() => leads?.find(l => l.id === selectedLeadId), [leads, selectedLeadId])
 
+  // 1. Critical Sync: Synchronize Supabase leads with OrbitContext state
+  // This ensures AtlasTopBar and other components see lead names and data
+  useEffect(() => {
+    if (leads && leads.length > 0) {
+      initializeLeadStates(leads.map(l => ({
+        id: l.id,
+        orbit_stage: l.orbitStage, // Using mapped camelCase from OrbitLead
+        orbit_visual_state: l.orbitVisualState
+      })))
+    }
+  }, [leads, initializeLeadStates])
+
+  // 2. Active Lead Resolution
+  // We prioritize the lead from the local Supabase array, but cross-reference with context selection
+  const activeLead = useMemo(() => {
+    if (!selectedLeadId) return null
+    return leads?.find(l => l.id === selectedLeadId) || null
+  }, [leads, selectedLeadId])
+
+  // 3. Filter Properties Logic
   const mappedProperties = useMemo(() => {
     return (properties || [])
       .filter((p: any) => {
@@ -82,6 +102,13 @@ function AtlasManagerContent() {
         
         const propBeds = p.bedrooms || 0
         if (filters.bedrooms > 0 && propBeds < filters.bedrooms) return false
+
+        // Apply Map Mode Intelligent Logic
+        if (mapMode === "intent" && activeLead) {
+          const match = computeMatch(p, activeLead);
+          // Only show properties with significant resonance (> 40%)
+          if (!match || match.scorePercentage < 40) return false;
+        }
 
         return true
       })
@@ -110,7 +137,7 @@ function AtlasManagerContent() {
         lastInteractionAt: p.updated_at || p.created_at,
       };
     });
-  }, [properties, activeLead, filters]);
+  }, [properties, activeLead, filters, mapMode]);
 
   // Handlers
   // ── Handlers (Legacy Ingestion) ─────────────────────────────────────────────
@@ -212,6 +239,43 @@ function AtlasManagerContent() {
   }
   const handleOpenVoiceIngestion = () => setIsVoiceModalOpen(true)
 
+  const handleCognitiveAction = useCallback(async (type: 'acervo' | 'propor' | 'ver-ficha', propertyId?: string, leadId?: string) => {
+    // If IDs are missing, try to resolve from active state
+    const finalPropId = propertyId || selectedProperty?.id
+    const finalLeadId = leadId || selectedLeadId
+
+    if (type === 'ver-ficha') {
+      if (finalLeadId) {
+        openLeadPanel(finalLeadId)
+      } else {
+        toast.error("Lead não selecionado.")
+      }
+      return
+    }
+
+    if (!finalPropId || !finalLeadId) {
+       toast.error("Selecione um lead e um imóvel para esta ação.")
+       return
+    }
+
+    const action = type === 'acervo' ? 'favorited' : 'sent'
+    const loadingToast = toast.loading(type === 'acervo' ? "Salvando no acervo..." : "Preparando proposta...")
+
+    try {
+      const res = await fetch("/api/property/interact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ propertyId: finalPropId, leadId: finalLeadId, action })
+      })
+
+      if (!res.ok) throw new Error("Erro na interação")
+
+      toast.success(type === 'acervo' ? "Salvo no acervo!" : "Imóvel proposto com sucesso!", { id: loadingToast })
+    } catch (err: any) {
+      toast.error(`Erro: ${err.message}`, { id: loadingToast })
+    }
+  }, [selectedProperty, selectedLeadId, router])
+
   const handleUpdateProperty = async (updatedData: any) => {
     try {
       const isNew = !updatedData.id;
@@ -290,6 +354,7 @@ function AtlasManagerContent() {
         isOpen={Boolean(selectedProperty)}
         onClose={() => setSelectedProperty(null)}
         isDark={isDark}
+        onAction={handleCognitiveAction}
       />
 
       {/* 
@@ -317,7 +382,7 @@ function AtlasManagerContent() {
         isDark={isDark}
         leads={leads || []}
         properties={properties || []}
-        onSelectLead={(id) => openLeadPanel(id)}
+        onSelectLead={(id) => handleActivateLeadOnMap(id)}
         onSelectProperty={(p) => {
           setSelectedProperty(p)
         }}
@@ -444,6 +509,54 @@ function AtlasManagerContent() {
             leadId={managingLeadId !== 'ALL' ? managingLeadId : undefined}
             onClose={() => setManagingLeadId(null)}
           />
+        )}
+      </AnimatePresence>
+
+      {selectedLeadId && (
+        <LeadCognitiveConsole
+          leadId={selectedLeadId}
+          isOpen={isLeadPanelOpen}
+          onClose={closeLeadPanel}
+        />
+      )}
+      
+      {/* 
+        SELECTION CONFIRMATION OVERLAY 
+        Shown when a selection flow is active (atlasInvokeContext)
+      */}
+      <AnimatePresence>
+        {selectedProperty && atlasInvokeContext?.onPropertySelected && (
+          <motion.div
+            initial={{ y: 100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 100, opacity: 0 }}
+            className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] flex flex-col md:flex-row items-center gap-4 bg-[#0a0a0c] border border-[#d4af35]/40 rounded-3xl p-5 shadow-[0_0_80px_rgba(212,175,53,0.15)] backdrop-blur-xl min-w-[320px] md:min-w-[450px]"
+          >
+             <div className="flex-1">
+               <p className="text-[10px] text-[#d4af35] font-bold uppercase tracking-[0.2em] mb-1">Vincular para o Atlas</p>
+               <h4 className="text-sm font-semibold text-white truncate max-w-[250px] md:max-w-none">
+                 Vincular <span className="text-[#2ec5ff]">{selectedProperty.name}</span> ao Lead <span className="text-[#d4af35]">{atlasInvokeContext.leadName || "Ativo"}</span>?
+               </h4>
+             </div>
+             <div className="flex items-center gap-3 shrink-0">
+               <button 
+                 onClick={() => setSelectedProperty(null)}
+                 className="px-5 py-2.5 rounded-2xl text-[11px] font-bold uppercase tracking-wider text-slate-400 hover:text-white hover:bg-white/5 transition-all cursor-pointer"
+               >
+                 Cancelar
+               </button>
+               <button 
+                 onClick={() => {
+                   atlasInvokeContext.onPropertySelected?.(selectedProperty)
+                   setSelectedProperty(null)
+                   closeAtlasMap()
+                 }}
+                 className="px-7 py-2.5 rounded-2xl bg-[#d4af35] text-black text-[11px] font-bold uppercase tracking-widest shadow-[0_0_20px_rgba(212,175,53,0.3)] hover:scale-105 active:scale-95 transition-all cursor-pointer"
+               >
+                 Confirmar Vínculo
+               </button>
+             </div>
+          </motion.div>
         )}
       </AnimatePresence>
 
