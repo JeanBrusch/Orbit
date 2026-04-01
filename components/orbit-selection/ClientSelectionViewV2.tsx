@@ -38,6 +38,8 @@ interface Property {
   recommendedReason?: string
   description?: string
   internalCode?: string
+  matchScore?: number
+  matchReasons?: string[]
   _debugRow?: any
 }
 
@@ -541,34 +543,49 @@ export default function ClientSelectionView({
                         animate={{ height: 'auto', opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
                         transition={{ type: 'spring', stiffness: 300, damping: 32 }}
-                        className="overflow-hidden border-t border-gray-200 pt-4 space-y-3"
+                        className="overflow-hidden border-t border-gray-200 pt-4 space-y-6"
                       >
-                        {item.location && (
-                          <div className="flex gap-2 text-[13px] text-gray-700">
-                            <MapPin size={16} className="flex-shrink-0 text-gray-400" />
-                            <span>{item.location}</span>
+                        {/* Cognitive Transparency Area */}
+                        <div className="flex flex-col gap-3">
+                          <div className="flex items-center gap-2">
+                             {item.matchScore && item.matchScore > 0 && (
+                               <div className="px-2 py-1 bg-[#C9A84C]/10 border border-[#C9A84C]/20 rounded-lg flex items-center gap-1.5 self-start">
+                                  <Sparkles size={10} className="text-[#C9A84C]" />
+                                  <span className="text-[10px] font-bold text-[#C9A84C] uppercase tracking-widest">{item.matchScore}% Match</span>
+                               </div>
+                             )}
                           </div>
-                        )}
+                          
+                          {item.location && (
+                            <div className="flex items-center gap-2 text-zinc-500">
+                              <MapPin size={14} className="text-[#C9A84C]/60 shrink-0" />
+                              <span className="text-sm font-medium tracking-wide">
+                                {item.location}
+                              </span>
+                            </div>
+                          )}
+                        </div>
 
                         {item.description && (
                           <div className="space-y-2">
-                            <h4 className="text-[12px] font-bold uppercase tracking-wider text-gray-400">Sobre o Imóvel</h4>
-                            <p className="text-[14px] text-gray-700 leading-relaxed font-light">
+                            <h4 className="text-[11px] font-bold uppercase tracking-widest text-zinc-400">Sobre o Imóvel</h4>
+                            <p className="text-[14px] text-zinc-700 leading-relaxed font-light">
                               {item.description}
                             </p>
                           </div>
                         )}
 
                         {item.note && (
-                          <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
-                            <p className="text-[13px] text-gray-600 leading-relaxed italic">
-                              "{item.note}"
-                            </p>
+                          <div className="bg-zinc-50 p-5 rounded-2xl border border-zinc-100 flex gap-3">
+                             <Sparkles size={14} className="text-[#C9A84C] shrink-0 mt-1" />
+                             <p className="text-[14px] text-zinc-600 leading-relaxed italic">
+                               "{item.note}"
+                             </p>
                           </div>
                         )}
 
                         {item.videoUrl && (
-                          <div className="aspect-video rounded-lg overflow-hidden bg-gray-200">
+                          <div className="aspect-video rounded-2xl overflow-hidden bg-zinc-100 border border-zinc-200">
                             <iframe
                               src={item.videoUrl}
                               className="w-full h-full"
@@ -578,13 +595,37 @@ export default function ClientSelectionView({
                           </div>
                         )}
 
-                        <button
-                          onClick={() => handleWhatsAppClick(item)}
-                          className="w-full flex items-center justify-center gap-2 py-3.5 bg-[#1A1A1A] text-white rounded-xl text-[14px] font-semibold active:scale-[0.98] transition-all shadow-lg shadow-black/5"
-                        >
-                          <MessageCircle size={18} />
-                          Tirar dúvidas no WhatsApp
-                        </button>
+                        {/* CTAs */}
+                        <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                          <button 
+                            onClick={() => {
+                              const msg = encodeURIComponent(`${lead.firstName}, o que você achou dessa opção de ${item.title}? Vi que deu ${item.matchScore}% de match com o seu perfil!`)
+                              window.open(`https://wa.me/5551981140003?text=${msg}`, '_blank')
+                            }}
+                            className="flex-1 h-14 bg-zinc-900 hover:bg-black text-white rounded-2xl flex items-center justify-center gap-3 font-bold uppercase tracking-widest text-[11px] shadow-xl transition-all"
+                          >
+                            <MessageCircle size={18} />
+                            Solicitar Fotos & Detalhes
+                          </button>
+                          <button
+                            onClick={() => toggleFavorite(item.id)}
+                            className={`h-14 px-8 rounded-2xl border transition-all duration-300 flex items-center justify-center gap-2 ${
+                              interactions.favorited?.has(item.id)
+                                ? 'bg-[#C9A84C] border-[#C9A84C] text-white shadow-[#C9A84C]/30 shadow-lg'
+                                : 'bg-white border-zinc-200 text-zinc-500 hover:border-[#C9A84C] hover:text-[#C9A84C]'
+                            }`}
+                          >
+                            <Heart
+                              size={18}
+                              className={
+                                interactions.favorited?.has(item.id) ? 'fill-current' : ''
+                              }
+                            />
+                            <span className="text-[10px] font-bold uppercase tracking-widest">
+                               Favoritar
+                            </span>
+                          </button>
+                        </div>
                       </motion.div>
                     )}
                   </AnimatePresence>

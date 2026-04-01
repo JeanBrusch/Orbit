@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation'
 import { Home, ExternalLink, MapPin, MessageSquare, Star, Sparkles, Map as MapIcon, Grid } from 'lucide-react'
 import { getSupabaseServer } from '@/lib/supabase-server'
 import { Metadata } from 'next'
+import { computeMatch } from '@/lib/atlas-utils'
 import ClientSelectionView from '@/components/orbit-selection/ClientSelectionViewV2'
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
@@ -51,7 +52,14 @@ async function getSelectionData(slug: string) {
 
   const leadId = space.lead_id
 
-  // 2. Get Lead Preferences (Insight Bar)
+  // 2. Get Lead Details for Match Calculation
+  const { data: leadRawData } = await (supabase
+    .from('leads') as any)
+    .select('id, budget, preferred_features, preferred_area, desired_bedrooms')
+    .eq('id', leadId)
+    .single()
+
+  // 2.1 Get Lead Preferences (Insight Bar)
   const { data: prefs } = await (supabase
     .from('lead_preferences') as any)
     .select('*')
@@ -131,6 +139,9 @@ async function getSelectionData(slug: string) {
         alt: `${prop.title || 'Imóvel'} - Foto ${idx + 1}`
       }))
 
+      // Dynamic Match Calculation for Transparency
+      const match = (prop && leadRawData) ? computeMatch(prop, leadRawData) : null
+
       return {
         id: prop.id || item.property_id,
         title: prop.title || prop.internal_name || "Imóvel Desconhecido",
@@ -148,6 +159,8 @@ async function getSelectionData(slug: string) {
         recommendedReason: ctx?.recommended_reason,
         description: prop.description || "",
         internalCode: prop.internal_code || undefined,
+        matchScore: match?.scorePercentage || 0,
+        matchReasons: match?.reasons || [],
         _debugRow: item
       }
     })
@@ -162,8 +175,8 @@ async function getSelectionData(slug: string) {
     preferences: prefs,
     items,
     initialInteractions: {
-      favorited: Array.from(new Set((interactionsRaw || []).filter((i: any) => i.interaction_type === 'liked').map((i: any) => String(i.property_id)))),
-      discarded: Array.from(new Set((interactionsRaw || []).filter((i: any) => i.interaction_type === 'disliked').map((i: any) => String(i.property_id)))),
+      favorited: Array.from(new Set((interactionsRaw || []).filter((i: any) => i.interaction_type === 'favorited').map((i: any) => String(i.property_id)))),
+      discarded: Array.from(new Set((interactionsRaw || []).filter((i: any) => i.interaction_type === 'discarded').map((i: any) => String(i.property_id)))),
       viewed: Array.from(new Set((interactionsRaw || []).filter((i: any) => i.interaction_type === 'viewed').map((i: any) => String(i.property_id))))
     }
   }

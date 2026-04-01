@@ -95,26 +95,49 @@ export const CognitiveDrawer = ({ property, lead, isOpen, onClose, isDark, onAct
               {/* Cognitive Reasons (Matches) */}
               <div className="space-y-4">
                 <h4 className={`text-[10px] font-mono uppercase tracking-[0.2em] font-bold ${isDark ? 'text-white/60' : 'text-slate-500'}`}>Pontos de Ressonância</h4>
-                <div className="space-y-3">
+                <div className="flex flex-wrap gap-2">
                   {match?.reasons && match.reasons.length > 0 ? (
                     match.reasons.map((reason, i) => (
                       <motion.div 
                         key={i} 
-                        initial={{ opacity: 0, x: 10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: i * 0.1 }}
-                        className="flex items-start gap-3"
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: i * 0.05 }}
+                        className={`px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
+                          isDark ? 'bg-white/5 border-white/10 text-[#C9A84C]' : 'bg-slate-50 border-slate-200 text-[#C9A84C]'
+                        }`}
                       >
-                         <CheckCircle2 size={14} className="text-[#C9A84C] mt-0.5 shrink-0" />
-                         <span className={`text-[12px] leading-tight ${isDark ? 'text-white/80' : 'text-slate-700'}`}>{reason}</span>
+                         {reason}
                       </motion.div>
                     ))
                   ) : (
-                    <div className={`p-4 rounded-xl border border-dashed text-center text-[11px] ${isDark ? 'border-white/10 text-white/20' : 'border-slate-200 text-slate-400'}`}>
+                    <div className={`p-4 w-full rounded-xl border border-dashed text-center text-[11px] ${isDark ? 'border-white/10 text-white/20' : 'border-slate-200 text-slate-400'}`}>
                       Nenhum match específico encontrado
                     </div>
                   )}
                 </div>
+              </div>
+
+              {/* Orbit AI Draft — Generation logic for the curator */}
+              <div className={`p-6 rounded-[2.5rem] border ${
+                isDark ? 'bg-gradient-to-br from-[#0a0a0f] to-[#14120c] border-[#C9A84C]/20 text-[#C9A84C]' : 'bg-slate-50 border-[#C9A84C]/20 text-[#C9A84C]'
+              }`}>
+                 <div className="flex items-center gap-2 mb-3">
+                    <Sparkles size={14} className="animate-pulse" />
+                    <span className="text-[10px] font-mono uppercase tracking-[0.2em] font-bold">Orbit AI Draft</span>
+                 </div>
+                 <p className={`text-[13px] italic leading-relaxed mb-4 ${isDark ? 'text-white/80' : 'text-slate-800'}`}>
+                    "{lead?.name?.split(' ')[0] || "João"}, selecionei essa opção com {score}% de match. Ela atende o seu budget e tem exatamente {match?.reasons?.[1] || 'o que você buscava'}, além de estar na {match?.reasons?.[0] || 'localização ideal'}."
+                 </p>
+                 <button 
+                  onClick={() => {
+                    const text = encodeURIComponent(`${lead?.name?.split(' ')[0] || "Olá"}, selecionei essa opção com ${score}% de match para você. Confere aqui: ${property?.url || 'Link orbit'}`)
+                    window.open(`https://wa.me/${lead?.phone?.replace(/\D/g, '') || ''}?text=${text}`, '_blank')
+                  }}
+                  className="text-[10px] font-bold underline opacity-60 hover:opacity-100 transition-opacity uppercase tracking-widest"
+                 >
+                    Copiar e Abrir WhatsApp
+                 </button>
               </div>
 
               {/* Cognitive Warnings */}

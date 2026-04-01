@@ -112,9 +112,9 @@ export default function ClientSpacesManager({ leadId, onClose }: ClientSpacesMan
     // For maximum reliability, we fetch all active capsule_items for this lead
     const { data: capsuleItems, error: itemsError } = await supabase
       .from('property_interactions')
-      .select('property_id, interaction_type, properties(title, internal_name, internal_code, cover_image, value, location_text)')
+      .select('property_id, interaction_type, properties(id, title, internal_name, internal_code, cover_image, value, location_text)')
       .eq('lead_id', leadId as string)
-      .in('interaction_type', ['sent', 'favorited'])
+      .in('interaction_type', ['sent', 'acervo', 'favorited'])
 
     if (itemsError) {
       console.error("[MANAGER] Error fetching items:", itemsError)
@@ -129,25 +129,35 @@ export default function ClientSpacesManager({ leadId, onClose }: ClientSpacesMan
 
     const contextMap = new Map((contexts || []).map((c: any) => [c.property_id, c]))
     
-    // 3. Merge and normalize
-    const merged = (capsuleItems as any[])
-      .filter(item => item.property_id) // Only show items that are actually properties
-      .map(item => {
-        // Supabase join properties(*) can return an object OR an array of one object
+    // 3. Merge and normalize (deduplicating by property_id)
+    const propertyMap = new Map<string, any>()
+    
+    // Define weights for interaction types to keep the "most important" state
+    const weights: Record<string, number> = { favorited: 3, acervo: 2, sent: 1 }
+
+    ;(capsuleItems as any[] || [])
+      .filter(item => item.property_id)
+      .forEach(item => {
         const rawProps = item.properties
         const p = Array.isArray(rawProps) ? rawProps[0] : rawProps
-        const props = p || {}
-        
-        return {
-          ...props,
-          property_id: item.property_id,
-          interaction_type: item.interaction_type,
-          title: props.title || props.internal_name || 'Imóvel sem título',
-          context: contextMap.get(item.property_id) || { note: '', video_url: '' }
-        };
-      });
+        if (!p) return
 
-    setSentProperties(merged);
+        const existing = propertyMap.get(item.property_id)
+        const currentWeight = weights[item.interaction_type] || 0
+        const existingWeight = existing ? (weights[existing.interaction_type] || 0) : -1
+
+        if (currentWeight > existingWeight) {
+          propertyMap.set(item.property_id, {
+            ...p,
+            property_id: item.property_id,
+            interaction_type: item.interaction_type,
+            title: p.title || p.internal_name || 'Imóvel sem título',
+            context: contextMap.get(item.property_id) || { note: '', video_url: '' }
+          })
+        }
+      })
+
+    setSentProperties(Array.from(propertyMap.values()))
   }
 
   const handleRemoveProperty = async (propertyId: string) => {
@@ -593,9 +603,9 @@ export default function ClientSpacesManager({ leadId, onClose }: ClientSpacesMan
                                    {prop.value ? `R$ ${(prop.value / 1000).toLocaleString()}k` : 'Sob consulta'}
                                  </p>
                                    <div className={`flex items-center gap-1.5 justify-end mt-1`}>
-                                     <div className={`w-1.5 h-1.5 rounded-full ${prop.interaction_type === 'sent' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]'}`} />
-                                     <span className={`text-[9px] font-mono font-bold uppercase tracking-widest ${prop.interaction_type === 'sent' ? 'text-emerald-500' : 'text-blue-500'}`}>
-                                       {prop.interaction_type === 'sent' ? 'PROPOSTO' : 'NO ACERVO'}
+                                     <div className={`w-1.5 h-1.5 rounded-full ${prop.interaction_type === 'sent' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : prop.interaction_type === 'acervo' ? 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]' : 'bg-pink-500 shadow-[0_0_8px_rgba(236,72,153,0.5)]'}`} />
+                                     <span className={`text-[9px] font-mono font-bold uppercase tracking-widest ${prop.interaction_type === 'sent' ? 'text-emerald-500' : prop.interaction_type === 'acervo' ? 'text-blue-500' : 'text-pink-500'}`}>
+                                       {prop.interaction_type === 'sent' ? 'PROPOSTO' : prop.interaction_type === 'acervo' ? 'NO ACERVO' : 'FAVORITADO PELO LEAD'}
                                      </span>
                                    </div>
                               </div>

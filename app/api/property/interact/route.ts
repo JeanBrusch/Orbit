@@ -11,15 +11,15 @@ export async function POST(req: Request) {
     }
 
     // 1. Registro em property_interactions
-    // Tipos suportados: 'sent', 'favorited', 'viewed', etc.
+    // Tipos suportados: 'sent' (Publicado no Portal), 'acervo' (Seleção do Corretor), 'favorited' (Reação do Lead no Portal)
     const { error: interactionError } = await supabase
       .from("property_interactions")
       .insert({
         property_id: propertyId,
         lead_id: leadId,
-        interaction_type: action,
+        interaction_type: action === 'favorited' ? 'acervo' : action,
         source: "atlas_terminal",
-        metadata: metadata
+        metadata: { ...metadata, is_broker: true }
       })
 
     if (interactionError) throw interactionError

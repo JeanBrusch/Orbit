@@ -12,63 +12,88 @@ interface SemanticSearchProps {
   properties: any[]
   onSelectLead: (id: string) => void
   onSelectProperty: (property: any) => void
+  onResultsFound?: (propertyIds: string[]) => void
 }
 
-export const SemanticSearch = ({ isOpen, onClose, isDark, leads, properties, onSelectLead, onSelectProperty }: SemanticSearchProps) => {
+export const SemanticSearch = ({ isOpen, onClose, isDark, leads, properties, onSelectLead, onSelectProperty, onResultsFound }: SemanticSearchProps) => {
   const [query, setQuery] = useState("")
   const [selectedIndex, setSelectedIndex] = useState(0)
+  const [isSearching, setIsSearching] = useState(false)
+  const [semanticResults, setSemanticResults] = useState<any[]>([])
   const inputRef = useRef<HTMLInputElement>(null)
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
+  // Enhanced local filtering for instant feedback
   const filteredLeads = leads?.filter(l => 
-    l.name?.toLowerCase().includes(query.toLowerCase())
+    l.name?.toLowerCase().includes(query.toLowerCase()) ||
+    l.neighborhood?.toLowerCase().includes(query.toLowerCase())
   ).slice(0, 3) || []
 
   const filteredProperties = properties?.filter(p => {
     const q = query.toLowerCase()
     if (!q) return true
     
-    let matchesCriteria = false
-    let hasExplicitFilter = false
-
-    // 1. Check for bedrooms (e.g. "3 dormitorios", "2 quartos")
-    const bedMatch = q.match(/(\d+)\s*(dormitorios|dormitórios|quartos|quarto)/)
-    if (bedMatch) {
-      hasExplicitFilter = true
-      const minBeds = parseInt(bedMatch[1])
-      if ((p.bedrooms || 0) >= minBeds) matchesCriteria = true
-      else return false // If specifically asked for N beds and doesn't have it, filter out
-    }
-
-    // 2. Check for price (e.g. "ate 900 mil", "menos de 1 milhao")
-    const priceMatch = q.match(/(ate|até|menos|abaixo|maximo|máximo)\s*(de|que)?\s*(\d+)\s*(mil|milhao|milhão)?/)
-    if (priceMatch) {
-      hasExplicitFilter = true
-      let limit = parseInt(priceMatch[3])
-      if (priceMatch[4]?.includes('milhao') || priceMatch[4]?.includes('milhão')) limit *= 1000000
-      else if (priceMatch[4] === 'mil') limit *= 1000
-      
-      if ((p.value || 0) <= limit) matchesCriteria = true
-      else return false // If specifically asked for price limit and exceeds it, filter out
-    }
-
-    // 3. Standard string matching (name, code, neighborhood)
-    const stringMatch = (
+    // Quick match for local UI
+    return (
       p.title?.toLowerCase().includes(q) || 
       p.internal_code?.toLowerCase().includes(q) ||
-      p.neighborhood?.toLowerCase().includes(q) ||
-      p.internal_name?.toLowerCase().includes(q)
+      p.neighborhood?.toLowerCase().includes(q)
     )
-
-    if (stringMatch) return true
-    if (hasExplicitFilter && matchesCriteria) return true
-    
-    return false
   }).slice(0, 5) || []
 
-  const results = [
-    ...filteredLeads.map(l => ({ type: 'lead', data: l })),
-    ...filteredProperties.map(p => ({ type: 'property', data: p }))
-  ]
+  // Combine results: Instant local + Semantic (if available)
+  const results = semanticResults.length > 0 
+    ? semanticResults
+    : [
+        ...filteredLeads.map(l => ({ type: 'lead', data: l })),
+        ...filteredProperties.map(p => ({ type: 'property', data: p }))
+      ]
+
+  // Actual Semantic Search Trigger (Debounced)
+  useEffect(() => {
+    if (query.length < 3) {
+      setSemanticResults([])
+      return
+    }
+
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current)
+
+    searchTimeoutRef.current = setTimeout(async () => {
+      setIsSearching(true)
+      try {
+        const response = await fetch('/api/atlas/search', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query })
+        })
+        const data = await response.json()
+        
+        if (data.matchingIds || data.matchingLeadIds) {
+          const matchedProps = properties.filter(p => data.matchingIds?.includes(p.id))
+          const matchedLeads = leads.filter(l => data.matchingLeadIds?.includes(l.id))
+          
+          const combined = [
+            ...matchedLeads.map(l => ({ type: 'lead', data: l })),
+            ...matchedProps.map(p => ({ type: 'property', data: p }))
+          ]
+
+          setSemanticResults(combined)
+          
+          if (onResultsFound) {
+            onResultsFound(data.matchingIds || [])
+          }
+        }
+      } catch (error) {
+        console.error("Semantic search failed:", error)
+      } finally {
+        setIsSearching(false)
+      }
+    }, 600)
+
+    return () => {
+      if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current)
+    }
+  }, [query])
 
   useEffect(() => {
     if (isOpen) {
@@ -133,15 +158,39 @@ export const SemanticSearch = ({ isOpen, onClose, isDark, leads, properties, onS
                 className={`flex-1 bg-transparent border-none outline-none text-lg ${isDark ? 'text-white placeholder:text-white/20' : 'text-slate-900 placeholder:text-slate-400'}`}
               />
               <div className="flex items-center gap-1">
-                <kbd className={`px-2 py-1 rounded bg-black/20 text-[10px] font-mono opacity-40 ${isDark ? 'text-white' : 'text-slate-500'}`}>ESC</kbd>
+                {isSearching ? (
+                  <motion.div 
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                    className="p-1"
+                  >
+                    <Sparkles size={16} className="text-[#C9A84C]" />
+                  </motion.div>
+                ) : (
+                  <kbd className={`px-2 py-1 rounded bg-black/20 text-[10px] font-mono opacity-40 ${isDark ? 'text-white' : 'text-slate-500'}`}>ESC</kbd>
+                )}
               </div>
             </div>
 
             {/* Results Surface */}
             <div className="max-h-[60vh] overflow-y-auto p-2 custom-scrollbar">
-              {results.length > 0 ? (
+              {isSearching && results.length === 0 ? (
+                <div className="py-20 flex flex-col items-center justify-center">
+                   <div className="relative mb-6">
+                      <motion.div 
+                        animate={{ rotate: 360, scale: [1, 1.1, 1] }}
+                        transition={{ duration: 2, repeat: Infinity }}
+                        className="absolute -inset-4 bg-[#C9A84C]/10 blur-xl rounded-full"
+                      />
+                      <Sparkles size={40} className="text-[#C9A84C] relative z-10" />
+                   </div>
+                   <p className={`text-sm font-medium ${isDark ? 'text-white/60' : 'text-slate-500'} animate-pulse`}>
+                      Atlas Cognitive está analisando sua consulta...
+                   </p>
+                </div>
+              ) : results.length > 0 ? (
                 <div className="py-2">
-                  {results.map((res, i) => {
+                  {results.slice(0, 10).map((res, i) => {
                     const isSelected = i === selectedIndex
                     return (
                       <div
@@ -154,28 +203,42 @@ export const SemanticSearch = ({ isOpen, onClose, isDark, leads, properties, onS
                         }}
                         className={`group px-4 py-3 rounded-2xl flex items-center justify-between cursor-pointer transition-all ${
                           isSelected 
-                            ? isDark ? 'bg-white/5' : 'bg-slate-100'
-                            : 'hover:bg-transparent'
+                            ? isDark ? 'bg-white/5 border border-white/5 shadow-inner' : 'bg-slate-100 border border-slate-200'
+                            : 'border border-transparent'
                         }`}
                       >
                         <div className="flex items-center gap-4">
-                           <div className={`p-2 rounded-xl border transition-colors ${
-                             isSelected ? 'border-[#C9A84C]/40 text-[#C9A84C]' : isDark ? 'border-white/5 text-white/30' : 'border-slate-100 text-slate-400'
+                           <div className={`p-2.5 rounded-xl border transition-all duration-300 ${
+                             isSelected ? 'border-[#C9A84C]/40 bg-[#C9A84C]/10 text-[#C9A84C] scale-110 shadow-lg' : isDark ? 'border-white/5 bg-white/2 text-white/30' : 'border-slate-100 bg-slate-50 text-slate-400'
                            }`}>
                              {res.type === 'lead' ? <Users size={18} /> : <Building2 size={18} />}
                            </div>
-                           <div>
-                              <p className={`text-sm font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{res.data.name || res.data.title}</p>
-                              <p className={`text-[10px] uppercase tracking-widest opacity-40 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                                {res.type === 'lead' ? 'Lead Profile' : `${res.data.neighborhood || 'Imóvel'} • ${res.data.internal_code || 'Sem Cód'}`}
+                           <div className="flex flex-col">
+                              <p className={`text-sm font-bold transition-colors ${isSelected ? (isDark ? 'text-white' : 'text-slate-900') : (isDark ? 'text-white/60' : 'text-slate-600')}`}>
+                                {res.type === 'lead' ? res.data.name : (res.data.title || res.data.internal_name || "Imóvel sem título")}
                               </p>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <span className={`text-[10px] uppercase font-mono tracking-wider opacity-40 ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
+                                  {res.type === 'lead' ? 'Lead Profile' : (res.data.neighborhood || "Bairro não informado")}
+                                </span>
+                                {res.type === 'property' && res.data.value && (
+                                  <>
+                                    <span className="w-1 h-1 rounded-full bg-[#C9A84C]/40" />
+                                    <span className="text-[10px] font-bold text-[#C9A84C]">
+                                      R$ {res.data.value.toLocaleString('pt-BR')}
+                                    </span>
+                                  </>
+                                )}
+                              </div>
                            </div>
                         </div>
                         
                         {isSelected && (
-                          <div className="flex items-center gap-2 text-[#C9A84C]">
-                             <span className="text-[10px] font-bold uppercase tracking-tighter">Enter</span>
-                             <CornerDownLeft size={14} />
+                          <div className="flex items-center gap-3">
+                             <div className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-widest ${isDark ? 'bg-white/5 text-white/40' : 'bg-slate-200 text-slate-500'}`}>
+                               Abrir no Atlas
+                             </div>
+                             <CornerDownLeft size={14} className="text-[#C9A84C]" />
                           </div>
                         )}
                       </div>
@@ -183,9 +246,11 @@ export const SemanticSearch = ({ isOpen, onClose, isDark, leads, properties, onS
                   })}
                 </div>
               ) : (
-                <div className="py-12 flex flex-col items-center justify-center opacity-20">
-                   <Sparkles size={48} className="mb-4" />
-                   <p className="text-sm font-medium">Use a inteligência para navegar</p>
+                <div className="py-16 flex flex-col items-center justify-center opacity-20">
+                   <div className="w-12 h-12 rounded-full border-2 border-dashed border-current mb-4 flex items-center justify-center">
+                     <Search size={20} />
+                   </div>
+                   <p className="text-xs font-mono uppercase tracking-[0.2em]">Cognitive Insight Required</p>
                 </div>
               )}
             </div>

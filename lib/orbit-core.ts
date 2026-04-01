@@ -223,7 +223,7 @@ async function findCompatibleProperties(
   if (!queryEmbedding) return [];
 
   const { data: properties, error } = await (getSupabase()!.rpc("match_properties", {
-    query_embedding: queryEmbedding,
+    query_embedding: queryEmbedding as any,
     match_threshold: 0.5,
     match_count: 3,
   }) as any);
@@ -355,6 +355,8 @@ REGRAS CRÍTICAS
 5. AÇÃO FORTE: action_description DEVE ser acionável e específica.
    REPROVADO: "confirmar interesse", "acompanhar", "ver se ainda", "seguir contato"
    APROVADO: "[WhatsApp] · Enviar vídeo do terraço — lead mencionou 'área gourmet' duas vezes · Critério: reação ao vídeo"
+6. TRANSPARÊNCIA: Se o portfólio compatível estiver vazio ou se faltarem dados cruciais para a evolução (orçamento, localização, motivo da compra), o campo action_description DEVE citar explicitamente essa lacuna.
+   EXEMPLO: "[WhatsApp] · Perguntar sobre budget pois busca RAG retornou 0 imóveis no Porto Coronado · Critério: definição de range de valor"
 
 ════════════════════════════════════════
 AUTO-CORREÇÃO

@@ -9,93 +9,74 @@ const openai = new OpenAI({
 
 export async function POST(request: NextRequest) {
   try {
-    const { query, minPrice, maxPrice, bedrooms, neighborhoods } = await request.json()
+    const { query } = await request.json()
 
     if (!query) {
       return NextResponse.json({ error: 'Query is required' }, { status: 400 })
     }
 
     const supabase = getSupabaseServer()
-    let dbQuery = supabase
-      .from('properties')
-      .select('id, title, internal_name, neighborhood, area_privativa, bedrooms, suites, value, features, location_text')
+    
+    // 1. Fetch Properties Context
+    const { data: properties } = await (supabase
+      .from('properties') as any)
+      .select('id, title, internal_name, neighborhood, bedrooms, value, features')
+      .limit(50)
 
-    if (minPrice !== null && minPrice !== undefined) {
-      dbQuery = dbQuery.gte('value', minPrice)
+    // 2. Fetch Leads Context
+    const { data: leads } = await (supabase
+      .from('leads') as any)
+      .select('id, name, budget, preferred_features, preferred_area')
+      .limit(30)
+
+    const context = {
+      properties: (properties || []).map((p: any) => ({
+        id: p.id,
+        type: 'property',
+        text: `${p.title || p.internal_name} em ${p.neighborhood}. ${p.bedrooms} quartos. R$ ${p.value}. ${p.features?.join(', ')}`
+      })),
+      leads: (leads || []).map((l: any) => ({
+        id: l.id,
+        type: 'lead',
+        text: `Lead: ${l.name}. Busca em ${l.preferred_area}. Budget: R$ ${l.budget}. Prefere: ${l.preferred_features?.join(', ')}`
+      }))
     }
-    if (maxPrice !== null && maxPrice !== undefined) {
-      dbQuery = dbQuery.lte('value', maxPrice)
-    }
-    if (bedrooms !== null && bedrooms !== undefined) {
-      if (bedrooms === 4) {
-        dbQuery = dbQuery.gte('bedrooms', 4)
-      } else {
-        dbQuery = dbQuery.eq('bedrooms', bedrooms)
-      }
-    }
-    if (neighborhoods && Array.isArray(neighborhoods) && neighborhoods.length > 0) {
-      dbQuery = dbQuery.in('neighborhood', neighborhoods)
-    }
 
-    const { data, error: dbError } = await (dbQuery as any)
-    const properties = data || []
+    const prompt = `Você é o motor de busca cognitiva do sistema Atlas. 
+Sua tarefa é identificar quais imóveis OU leads melhor correspondem à consulta em linguagem natural.
 
-    if (dbError) throw dbError
+Consulta: "${query}"
 
-    const propertiesContext = properties.map((p: any) => ({
-      id: p.id,
-      text: `${p.title || p.internal_name} em ${p.neighborhood || p.location_text}. ${p.bedrooms} quartos, ${p.suites} suítes, ${p.area_privativa}m². Valor: R$ ${p.value}. Features: ${p.features?.join(', ')}`
-    }))
+Contexto:
+${JSON.stringify(context)}
 
-    const prompt = `Você é um assistente de busca imobiliária inteligente. 
-Sua tarefa é filtrar uma lista de imóveis com base na consulta do usuário em linguagem natural.
+Retorne um JSON com:
+1. "matchingPropertyIds": lista de IDs de imóveis relevantes.
+2. "matchingLeadIds": lista de IDs de leads relevantes.
 
-Consulta do Usuário: "${query}"
-
-Lista de Imóveis:
-${JSON.stringify(propertiesContext)}
-
-Retorne um JSON contendo apenas o campo "matchingIds", que é uma lista dos IDs dos imóveis que melhor atendem aos critérios do usuário.
-Se nenhum imóvel for compatível, retorne uma lista vazia.
-Considere proximidade de valores, número de quartos e características mencionadas.
-
-Responda APENAS o JSON puro.`
+Seja criterioso. Se a busca for por um nome de pessoa, foque em leads. Se for por características de casa, foque em imóveis. Se for 'quem busca X', foque em leads.`
 
     const startGPT = Date.now()
     const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
-        { role: "system", content: "Você é um assistente de busca imobiliária e responde apenas em JSON." },
+        { role: "system", content: "Você é um motor de busca semântica imobiliária e responde apenas em JSON." },
         { role: "user", content: prompt }
       ],
       response_format: { type: "json_object" },
       temperature: 0,
     })
     const elapsedGPT = Date.now() - startGPT
-    const usage = response.usage
-
-    if (usage) {
-      await trackAICall({
-        module: 'orbit_core',
-        model: 'gpt-4o-mini',
-        tokens_input: usage.prompt_tokens,
-        tokens_output: usage.completion_tokens,
-        duration_ms: elapsedGPT,
-        metadata: { action: 'atlas_semantic_search', query }
-      })
-    }
-
+    
     const result = JSON.parse(response.choices[0].message.content || "{}")
 
     return NextResponse.json({
-      matchingIds: result.matchingIds || []
+      matchingIds: result.matchingPropertyIds || [],
+      matchingLeadIds: result.matchingLeadIds || []
     })
     
   } catch (error: any) {
     console.error('Semantic search error:', error)
-    return NextResponse.json(
-      { error: 'Failed to process semantic search', details: error.message },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Search failed' }, { status: 500 })
   }
 }

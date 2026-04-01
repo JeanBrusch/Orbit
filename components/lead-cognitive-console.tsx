@@ -750,6 +750,9 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
 
   // Composer
   const [composerText, setComposerText] = useState("");
+  const [writingSuggestions, setWritingSuggestions] = useState<{ label: string, text: string, icon: "check" | "pen" | "zap" }[]>([]);
+  const [isFetchingSuggestions, setIsFetchingSuggestions] = useState(false);
+  const [isAssistantActive, setIsAssistantActive] = useState(true);
   const [sendStatus, setSendStatus] = useState<"idle" | "sending" | "done" | "error">("idle");
   const [interactionMode, setInteractionMode] = useState<"whatsapp" | "note" | "call">("whatsapp");
   const [callStatus, setCallStatus] = useState<"attended" | "missed">("attended");
@@ -762,6 +765,35 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
       textareaRef.current.style.height = `${Math.min(scrollHeight, 200)}px`;
     }
   }, [composerText]);
+
+  // Real-time Writing Assistant (Debounced)
+  useEffect(() => {
+    if (!isAssistantActive || !composerText.trim() || composerText.trim().length < 5) {
+      setWritingSuggestions([]);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setIsFetchingSuggestions(true);
+      try {
+        const res = await fetch("/api/atlas/writing-assistant", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: composerText, leadId }),
+        });
+        const data = await res.json();
+        if (data.suggestions) {
+          setWritingSuggestions(data.suggestions);
+        }
+      } catch (err) {
+        console.error("[COG] Writing Assistant error", err);
+      } finally {
+        setIsFetchingSuggestions(false);
+      }
+    }, 800);
+
+    return () => clearTimeout(timer);
+  }, [composerText, isAssistantActive]);
 
   // Copy to clipboard
   const [copied, setCopied] = useState(false);
@@ -1412,6 +1444,8 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
         }
       }
 
+      setComposerText("");
+      setWritingSuggestions([]);
       setSendStatus("done");
       setTimeout(() => {
         setSendStatus("idle");
@@ -1828,10 +1862,43 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
                     </div>
                   )}
 
-                  {/* AI suggestion chip */}
-                  {aiSuggestion && !isRecording && (
+                  {/* Typing Assistant - iPhone Style */}
+                  {isAssistantActive && (writingSuggestions.length > 0 || isFetchingSuggestions) && !isRecording && (
+                    <div className="mb-3 flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
+                      <button 
+                        onClick={() => setIsAssistantActive(false)}
+                        className={`p-2 rounded-full border shrink-0 transition-colors ${isDark ? 'bg-white/5 border-white/10 hover:text-red-400' : 'bg-white border-[var(--orbit-line)] hover:text-red-500'}`} 
+                        title="Desativar Auxiliar"
+                      >
+                        {isFetchingSuggestions ? <Loader2 className="w-3 h-3 animate-spin text-[var(--orbit-glow)]" /> : <Brain className="w-3 h-3 text-[var(--orbit-glow)]" />}
+                      </button>
+                      <div className="flex items-center gap-2">
+                        {writingSuggestions.map((s, i) => (
+                          <button
+                            key={i}
+                            onClick={() => {
+                              setComposerText(s.text);
+                              setWritingSuggestions([]);
+                            }}
+                            className={`flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-full text-[11px] font-medium border transition-all active:scale-95 cursor-pointer ${
+                              isDark
+                                ? 'bg-[#d4af35]/10 border-[#d4af35]/30 text-[#d4af35] hover:bg-[#d4af35]/20'
+                                : 'bg-[var(--orbit-glow)]/5 border-[var(--orbit-glow)]/20 text-[var(--orbit-glow)] hover:bg-[var(--orbit-glow)]/10'
+                            }`}
+                          >
+                            <span className="opacity-60">{s.label}:</span>
+                            <span className="truncate max-w-[140px] italic">"{s.text.slice(0, 40)}{s.text.length > 40 ? "..." : ""}"</span>
+                            {s.icon === "zap" ? <Zap className="w-2.5 h-2.5" /> : s.icon === "pen" ? <Pencil className="w-2.5 h-2.5" /> : <Check className="w-2.5 h-2.5" />}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* AI suggestion chip (original State Engine) */}
+                  {aiSuggestion && !isRecording && !writingSuggestions.length && (
                     <div className="mb-2 flex items-center gap-2">
-                      <span className={`text-[9px] font-bold uppercase tracking-wider shrink-0 ${isDark ? 'text-slate-500' : 'text-[var(--orbit-text-muted)]'}`}>IA:</span>
+                      <span className={`text-[9px] font-bold uppercase tracking-wider shrink-0 ${isDark ? 'text-slate-500' : 'text-[var(--orbit-text-muted)]'}`}>Sugestão:</span>
                       <button
                         onClick={() => setComposerText(aiSuggestion)}
                         className={`flex-1 text-left rounded-full px-3 py-1 text-xs transition-all line-clamp-1 border cursor-pointer ${
@@ -2222,7 +2289,9 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
                 isDark ? 'bg-black/40 border-white/5' : 'bg-gray-100/50 border-[var(--orbit-line)]'
               }`}>
                 <div className={`w-1.5 h-1.5 rounded-full animate-pulse ${isDark ? 'bg-[#d4af35]' : 'bg-[var(--orbit-glow)]'}`} />
-                <span className={`text-[9px] uppercase tracking-[0.2em] font-bold ${isDark ? 'text-slate-500' : 'text-[var(--orbit-text-muted)]'}`}>Atlas Neural Network Linked</span>
+                <span className={`text-[9px] uppercase tracking-[0.2em] font-bold ${isDark ? 'text-slate-500' : 'text-[var(--orbit-text-muted)]'}`}>
+                  Atlas Neural Network Linked · {memories?.length || 0} Memórias Ativas
+                </span>
               </div>
               {lead?.last_interaction_at && (
                 <div className={`flex items-center gap-2 px-3 py-1 rounded-full border ${

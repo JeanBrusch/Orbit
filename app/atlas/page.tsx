@@ -41,15 +41,50 @@ function AtlasManagerContent() {
   const { leads, loading: leadsLoading } = useSupabaseLeads()
   const { selectedLeadId, isLeadPanelOpen, openLeadPanel, closeLeadPanel, initializeLeadStates, atlasInvokeContext, closeAtlasMap, setSelectedLeadId } = useOrbitContext()
   
+  // State for spaces manager
+  const [managingLeadId, setManagingLeadId] = useState<string | null>(null)
+
+  // Ingestion states
+  const [isIngestModalOpen, setIsIngestModalOpen] = useState(false)
+  const [ingestUrl, setIngestUrl] = useState("")
+  const [ingestStatus, setIngestStatus] = useState<"idle" | "processing" | "complete" | "failed">("idle")
+  const [ingestStep, setIngestStep] = useState<"url" | "review">("url")
+  const [scrapedData, setScrapedData] = useState<any>({ title: "", image: "", value: "", condo_name: "", payment: "", photos: [] })
+  
   // Ativa o lead como campo gravitacional no mapa, SEM abrir o LeadPanel
   const handleActivateLeadOnMap = useCallback((leadId: string) => {
     setSelectedLeadId(leadId)
     setIsSearchOpen(false)
+    setSearchResultIds(null) // Clear search when focusing a lead
   }, [setSelectedLeadId])
   
   // States newly introduced for Map-First logic
   const [mapMode, setMapMode] = useState<MapMode>("hybrid")
   const [isSearchOpen, setIsSearchOpen] = useState(false) // for semantic search
+  const [searchResultIds, setSearchResultIds] = useState<string[] | null>(null)
+  
+  const handleOpenSearch = useCallback(() => setIsSearchOpen(true), [])
+  const handleOpenSelections = useCallback(() => {
+    if (selectedLeadId && !managingLeadId) {
+       setManagingLeadId(selectedLeadId)
+    } else {
+       setManagingLeadId(selectedLeadId || 'ALL')
+    }
+  }, [selectedLeadId, managingLeadId])
+  const handleOpenUrlIngestion = useCallback(() => {
+    setIngestStep("url")
+    setIsIngestModalOpen(true)
+  }, [])
+  const handleOpenVoiceIngestion = useCallback(() => setIsVoiceModalOpen(true), [])
+
+  const handleSearchResults = useCallback((ids: string[]) => {
+    setSearchResultIds(ids.length > 0 ? ids : [])
+  }, [])
+
+  const handleClearSearch = useCallback(() => {
+    setSearchResultIds(null)
+  }, [])
+
   const [filters, setFilters] = useState({
     valueRange: { min: 0, max: 20000000 },
     areaRange: { min: 0, max: 1000 },
@@ -67,13 +102,7 @@ function AtlasManagerContent() {
   const [leadInteractions, setLeadInteractions] = useState<Record<string, 'sent' | 'favorited'>>({})
   const [loadingInteractions, setLoadingInteractions] = useState(false)
   
-  // ── Ingestion States (Legacy Flow) ──────────────────────────────────────────
-  const [isIngestModalOpen, setIsIngestModalOpen] = useState(false)
-  const [ingestUrl, setIngestUrl] = useState("")
-  const [ingestStatus, setIngestStatus] = useState<"idle" | "processing" | "complete" | "failed">("idle")
-  const [ingestStep, setIngestStep] = useState<"url" | "review">("url")
-  const [scrapedData, setScrapedData] = useState<any>({ title: "", image: "", value: "", condo_name: "", payment: "", photos: [] })
-  const [managingLeadId, setManagingLeadId] = useState<string | null>(null)
+  // Memory states remain below...
 
   // 1. Critical Sync: Synchronize Supabase leads with OrbitContext state
   // This ensures AtlasTopBar and other components see lead names and data
@@ -102,14 +131,16 @@ function AtlasManagerContent() {
           .from('property_interactions')
           .select('property_id, interaction_type')
           .eq('lead_id', selectedLeadId)
-          .in('interaction_type', ['sent', 'favorited'])
+          .in('interaction_type', ['sent', 'acervo', 'favorited'])
 
         if (error) throw error
 
         const mapping: Record<string, 'sent' | 'favorited'> = {}
         data?.forEach((item: any) => {
           if (item.property_id) {
-            mapping[item.property_id] = item.interaction_type as any
+            // Internamente no mapa, visualizamos 'acervo' como 'favorited' (AZUL)
+            const type = item.interaction_type === 'acervo' ? 'favorited' : item.interaction_type
+            mapping[item.property_id] = type as any
           }
         })
         setLeadInteractions(mapping)
@@ -134,6 +165,7 @@ function AtlasManagerContent() {
   const mappedProperties = useMemo(() => {
     return (properties || [])
       .filter((p: any) => {
+        // 1. Price/Area/Beds filters
         const propVal = p.value || 0
         if (propVal < filters.valueRange.min || propVal > filters.valueRange.max) return false
         
@@ -142,6 +174,11 @@ function AtlasManagerContent() {
         
         const propBeds = p.bedrooms || 0
         if (filters.bedrooms > 0 && propBeds < filters.bedrooms) return false
+
+        // 2. Semantic Search Filter
+        if (searchResultIds !== null) {
+          if (!searchResultIds.includes(p.id)) return false
+        }
 
         // Apply Map Mode Intelligent Logic
         if (mapMode === "intent" && activeLead) {
@@ -265,19 +302,6 @@ function AtlasManagerContent() {
     }
   }
 
-  const handleOpenSearch = () => setIsSearchOpen(true)
-  const handleOpenSelections = () => {
-    if (selectedLeadId && !managingLeadId) {
-       setManagingLeadId(selectedLeadId)
-    } else {
-       setManagingLeadId(selectedLeadId || 'ALL')
-    }
-  }
-  const handleOpenUrlIngestion = () => {
-    setIngestStep("url")
-    setIsIngestModalOpen(true)
-  }
-  const handleOpenVoiceIngestion = () => setIsVoiceModalOpen(true)
 
   const handleCognitiveAction = useCallback(async (type: 'acervo' | 'propor' | 'ver-ficha', propertyId?: string, leadId?: string) => {
     // If IDs are missing, try to resolve from active state
@@ -426,7 +450,9 @@ function AtlasManagerContent() {
         onSelectLead={(id) => handleActivateLeadOnMap(id)}
         onSelectProperty={(p) => {
           setSelectedProperty(p)
+          setIsSearchOpen(false)
         }}
+        onResultsFound={handleSearchResults}
       />
 
       <AnimatePresence>
