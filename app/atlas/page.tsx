@@ -63,6 +63,10 @@ function AtlasManagerContent() {
   const [editingProperty, setEditingProperty] = useState<any>(null)
   const [selectedProperty, setSelectedProperty] = useState<any>(null)
   
+  // Memória de Interações do Lead Selecionado (Reflexão no Mapa)
+  const [leadInteractions, setLeadInteractions] = useState<Record<string, 'sent' | 'favorited'>>({})
+  const [loadingInteractions, setLoadingInteractions] = useState(false)
+  
   // ── Ingestion States (Legacy Flow) ──────────────────────────────────────────
   const [isIngestModalOpen, setIsIngestModalOpen] = useState(false)
   const [ingestUrl, setIngestUrl] = useState("")
@@ -82,6 +86,42 @@ function AtlasManagerContent() {
       })))
     }
   }, [leads, initializeLeadStates])
+
+  // 1.1 Sincronização de Memória Operacional (Interações do Lead no Mapa)
+  useEffect(() => {
+    if (!selectedLeadId) {
+      setLeadInteractions({})
+      return
+    }
+
+    const fetchLeadHistory = async () => {
+      setLoadingInteractions(true)
+      try {
+        const supabase = await import("@/lib/supabase").then(m => m.getSupabase())
+        const { data, error } = await supabase
+          .from('property_interactions')
+          .select('property_id, interaction_type')
+          .eq('lead_id', selectedLeadId)
+          .in('interaction_type', ['sent', 'favorited'])
+
+        if (error) throw error
+
+        const mapping: Record<string, 'sent' | 'favorited'> = {}
+        data?.forEach((item: any) => {
+          if (item.property_id) {
+            mapping[item.property_id] = item.interaction_type as any
+          }
+        })
+        setLeadInteractions(mapping)
+      } catch (err) {
+        console.error("[ATLAS] Erro ao carregar histórico do lead:", err)
+      } finally {
+        setLoadingInteractions(false)
+      }
+    }
+
+    fetchLeadHistory()
+  }, [selectedLeadId])
 
   // 2. Active Lead Resolution
   // We prioritize the lead from the local Supabase array, but cross-reference with context selection
@@ -337,10 +377,11 @@ function AtlasManagerContent() {
       
       {/* LAYER 1: MAP — Fullscreen, underlying reality layer */}
       <div className="absolute inset-0 z-[0]">
-        <MapAtlas
-          mapMode={mapMode}
-          properties={mappedProperties}
+        <MapAtlas 
+          properties={mappedProperties as any[]} 
           activeLeadId={selectedLeadId}
+          leadInteractions={leadInteractions}
+          mapMode={mapMode}
           onPropertyClick={(p) => setSelectedProperty(p)}
           onPropertyDeselect={() => setSelectedProperty(null)}
           selectedPropertyId={selectedProperty?.id}

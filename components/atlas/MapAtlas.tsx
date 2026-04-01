@@ -52,6 +52,7 @@ interface MapAtlasProps {
   // New Phase 1 props
   mapMode?: MapMode
   activeLeadId?: string | null
+  leadInteractions?: Record<string, 'sent' | 'favorited'>
 }
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN
@@ -108,6 +109,7 @@ const PropertyMarker = memo(({
   onMouseLeave,
   mapMode,
   hasActiveLead,
+  interactionType,
 }: { 
   prop: MapProperty
   isSelected: boolean
@@ -117,6 +119,7 @@ const PropertyMarker = memo(({
   onMouseLeave: () => void
   mapMode: MapMode
   hasActiveLead: boolean
+  interactionType?: 'sent' | 'favorited'
 }) => {
   const { decay, isUrgent } = usePropertyDecay(prop.lastInteractionAt, prop.matchScore)
   const score = prop.matchScore ?? 0 // 0–100
@@ -138,8 +141,11 @@ const PropertyMarker = memo(({
 
   // Marker scale by match (intent/hybrid) or uniform (inventory)
   const markerScale = mapMode === "inventory" || !hasActiveLead
-    ? 1
+    ? (interactionType ? 1.05 : 1)
     : score >= 80 ? 1.3 : score >= 50 ? 1.1 : 0.85
+    
+  // Interaction colors
+  const interactionColor = interactionType === 'sent' ? '#10B981' : '#3B82F6'
 
   // Opacity modulation
   // intent mode: hide noise (low matches)
@@ -233,13 +239,25 @@ const PropertyMarker = memo(({
           {/* Inner Core — status dot */}
           <circle
             cx="26" cy="26" r="7"
-            fill={isSelected ? "white" : coreColor}
-            stroke={isSelected ? coreColor : "#0A0A0F"}
-            strokeWidth="2"
+            fill={isSelected ? "white" : (interactionType ? interactionColor : coreColor)}
+            stroke={isSelected ? (interactionType ? interactionColor : coreColor) : "#0A0A0F"}
+            strokeWidth={interactionType ? "3" : "2"}
             style={{
               transition: "r 300ms ease, fill 300ms ease",
             }}
           />
+          
+          {/* Interaction Halo — specific indicator for Acervo/Proposto */}
+          {interactionType && (
+            <circle 
+              cx="26" cy="26" r="11"
+              fill="none"
+              stroke={interactionColor}
+              strokeWidth="2"
+              strokeDasharray="4 2"
+              opacity={0.8}
+            />
+          )}
 
           {/* Selected state: expanded core */}
           {isSelected && (
@@ -284,8 +302,9 @@ export const MapAtlas = forwardRef<any, MapAtlasProps>(function MapAtlasInner({
   previewMarker = null,
   isPlacing = false,
   onMapClick,
-  mapMode = "hybrid",
+  mapMode = "hybrid" as MapMode,
   activeLeadId,
+  leadInteractions = {},
 }, ref) {
   const { resolvedTheme } = useTheme()
   const isDark = resolvedTheme === "dark"
@@ -420,8 +439,9 @@ export const MapAtlas = forwardRef<any, MapAtlasProps>(function MapAtlasInner({
             onClick={handleMarkerClick}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
-            mapMode={mapMode}
+            mapMode={(mapMode as any)}
             hasActiveLead={hasActiveLead}
+            interactionType={leadInteractions[prop.id]}
           />
         ))}
 
