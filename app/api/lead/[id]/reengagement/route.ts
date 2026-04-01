@@ -17,12 +17,6 @@ export async function POST(
   }
 
   try {
-    // ── CONFIGURAÇÃO DE GOVERNANÇA: IA DESATIVADA ──────────────────────────
-    return NextResponse.json(
-      { error: "Gerador de Reengajamento desativado por governança." },
-      { status: 403 }
-    );
-
     const supabase = getSupabaseServer();
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -116,6 +110,18 @@ PADRÕES OBRIGATÓRIOS
 ${strategy.force_patterns.map(p => `✅ ${p.replace(/_/g, " ").toUpperCase()}`).join("\n")}
 
 ════════════════════════════════════════
+ESPELHAMENTO DE TOM (MIRRORING)
+════════════════════════════════════════
+Analise as últimas mensagens do Lead:
+"${conversationContext.split('\n').filter(l => l.startsWith('LEAD:')).slice(-3).join(' | ')}"
+
+DIRETRIZ DE TOM:
+- Se o lead usa emojis, use 1 ou 2. Se não usa, NÃO use.
+- Se o lead é formal ("Vossa senhoria", "Prezado"), seja polido.
+- Se o lead é casual ("Eae", "Beleza"), seja direto e ágil.
+- Mantenha o MESMO nível de vocabulário.
+
+════════════════════════════════════════
 REGRAS ABSOLUTAS
 ════════════════════════════════════════
 1. Máximo 3 frases
@@ -129,6 +135,7 @@ DIAGNÓSTICO:
 Motivo: ${silence_analysis.silence_reason}
 Estado Emocional: ${silence_analysis.emotional_state}
 Intenção Original: ${silence_analysis.last_known_intent}
+Conflito Central: ${silence_analysis.central_conflict || "não identificado"}
 
 MEMÓRIAS:
 ${memoriesContext}
@@ -140,7 +147,8 @@ Responda APENAS com JSON:
   "message": "...",
   "objective": "${strategy.objective}",
   "hook_type": "${strategy.hook_requirement}",
-  "hook_source": "trecho exato do histórico — mínimo 15 chars",
+  "hook_source": "trecho exato do histórico ou dado do imóvel — mínimo 15 chars",
+  "mirroring_notes": "o que você detectou no tom do lead",
   "force_pattern_used": "qual padrão foi aplicado",
   "specificity_score": 0.0,
   "is_transferable": false,

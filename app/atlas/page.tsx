@@ -99,7 +99,7 @@ function AtlasManagerContent() {
   const [selectedProperty, setSelectedProperty] = useState<any>(null)
   
   // Memória de Interações do Lead Selecionado (Reflexão no Mapa)
-  const [leadInteractions, setLeadInteractions] = useState<Record<string, 'sent' | 'favorited'>>({})
+  const [leadInteractions, setLeadInteractions] = useState<Record<string, 'sent' | 'favorited' | 'portal'>>({})
   const [loadingInteractions, setLoadingInteractions] = useState(false)
   
   // Memory states remain below...
@@ -131,16 +131,24 @@ function AtlasManagerContent() {
           .from('property_interactions')
           .select('property_id, interaction_type')
           .eq('lead_id', selectedLeadId)
-          .in('interaction_type', ['sent', 'acervo', 'favorited'])
+          .in('interaction_type', ['sent', 'acervo', 'favorited', 'portal_opened'])
 
         if (error) throw error
 
-        const mapping: Record<string, 'sent' | 'favorited'> = {}
+        const mapping: Record<string, 'sent' | 'favorited' | 'portal'> = {}
         data?.forEach((item: any) => {
           if (item.property_id) {
-            // Internamente no mapa, visualizamos 'acervo' como 'favorited' (AZUL)
-            const type = item.interaction_type === 'acervo' ? 'favorited' : item.interaction_type
-            mapping[item.property_id] = type as any
+            let type: 'sent' | 'favorited' | 'portal' = 'sent'
+            
+            if (item.interaction_type === 'acervo' || item.interaction_type === 'favorited') {
+              type = 'favorited'
+            } else if (item.interaction_type === 'portal_opened') {
+              type = 'portal'
+            } else if (item.interaction_type === 'sent') {
+              type = 'sent'
+            }
+            
+            mapping[item.property_id] = type
           }
         })
         setLeadInteractions(mapping)
@@ -212,6 +220,7 @@ function AtlasManagerContent() {
         matchScore: match?.scorePercentage ?? undefined,
         status: p.status || "available",
         lastInteractionAt: p.updated_at || p.created_at,
+        interactionType: leadInteractions[p.id]
       };
     });
   }, [properties, activeLead, filters, mapMode]);

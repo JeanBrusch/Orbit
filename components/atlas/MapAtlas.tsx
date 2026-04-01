@@ -36,6 +36,7 @@ export interface MapProperty {
   matchScore?: number // 0–100
   lastInteractionAt?: string | null // ISO date
   status?: "available" | "reserved" | "sold"
+  interactionType?: 'sent' | 'favorited' | 'portal'
 }
 
 interface MapAtlasProps {
@@ -52,7 +53,7 @@ interface MapAtlasProps {
   // New Phase 1 props
   mapMode?: MapMode
   activeLeadId?: string | null
-  leadInteractions?: Record<string, 'sent' | 'favorited'>
+  leadInteractions?: Record<string, 'sent' | 'favorited' | 'portal'>
 }
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN
@@ -119,7 +120,7 @@ const PropertyMarker = memo(({
   onMouseLeave: () => void
   mapMode: MapMode
   hasActiveLead: boolean
-  interactionType?: 'sent' | 'favorited'
+  interactionType?: 'sent' | 'favorited' | 'portal'
 }) => {
   const { decay, isUrgent } = usePropertyDecay(prop.lastInteractionAt, prop.matchScore)
   const score = prop.matchScore ?? 0 // 0–100
@@ -145,7 +146,11 @@ const PropertyMarker = memo(({
     : score >= 80 ? 1.3 : score >= 50 ? 1.1 : 0.85
     
   // Interaction colors
-  const interactionColor = interactionType === 'sent' ? '#10B981' : '#3B82F6'
+  const interactionColor = interactionType === 'sent' 
+    ? '#10B981' // Emerald (Sent)
+    : interactionType === 'portal' 
+      ? '#FBBF24' // Amber (Portal Selection) 
+      : '#3B82F6' // Blue (Favorited/Acervo)
 
   // Opacity modulation
   // intent mode: hide noise (low matches)
@@ -304,7 +309,7 @@ export const MapAtlas = forwardRef<any, MapAtlasProps>(function MapAtlasInner({
   onMapClick,
   mapMode = "hybrid" as MapMode,
   activeLeadId,
-  leadInteractions = {},
+  leadInteractions = {} as Record<string, 'sent' | 'favorited' | 'portal'>,
 }, ref) {
   const { resolvedTheme } = useTheme()
   const isDark = resolvedTheme === "dark"

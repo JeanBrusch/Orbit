@@ -63,3 +63,37 @@ export async function assessInteractionGovernance(
 
   return { shouldProcess: false, reason: 'unhandled_type' };
 }
+
+/**
+ * Governança para o Analisador de Silêncio.
+ * Impede chamadas de IA em leads com "vácuo de dados".
+ */
+export async function assessSilenceAnalysisGovernance(leadId: string): Promise<GovernanceResult & { signals: any }> {
+  const supabase = getSupabaseServer();
+
+  const [messagesRes, interactionsRes, memoriesRes] = await Promise.all([
+    supabase.from("messages").select("content").eq("lead_id", leadId).limit(10),
+    supabase.from("property_interactions").select("interaction_type").eq("lead_id", leadId).limit(5),
+    supabase.from("memory_items").select("id").eq("lead_id", leadId).limit(5)
+  ]) as any[];
+
+  const msgCount = messagesRes.data?.filter((m: any) => (m.content?.length || 0) > 10).length || 0;
+  const intCount = interactionsRes.data?.length || 0;
+  const memCount = memoriesRes.data?.length || 0;
+
+  // Cálculo de densidade: Médio sinal se tiver mensagens OK ou interações/memórias.
+  const hasMinMessages = msgCount >= 2;
+  const hasSomeContext = intCount > 0 || memCount > 0;
+
+  const signals = { messages: msgCount, interactions: intCount, memories: memCount };
+
+  if (!hasMinMessages && !hasSomeContext) {
+    return { 
+      shouldProcess: false, 
+      reason: 'insufficient_context',
+      signals
+    };
+  }
+
+  return { shouldProcess: true, signals };
+}

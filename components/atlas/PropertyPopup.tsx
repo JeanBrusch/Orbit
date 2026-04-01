@@ -41,6 +41,30 @@ export const PropertyPopup = ({ property, isDark, onOpenDetails, onClose }: Prop
           </div>
         )}
 
+        {/* Interaction Status Badge */}
+        {property.interactionType && (
+          <div className={`absolute ${property.matchScore ? 'top-14' : 'top-4'} left-4 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-full backdrop-blur-xl border shadow-lg ${
+            property.interactionType === 'sent' 
+              ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400' 
+              : property.interactionType === 'portal'
+                ? 'bg-amber-500/20 border-amber-500/40 text-amber-400'
+                : 'bg-blue-500/20 border-blue-500/40 text-blue-400'
+          }`}>
+             <div className={`w-1.5 h-1.5 rounded-full ${
+               property.interactionType === 'sent' 
+                 ? 'bg-emerald-400' 
+                 : property.interactionType === 'portal'
+                   ? 'bg-amber-400'
+                   : 'bg-blue-400'
+             }`} />
+             <span className="text-[9px] font-bold uppercase tracking-wider">
+               {property.interactionType === 'sent' ? 'Proposto (Selection)' : 
+                property.interactionType === 'portal' ? 'Portal Selection' : 
+                'No Acervo (Curtido)'}
+             </span>
+          </div>
+        )}
+
         <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-black/80 to-transparent pointer-events-none" />
         
         {property.internalCode && (

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { getSupabaseServer } from "@/lib/supabase-server";
 import { trackAICall } from "@/lib/observability";
+import { assessSilenceAnalysisGovernance } from "@/lib/interaction-governance";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -40,6 +41,8 @@ export interface SilenceAnalysis {
   next_step_if_reply: string;
   next_step_if_ignore: string;
   analyzed_at: string;
+  mirroring_profile?: string;
+  central_conflict?: string;
 }
 
 // ─── Route Handler ─────────────────────────────────────────────────────────────
@@ -55,17 +58,22 @@ export async function POST(
   }
 
   try {
-    // ── CONFIGURAÇÃO DE GOVERNANÇA: IA DESATIVADA ──────────────────────────
-    return NextResponse.json(
-      { error: "Análise de Silêncio desativada por governança." },
-      { status: 403 }
-    );
+    // ── 0. GOVERNANÇA: Pré-análise de Densidade de Sinal ──────────────────
+    const governance = await assessSilenceAnalysisGovernance(leadId);
+    if (!governance.shouldProcess) {
+      return NextResponse.json({ 
+        error: "Sinal insuficiente para análise profunda do silêncio.",
+        code: "INSUFFICIENT_CONTEXT",
+        signals: governance.signals,
+        governance_reason: governance.reason
+      }, { status: 422 });
+    }
 
     const supabase = getSupabaseServer();
 
     // ── 1. Buscar dados completos do lead ──────────────────────────────────
     // Correção: SELECT limpo, sem ai_analysis. Memórias ordenadas por confidence.
-    const [leadRes, cogRes, memoriesRes, messagesRes, insightsRes] = await Promise.all([
+    const [leadRes, cogRes, memoriesRes, messagesRes, insightsRes, interactionsRes] = await Promise.all([
       supabase
         .from("leads")
         .select("id, name, phone, lid, orbit_stage, last_interaction_at, action_suggested")
@@ -99,6 +107,13 @@ export async function POST(
         .eq("lead_id", leadId)
         .order("created_at", { ascending: false })
         .limit(5),
+
+      supabase
+        .from("property_interactions")
+        .select("interaction_type, property_id, timestamp, metadata")
+        .eq("lead_id", leadId)
+        .order("timestamp", { ascending: false })
+        .limit(15),
     ]) as any[];
 
     if (!leadRes.data) {
@@ -110,6 +125,7 @@ export async function POST(
     const memories = memoriesRes.data || [];
     const messages = messagesRes.data || [];
     const insights = insightsRes.data || [];
+    const interactions = interactionsRes.data || [];
 
     // ── 2. Calcular dias de silêncio (Correção: sem fallback de 999 dias) ────
     const lastInteraction = lead.last_interaction_at
@@ -151,6 +167,10 @@ export async function POST(
 
     const insightsContext = insights
       .map((i: any) => `• ${i.content} (urgência: ${i.urgency})`)
+      .join("\n");
+
+    const interactionsContext = interactions
+      .map((it: any) => `• [${it.interaction_type}] Imóvel ${it.property_id || 'ID Desconhecido'} em ${new Date(it.timestamp).toLocaleDateString("pt-BR")}`)
       .join("\n");
 
     // ── 5. Prompt para o classificador ────────────────────────────────────
@@ -199,6 +219,11 @@ INSIGHTS COGNITIVOS RECENTES
 ${insightsContext || "Nenhum insight registrado"}
 
 ═══════════════════════════════════════
+INTERAÇÕES RECENTES COM IMÓVEIS (CLIQUES)
+═══════════════════════════════════════
+${interactionsContext || "Nenhuma interação de clique registrada"}
+
+═══════════════════════════════════════
 SUA TAREFA
 ═══════════════════════════════════════
 
@@ -224,14 +249,18 @@ Responda APENAS com este formato JSON:
   "urgency": "high|medium|low|none",
   "best_contact_window": "janela de tempo",
   "next_step_if_reply": "o que fazer se responder",
-  "next_step_if_ignore": "o que fazer se ignorar"
+  "next_step_if_ignore": "o que fazer se ignorar",
+  "central_conflict": "diagnóstico profundo do bloqueio real",
+  "mirroring_profile": "Perfil de espelhamento (ex: Casual, Formal, com Emojis)"
 }`;
 
     // ── 6. Chamar o modelo (GPT-4) ─────────────────────────────────────────
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
     const startGPT = Date.now();
-    const response = await openai.chat.completions.create({
+    
+    // CAMADA 1: GPT-4o-mini para validação e mapeamento de tom
+    const tier1Response = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
         { role: "system", content: systemPrompt },
@@ -240,23 +269,50 @@ Responda APENAS com este formato JSON:
       response_format: { type: "json_object" },
       temperature: 0.1,
     });
-    const elapsedGPT = Date.now() - startGPT;
-    const usage = response.usage;
 
-    if (usage) {
+    const tier1Data = JSON.parse(tier1Response.choices[0].message.content || "{}");
+    
+    let finalParsed = tier1Data;
+    let modelUsed = "gpt-4o-mini";
+    let finalUsage = tier1Response.usage;
+
+    // CAMADA 2: Se a confiança for baixa ou o diagnóstico pedir profundidade, usa GPT-4o
+    if (tier1Data.confidence < 0.7 || tier1Data.silence_reason === "UNKNOWN") {
+      const tier2Response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: `${userPrompt}\n\nATENÇÃO: A análise anterior foi inconclusiva. Use seu raciocínio clínico máximo para encontrar o CONFLITO CENTRAL.` }
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.2,
+      });
+      finalParsed = JSON.parse(tier2Response.choices[0].message.content || "{}");
+      modelUsed = "gpt-4o";
+      
+      // Soma tokens das duas chamadas para o rastro de governança
+      finalUsage = {
+        prompt_tokens: (tier1Response.usage?.prompt_tokens || 0) + (tier2Response.usage?.prompt_tokens || 0),
+        completion_tokens: (tier1Response.usage?.completion_tokens || 0) + (tier2Response.usage?.completion_tokens || 0),
+        total_tokens: (tier1Response.usage?.total_tokens || 0) + (tier2Response.usage?.total_tokens || 0)
+      } as any;
+    }
+
+    const elapsedGPT = Date.now() - startGPT;
+
+    if (finalUsage) {
       await trackAICall({
         module: 'silence_analyzer',
-        model: 'gpt-4o-mini',
+        model: modelUsed,
         lead_id: leadId,
-        tokens_input: usage.prompt_tokens,
-        tokens_output: usage.completion_tokens,
+        tokens_input: finalUsage.prompt_tokens,
+        tokens_output: finalUsage.completion_tokens,
         duration_ms: elapsedGPT,
-        metadata: { action: 'silence_analysis' }
+        metadata: { action: 'silence_analysis_tiered', signals: governance.signals }
       });
     }
 
-    const rawContent = response.choices[0].message.content || "{}";
-    const parsed = JSON.parse(rawContent);
+    const parsed = finalParsed;
 
     // ── 7. Montar resposta final ───────────────────────────────────────────
     const { resolveStrategy } = await import("@/lib/strategy-resolver");
@@ -271,11 +327,13 @@ Responda APENAS com este formato JSON:
       force_patterns: string[];
       hard_constraints: string[];
       hook_requirement: string;
+      model_used: string;
     } = {
       lead_id: leadId,
       days_silent: daysSilent,
       analyzed_at: new Date().toISOString(),
       ...parsed,
+      model_used: modelUsed,
       objective: strategyDef.objective,
       force_patterns: strategyDef.force_patterns,
       hard_constraints: strategyDef.hard_constraints,
