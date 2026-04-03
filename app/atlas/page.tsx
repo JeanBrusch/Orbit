@@ -218,6 +218,8 @@ function AtlasManagerContent() {
         parking_spots: p.parking_spots ?? undefined,
         internalCode: p.internal_code ?? null,
         matchScore: match?.scorePercentage ?? undefined,
+        matchReasons: match?.reasons ?? undefined,
+        matchWarnings: match?.warnings ?? undefined,
         status: p.status || "available",
         lastInteractionAt: p.updated_at || p.created_at,
         interactionType: leadInteractions[p.id]
@@ -421,15 +423,185 @@ function AtlasManagerContent() {
         />
       </div>
 
-      {/* LAYER 2: COGNITIVE DRAWER — High-context operational panel */}
-      <CognitiveDrawer
-        property={selectedProperty}
-        lead={activeLead}
-        isOpen={Boolean(selectedProperty)}
-        onClose={() => setSelectedProperty(null)}
-        isDark={isDark}
-        onAction={handleCognitiveAction}
-      />
+      {/* LAYER 2: COGNITIVE DRAWER — Only when a lead is active */}
+      {activeLead && (
+        <CognitiveDrawer
+          property={selectedProperty}
+          lead={activeLead}
+          isOpen={Boolean(selectedProperty)}
+          onClose={() => setSelectedProperty(null)}
+          isDark={isDark}
+          onAction={handleCognitiveAction}
+        />
+      )}
+
+      {/* LAYER 2 ALT: PROPERTY DETAIL PANEL — When no lead is active */}
+      <AnimatePresence>
+        {selectedProperty && !activeLead && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedProperty(null)}
+              className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[90]"
+            />
+            <motion.div
+              initial={{ y: "100%", x: 0 }}
+              animate={{ y: 0, x: 0, transition: { type: "spring", damping: 30, stiffness: 300 } }}
+              exit={{ y: "100%" }}
+              className={`fixed bottom-0 md:top-0 md:right-0 h-[85vh] md:h-screen w-full md:max-w-[400px] z-[100] border-t md:border-t-0 md:border-l shadow-2xl flex flex-col rounded-t-[32px] md:rounded-t-none overflow-hidden ${
+                isDark ? 'bg-[#0A0A0B] border-white/10' : 'bg-white border-slate-200'
+              }`}
+            >
+              {/* Mobile Handle */}
+              <div className="w-full flex justify-center pt-3 pb-1 md:hidden">
+                <div className={`w-12 h-1.5 rounded-full ${isDark ? 'bg-white/10' : 'bg-slate-200'}`} />
+              </div>
+
+              {/* Header */}
+              <div className={`p-5 border-b shrink-0 flex items-center justify-between ${isDark ? 'bg-white/2 border-white/5' : 'bg-slate-50 border-slate-100'}`}>
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-xl bg-[#C9A84C]/20 text-[#C9A84C]">
+                    <Sparkles size={18} />
+                  </div>
+                  <div>
+                    <h3 className={`text-sm font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>Ficha do Imóvel</h3>
+                    <p className={`text-[10px] uppercase tracking-widest ${isDark ? 'text-white/40' : 'text-slate-500'}`}>Property Detail</p>
+                  </div>
+                </div>
+                <button onClick={() => setSelectedProperty(null)} className={`p-2 rounded-full hover:bg-black/10 transition-colors ${isDark ? 'text-white/40' : 'text-slate-400'}`}>
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Scrollable Content */}
+              <div className="flex-1 overflow-y-auto custom-scrollbar">
+                {/* Photos */}
+                {selectedProperty.photos && selectedProperty.photos.length > 0 && (
+                  <div className={`relative h-52 w-full border-b ${isDark ? 'border-white/5 bg-black' : 'border-slate-100 bg-slate-50'}`}>
+                    {(() => {
+                      const { PropertyCarousel } = require("@/components/atlas/PropertyCarousel")
+                      return <PropertyCarousel photos={selectedProperty.photos} isDark={isDark} height="h-52" />
+                    })()}
+                  </div>
+                )}
+
+                <div className="p-6 space-y-6">
+                  {/* Name & Location */}
+                  <div className="space-y-1.5">
+                    <h3 className={`text-lg font-bold leading-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                      {selectedProperty.name}
+                    </h3>
+                    <p className={`text-[11px] uppercase tracking-[0.1em] opacity-60 ${isDark ? 'text-white' : 'text-slate-500'}`}>
+                      {selectedProperty.locationText || selectedProperty.neighborhood || 'Endereço indisponível'}
+                    </p>
+                  </div>
+
+                  {/* Price */}
+                  <div className={`pb-4 border-b ${isDark ? 'border-white/5' : 'border-slate-100'}`}>
+                    <span className={`text-[9px] uppercase tracking-widest font-mono opacity-50 ${isDark ? 'text-white' : 'text-black'}`}>
+                      Valor de Investimento
+                    </span>
+                    <div className="text-2xl font-bold tracking-tight" style={{ color: '#C9A84C' }}>
+                      {selectedProperty.value
+                        ? `R$ ${selectedProperty.value.toLocaleString('pt-BR')}`
+                        : 'Sob Consulta'}
+                    </div>
+                  </div>
+
+                  {/* Technical Grid */}
+                  <div>
+                    <h4 className={`text-[9px] uppercase tracking-widest font-mono opacity-50 mb-2.5 ${isDark ? 'text-white' : 'text-black'}`}>
+                      Dados Técnicos
+                    </h4>
+                    <div className="grid grid-cols-3 gap-2">
+                      {(selectedProperty.area_privativa || selectedProperty.area_total) && (
+                        <div className={`p-3 rounded-2xl flex flex-col items-center justify-center gap-1 border ${isDark ? 'bg-white/3 border-white/5' : 'bg-slate-50 border-slate-100'}`}>
+                          <span className={`text-sm font-mono font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                            {Math.round(selectedProperty.area_privativa || selectedProperty.area_total || 0)}m²
+                          </span>
+                          <span className="text-[7px] uppercase tracking-tighter opacity-40">Área</span>
+                        </div>
+                      )}
+                      {Number(selectedProperty.bedrooms ?? 0) > 0 && (
+                        <div className={`p-3 rounded-2xl flex flex-col items-center justify-center gap-1 border ${isDark ? 'bg-white/3 border-white/5' : 'bg-slate-50 border-slate-100'}`}>
+                          <span className={`text-sm font-mono font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                            {selectedProperty.bedrooms}
+                          </span>
+                          <span className="text-[7px] uppercase tracking-tighter opacity-40">Dorms</span>
+                        </div>
+                      )}
+                      {Number(selectedProperty.suites ?? 0) > 0 && (
+                        <div className={`p-3 rounded-2xl flex flex-col items-center justify-center gap-1 border ${isDark ? 'bg-white/3 border-white/5' : 'bg-slate-50 border-slate-100'}`}>
+                          <span className={`text-sm font-mono font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                            {selectedProperty.suites}
+                          </span>
+                          <span className="text-[7px] uppercase tracking-tighter opacity-40">Suítes</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Features */}
+                  {selectedProperty.features && selectedProperty.features.length > 0 && (
+                    <div>
+                      <h4 className={`text-[9px] uppercase tracking-widest font-mono opacity-50 mb-2.5 ${isDark ? 'text-white' : 'text-black'}`}>
+                        Características
+                      </h4>
+                      <div className="flex flex-wrap gap-1.5">
+                        {selectedProperty.features.map((feat: string, i: number) => (
+                          <span key={i} className={`px-2.5 py-1 rounded-lg text-[10px] font-medium border ${isDark ? 'bg-white/5 border-white/10 text-white/70' : 'bg-slate-50 border-slate-100 text-slate-600'}`}>
+                            {feat}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Actions */}
+                  <div className={`pt-4 border-t space-y-3 ${isDark ? 'border-white/5' : 'border-slate-100'}`}>
+                    <h4 className={`text-[9px] uppercase tracking-widest font-mono opacity-50 mb-2.5 ${isDark ? 'text-white' : 'text-black'}`}>
+                      Ações
+                    </h4>
+                    <div className="grid grid-cols-2 gap-2">
+                      {selectedProperty.url && (
+                        <a
+                          href={selectedProperty.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={`flex items-center justify-center gap-2 px-3 py-3 rounded-2xl border text-xs font-medium transition-all ${isDark ? 'border-white/10 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white' : 'border-slate-200 bg-white text-slate-500 hover:text-slate-900'}`}
+                        >
+                          <Link2 className="w-3.5 h-3.5 opacity-60" />
+                          Link Original
+                        </a>
+                      )}
+                      <button
+                        onClick={() => {
+                          setEditingProperty(selectedProperty)
+                          setIsEditModalOpen(true)
+                        }}
+                        className={`flex items-center justify-center gap-2 px-3 py-3 rounded-2xl border text-xs font-medium transition-all ${isDark ? 'border-white/10 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white' : 'border-slate-200 bg-white text-slate-500 hover:text-slate-900'}`}
+                      >
+                        <Sparkles className="w-3.5 h-3.5 opacity-60" />
+                        Editar
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Internal code */}
+                  {selectedProperty.internalCode && (
+                    <div className={`flex items-center gap-2 text-[10px] font-mono opacity-30 ${isDark ? 'text-white' : 'text-slate-500'}`}>
+                      <span className="uppercase tracking-wider">Código:</span>
+                      <span>{selectedProperty.internalCode}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* 
         LAYER 2: TOP FLOATING BAR 

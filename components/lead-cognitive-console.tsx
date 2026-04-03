@@ -1367,11 +1367,14 @@ export function LeadCognitiveConsole({ leadId, isOpen, onClose }: LeadCognitiveC
     try {
       if (interactionMode === "note") {
         // Send as Internal Note
+        console.log("[COG] Sending note to API:", { leadId, text });
         const noteRes = await fetch(`/api/lead/${leadId}/note`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ content: text }),
         });
+
+        console.log("[COG] Note API response:", noteRes.status, await noteRes.clone().json().catch(() => ({})));
 
         if (!noteRes.ok) {
           throw new Error("Falha ao salvar nota");

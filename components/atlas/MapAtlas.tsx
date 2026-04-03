@@ -5,10 +5,9 @@ import Map, { Marker, Popup, NavigationControl } from "react-map-gl/mapbox"
 import 'mapbox-gl/dist/mapbox-gl.css'
 import type { ViewState } from "react-map-gl/mapbox"
 import { motion } from "framer-motion"
-import { Globe, Map as MapIcon, Ruler } from "lucide-react"
+import { Globe, Map as MapIcon } from "lucide-react"
 import { ZenOverlay } from "./ZenOverlay"
-import { PropertyCarousel } from "./PropertyCarousel"
-import { PropertyPopup } from "./PropertyPopup"
+import { PropertyPopup, PropertyPopupCompact } from "./PropertyPopup"
 import { useTheme } from "next-themes"
 import type { MapMode } from "@/components/atlas/AtlasTopBar"
 import { usePropertyDecay } from "@/hooks/use-property-decay"
@@ -34,6 +33,8 @@ export interface MapProperty {
   internalCode?: string | null
   // Match fields (injected externally)
   matchScore?: number // 0–100
+  matchReasons?: string[]
+  matchWarnings?: string[]
   lastInteractionAt?: string | null // ISO date
   status?: "available" | "reserved" | "sold"
   interactionType?: 'sent' | 'favorited' | 'portal'
@@ -101,17 +102,17 @@ function getCoreColor(status?: string): string {
 //   Outer Field: variable ring — match score (intent layer)
 // ─────────────────────────────────────────────────────────────────────────────
 
-const PropertyMarker = memo(({ 
-  prop, 
-  isSelected, 
-  isHovered, 
-  onClick, 
-  onMouseEnter, 
+const PropertyMarker = memo(({
+  prop,
+  isSelected,
+  isHovered,
+  onClick,
+  onMouseEnter,
   onMouseLeave,
   mapMode,
   hasActiveLead,
   interactionType,
-}: { 
+}: {
   prop: MapProperty
   isSelected: boolean
   isHovered: boolean
@@ -125,7 +126,7 @@ const PropertyMarker = memo(({
   const { decay, isUrgent } = usePropertyDecay(prop.lastInteractionAt, prop.matchScore)
   const score = prop.matchScore ?? 0 // 0–100
   const coreColor = getCoreColor(prop.status)
-  
+
   // Momentum Glow: Extra glow for premium matches (score > 85)
   const isPremium = score >= 85 && hasActiveLead
 
@@ -144,11 +145,11 @@ const PropertyMarker = memo(({
   const markerScale = mapMode === "inventory" || !hasActiveLead
     ? (interactionType ? 1.05 : 1)
     : score >= 80 ? 1.3 : score >= 50 ? 1.1 : 0.85
-    
+
   // Interaction colors
-  const interactionColor = interactionType === 'sent' 
+  const interactionColor = interactionType === 'sent'
     ? '#10B981' // Emerald (Sent)
-    : interactionType === 'portal' 
+    : interactionType === 'portal'
       ? '#FBBF24' // Amber (Portal Selection) 
       : '#3B82F6' // Blue (Favorited/Acervo)
 
@@ -156,7 +157,7 @@ const PropertyMarker = memo(({
   // intent mode: hide noise (low matches)
   const baseOpacity = 1.0 - (decay * 0.45)
   let intentOpacity = baseOpacity
-  
+
   if (mapMode === "intent" && hasActiveLead) {
     if (score < 40) intentOpacity = 0.05 // Almost hidden
     else if (score < 60) intentOpacity = 0.4
@@ -168,13 +169,13 @@ const PropertyMarker = memo(({
   const size = isSelected ? 52 : isHovered ? 46 : 36
 
   return (
-    <Marker 
-      longitude={prop.lng!} 
+    <Marker
+      longitude={prop.lng!}
       latitude={prop.lat!}
       anchor="center"
       style={{ zIndex: isSelected ? 50 : isHovered ? 40 : 10 }}
     >
-      <div 
+      <div
         className="group relative cursor-pointer"
         style={{
           width: size,
@@ -251,10 +252,10 @@ const PropertyMarker = memo(({
               transition: "r 300ms ease, fill 300ms ease",
             }}
           />
-          
+
           {/* Interaction Halo — specific indicator for Acervo/Proposto */}
           {interactionType && (
-            <circle 
+            <circle
               cx="26" cy="26" r="11"
               fill="none"
               stroke={interactionColor}
@@ -341,8 +342,8 @@ export const MapAtlas = forwardRef<any, MapAtlasProps>(function MapAtlasInner({
   // FlyTo selected
   useEffect(() => {
     if (selectedProp?.lat && selectedProp?.lng && mapRef.current) {
-       setClickedProperty(selectedProp)
-       mapRef.current.flyTo({
+      setClickedProperty(selectedProp)
+      mapRef.current.flyTo({
         center: [selectedProp.lng, selectedProp.lat],
         zoom: 16,
         pitch: 60,
@@ -385,26 +386,26 @@ export const MapAtlas = forwardRef<any, MapAtlasProps>(function MapAtlasInner({
   // Click handler
   const handleMapClick = (e: any) => {
     if (onMapClick && isPlacing) {
-        onMapClick(e.lngLat.lat, e.lngLat.lng)
+      onMapClick(e.lngLat.lat, e.lngLat.lng)
     } else {
-        setClickedProperty(null)
-        onPropertyDeselect?.()
+      setClickedProperty(null)
+      onPropertyDeselect?.()
     }
   }
 
   const handleMarkerClick = useCallback((p: MapProperty) => {
     setClickedProperty(p)
     onPropertyClick?.(p)
-    
+
     // Zoom in on click
     if (mapRef.current && p.lat && p.lng) {
-        mapRef.current.flyTo({
-            center: [p.lng, p.lat],
-            zoom: 17,
-            pitch: 55,
-            duration: 1500,
-            essential: true
-        })
+      mapRef.current.flyTo({
+        center: [p.lng, p.lat],
+        zoom: 17,
+        pitch: 55,
+        duration: 1500,
+        essential: true
+      })
     }
   }, [onPropertyClick])
 
@@ -450,99 +451,48 @@ export const MapAtlas = forwardRef<any, MapAtlasProps>(function MapAtlasInner({
           />
         ))}
 
-        {/* Rich Hover Popup (Reality Layer) */}
+        {/* Hover Popup — compact variant of PropertyPopup (with carousel, no CTA) */}
         {hoveredProperty?.lat && hoveredProperty?.lng && hoveredProperty.id !== clickedProperty?.id && (
           <Popup
             longitude={hoveredProperty.lng}
             latitude={hoveredProperty.lat}
             closeButton={false}
             anchor="bottom"
-            offset={15}
+            offset={20}
             className="atlas-rich-hover-popup z-[60]"
           >
-            <motion.div 
-               initial={{ opacity: 0, y: 10, scale: 0.95 }}
-               animate={{ opacity: 1, y: 0, scale: 1 }}
-               className={`w-64 rounded-3xl overflow-hidden shadow-2xl backdrop-blur-3xl border ${
-                 isDark ? 'bg-[#0a0a0f]/95 border-white/10' : 'bg-white/95 border-slate-200'
-               }`}
-            >
-               <div className="relative h-32 w-full overflow-hidden">
-                 {(hoveredProperty.photos && hoveredProperty.photos.length > 0) ? (
-                   <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${hoveredProperty.photos[0]})` }} />
-                 ) : hoveredProperty.coverImage ? (
-                   <img src={hoveredProperty.coverImage} alt="" className="h-full w-full object-cover" />
-                 ) : (
-                   <div className={`h-full w-full ${isDark ? 'bg-zinc-800' : 'bg-slate-200'}`} />
-                 )}
-                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                 {hoveredProperty.photos && hoveredProperty.photos.length > 1 && (
-                   <div className="absolute bottom-2 right-2 px-1.5 py-0.5 rounded bg-black/50 backdrop-blur-md text-[8px] font-mono text-white/80">
-                     {hoveredProperty.photos.length}f
-                   </div>
-                 )}
-               </div>
-               
-               <div className="p-3 space-y-2">
-                 <div className="space-y-0.5">
-                   <div className={`text-[11px] font-bold leading-tight line-clamp-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                     {hoveredProperty.name}
-                   </div>
-                   <div className={`text-[9px] uppercase tracking-wider opacity-50 ${isDark ? 'text-white/60' : 'text-slate-500'}`}>
-                     {hoveredProperty.neighborhood || hoveredProperty.locationText || "Localização"}
-                   </div>
-                 </div>
-                 
-                 <div className="flex items-center justify-between">
-                   <span className="text-[13px] font-mono font-bold" style={{ color: TOKEN.primary }}>
-                     {formatValue(hoveredProperty.value)}
-                   </span>
-                 </div>
-
-                 <div className="flex items-center justify-between gap-2 pt-2 border-t border-white/5">
-                    <div className="flex items-center gap-1">
-                      <Ruler className="w-3 h-3 text-zinc-500" />
-                      <span className="text-[10px] font-medium text-zinc-400">{hoveredProperty.area_privativa || 0}m²</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {Number(hoveredProperty.bedrooms ?? 0) > 0 && (
-                        <span className="text-[9px] font-bold text-zinc-500">{hoveredProperty.bedrooms}Q</span>
-                      )}
-                      {Number(hoveredProperty.suites ?? 0) > 0 && (
-                        <span className="text-[9px] font-bold text-zinc-500">{hoveredProperty.suites}Suite</span>
-                      )}
-                      {Number(hoveredProperty.parking_spots ?? 0) > 0 && (
-                        <span className="text-[9px] font-bold text-zinc-500">{hoveredProperty.parking_spots}V</span>
-                      )}
-                    </div>
-                 </div>
-               </div>
-            </motion.div>
+            <PropertyPopupCompact
+              property={{
+                ...hoveredProperty,
+                interactionType: leadInteractions[hoveredProperty.id] ?? hoveredProperty.interactionType,
+              }}
+              isDark={isDark}
+            />
           </Popup>
         )}
 
         {/* Detailed Click Popup (Intent/Action Layer) */}
         {clickedProperty?.lat && clickedProperty?.lng && (
-            <Popup
-                longitude={clickedProperty.lng}
-                latitude={clickedProperty.lat}
-                closeButton={false}
-                closeOnClick={false}
-                onClose={() => setClickedProperty(null)}
-                anchor="bottom"
-                offset={25}
-                className="atlas-premium-popup z-[70]"
-            >
-                <PropertyPopup 
-                    property={clickedProperty} 
-                    isDark={isDark} 
-                    onOpenDetails={() => {
-                        // This can trigger the sidebar in the parent
-                        onPropertyClick?.(clickedProperty)
-                    }}
-                    onClose={() => setClickedProperty(null)}
-                />
-            </Popup>
+          <Popup
+            longitude={clickedProperty.lng}
+            latitude={clickedProperty.lat}
+            closeButton={false}
+            closeOnClick={false}
+            onClose={() => setClickedProperty(null)}
+            anchor="bottom"
+            offset={25}
+            className="atlas-premium-popup z-[70]"
+          >
+            <PropertyPopup
+              property={clickedProperty}
+              isDark={isDark}
+              onOpenDetails={() => {
+                // This can trigger the sidebar in the parent
+                onPropertyClick?.(clickedProperty)
+              }}
+              onClose={() => setClickedProperty(null)}
+            />
+          </Popup>
         )}
 
         {/* Preview Marker (property placement during ingestion) */}
@@ -561,13 +511,12 @@ export const MapAtlas = forwardRef<any, MapAtlasProps>(function MapAtlasInner({
       <div className="absolute bottom-6 left-6 z-[110]">
         <button
           onClick={() => setIsSatellite(!isSatellite)}
-          className={`group flex items-center gap-2 px-3 py-2 rounded-xl backdrop-blur-xl border transition-all shadow-2xl ${
-            isSatellite 
-              ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400 font-bold" 
-              : isDark 
-                ? "bg-[#14120c]/80 border-[#C9A84C]/20 text-[#C9A84C]/60 hover:text-[#C9A84C] font-bold" 
+          className={`group flex items-center gap-2 px-3 py-2 rounded-xl backdrop-blur-xl border transition-all shadow-2xl ${isSatellite
+              ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400 font-bold"
+              : isDark
+                ? "bg-[#14120c]/80 border-[#C9A84C]/20 text-[#C9A84C]/60 hover:text-[#C9A84C] font-bold"
                 : "bg-white/80 border-[var(--orbit-line)] text-[var(--orbit-text-muted)] hover:text-[var(--orbit-text)] font-bold"
-          }`}
+            }`}
         >
           {isSatellite ? (
             <>

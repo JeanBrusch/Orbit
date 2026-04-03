@@ -43,7 +43,7 @@ export interface IngestedProperty {
   rawExtractedData?: Record<string, unknown> // Raw data from scraping
 }
 
-// Property interface - used for map display
+// Property interface - used for map display and property detail
 export interface Property {
   id: string
   name: string
@@ -62,6 +62,17 @@ export interface Property {
   // Geographic location
   lat?: number | null
   lng?: number | null
+  // Technical property data (from Supabase)
+  photos?: string[]
+  area_privativa?: number
+  area_total?: number
+  bedrooms?: number
+  suites?: string | number | null
+  parking_spots?: string | number | null
+  neighborhood?: string | null
+  features?: string[]
+  internal_code?: string | null
+  condo_fee?: string | number | null
   // Reference to full ingested property
   ingestedData?: IngestedProperty
 }

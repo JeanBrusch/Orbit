@@ -16,7 +16,8 @@ export async function POST(
 
     const supabase = getSupabaseServer();
 
-    // 1. Insert internal note into messages table
+    console.log("[API NOTE] Saving note for lead:", leadId, "content:", content);
+
     const { data: newMessage, error: insertError } = await supabase
       .from("messages")
       .insert({
@@ -29,9 +30,11 @@ export async function POST(
       .single();
 
     if (insertError) {
-      console.error("[API NOTE] Error inserting note:", insertError);
-      return NextResponse.json({ error: "Erro ao salvar nota interna" }, { status: 500 });
+      console.error("[API NOTE] Insert error:", insertError);
+      throw new Error(`Insert failed: ${insertError.message}`);
     }
+
+    console.log("[API NOTE] Insert result:", { newMessage });
 
     await supabase
       .from('lead_cognitive_state')
